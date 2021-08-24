@@ -20,12 +20,13 @@
     (set! res (hash-set res sym stx)))
   
   (let rec ([stx stx]
-            [pat pat])
+            [pat pat]
+            [last-stx stx])
     (match pat
       [(pany)
        (void)]
       [(pvar s)
-       (add-pvar! s stx)]
+       (add-pvar! s (if (syntax? stx) stx (datum->syntax last-stx stx last-stx last-stx)))]
       [(cons p1 p2)
        (define v (maybe-syntax-e stx))
        (when (not (pair? v))
@@ -34,8 +35,8 @@
           (format "expected pair, found ~a"
                   (syntax->datum stx))
           stx))
-       (rec (car v) p1)
-       (rec (cdr v) p2)]
+       (rec (car v) p1 (if (syntax? stx) stx last-stx))
+       (rec (cdr v) p2 (if (syntax? stx) stx last-stx))]
       [lit
        (define v (if (syntax? stx) (syntax->datum stx) stx))
        (when (not (equal? lit v))
