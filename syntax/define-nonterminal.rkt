@@ -2,6 +2,7 @@
 
 (provide define-binding-class
          define-extension-class
+         define-nonterminals
          define-nonterminal
          (for-syntax binding-class-predicate))
 
@@ -239,19 +240,21 @@
 (module definitions racket/base
   (provide define-binding-class
            define-extension-class
+           define-nonterminals
            define-nonterminal)
   
   (require
     (for-syntax
      racket/base
+     racket/list
      racket/syntax
      syntax/parse
      (submod ".." stxclasses)
      (submod ".." expander)
      (submod ".." errors))
     (for-meta 2
-     racket/base
-     (submod ".." env-reps)))
+              racket/base
+              (submod ".." env-reps)))
 
   (define-syntax define-binding-class
     (syntax-parser
@@ -279,34 +282,47 @@
                              (quote-syntax sname-pred)
                              (quote-syntax sname-acc)))))]))
   
-  (define-syntax define-nonterminal
+  (define-syntax define-nonterminals
     (syntax-parser
-      [(_ name:id
-          #:expander expander-name:id
-          #:else f:id
-          (~optional (~seq #:allow-extension eclass:id))
-          (~optional (~seq #:define-literal-set set-name:id))
-          prod:production-spec
+      [(_ [name:id
+           #:expander expander-name:id
+           #:else f:id
+           (~optional (~seq #:allow-extension eclass:id))
+           (~optional (~seq #:define-literal-set set-name:id))
+           prod:production-spec
+           ...]
           ...)
 
-       (let ([maybe-dup-id (check-duplicate-identifier (attribute prod.name))])
+       (let ([maybe-dup-id (check-duplicate-identifier (flatten (attribute prod.name)))])
          (when maybe-dup-id
            (wrong-syntax maybe-dup-id "duplicate form name")))
 
        #'(begin
            ; TODO improve message
-           (define-syntax prod.name (error-as-expression "may not be used as an expression"))
+           (begin
+             (define-syntax prod.name (error-as-expression "may not be used as an expression"))
+             ...)
            ...
            (begin-for-syntax
-             (~? (define-literal-set set-name (prod.name) ...)
-                 (begin))
+             (begin
+               (~? (define-literal-set set-name (prod.name) ...)
+                   (begin))
+               ...)
              (define-syntax name (nonterm-rep #'expander-name))
+             ...
              (define expander-name
                (nonterminal-expander
                 #:allow-extension (~? eclass #f)
                 #:else f
-                prod ...)))
-           )])))
+                prod ...))
+             ...)
+           )]))
+  (define-syntax define-nonterminal
+    (syntax-parser
+      [(_ . spec)
+       #'(define-nonterminals
+           spec)]))
+  )
 
 (require (submod "." definitions))
 
