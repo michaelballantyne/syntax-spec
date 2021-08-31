@@ -22,7 +22,7 @@
             (for-nested nested))
           (begin body ...)))))
 
-;; `exp-state` is (hashof symbol? syntax?)
+;; `exp-state` is (hashof symbol? (treeof syntax?))
 
 ;; spec, exp-state -> exp-state
 (define (simple-expand spec exp-state)
