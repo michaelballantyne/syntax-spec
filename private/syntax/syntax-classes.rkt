@@ -22,7 +22,10 @@
  ;;   bspec
  ;;   form-name - when sspec is an s-expression beginning with a nonref-id,
  ;;                 this attribute is bound to that id.
- production-spec)
+ production-spec
+
+ extclass-spec
+ )
 
 
 (require
@@ -61,3 +64,7 @@
     (string-split (symbol->string (syntax-e id)) ":" #:trim? #f))
   (values (format-id id (first strs))
           (format-id id (second strs))))
+
+(define-splicing-syntax-class extclass-spec
+  (pattern v:id #:attr [classes 1] (list #'v))
+  (pattern (classes:id ...)))

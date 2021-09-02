@@ -56,7 +56,7 @@
   (syntax-parser
     [(_ [name:id
          #:description description:string
-         (~optional (~seq #:allow-extension extclass:id))
+         (~optional (~seq #:allow-extension ext:extclass-spec))
          prod:production-spec
          ...]
         ...)
@@ -78,8 +78,8 @@
              
              (define expander-name
                (generate-nonterminal-expander
-                #:allow-extension (~? extclass #f)
                 #:description description
+                #:allow-extension (~? (ext.classes ...) ())
                 prod ...))
              ...)
            ))]))
