@@ -3,20 +3,13 @@
 (provide compile-nonterminal-expander)
   
 (require racket/base
-         racket/list
-         racket/match
          syntax/parse
-         syntax/stx
-         syntax/parse/class/paren-shape
          syntax/id-table
-         syntax/id-set
          ee-lib
          "../syntax-classes.rkt"
          "../env-reps.rkt"
          "syntax-spec.rkt"
          "binding-spec.rkt"
-         
-         (only-in syntax/parse/private/residual-ct stxclass? has-stxclass-prop?)
 
          (for-template racket/base
                        "../../runtime/binding-spec.rkt"
@@ -70,6 +63,6 @@
          #:do [(define binding (lookup #'m m-pred))]
          #:when binding
          (recur (apply-as-transformer (m-acc binding)
-                                   #'m
-                                   'definition
-                                   this-syntax))])))
+                                      #'m
+                                      'definition
+                                      this-syntax))])))
