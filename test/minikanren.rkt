@@ -42,7 +42,7 @@
   (disj2 g1:goal g2:goal)
   (conj2 g1:goal g2:goal)
   
-  (fresh1 (x:term-variable) b:goal)
+  (fresh1 (x:term-variable ...) b:goal)
   #:binding {(! x) b}
 
   (r:relation-name . a:relation-args)
@@ -72,10 +72,8 @@
 (define-syntax fresh
   (goal-macro
    (syntax-parser
-     [(_ (x:id) b ...+)
-      #'(fresh1 (x) (conj b ...))]
-     [(_ (x:id x*:id ...) b ...+)
-      #'(fresh1 (x) (fresh (x* ...) b ...))])))
+     [(_ (x:id ...+) b ...+)
+      #'(fresh1 (x ...) (conj b ...))])))
 
 (define-syntax conde
   (goal-macro

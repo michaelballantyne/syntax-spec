@@ -16,7 +16,7 @@
 (define-syntax-rule
   (for/tree ([item init]) body ...)
   (let for-nested ([list-at-depth init])
-    (let ([item init])
+    (let ([item list-at-depth])
       (if (list? item)
           (for/list ([nested item])
             (for-nested nested))

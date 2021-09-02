@@ -6,7 +6,8 @@
    syntax/parse
    ee-lib
    "../binding-spec/spec.rkt"
-   "../binding-spec/expand.rkt")
+   "../binding-spec/expand.rkt"
+   "../syntax/private/rebind-pattern-vars.rkt")
   
   ee-lib/define)
 
@@ -27,9 +28,9 @@
         (simple-expand
          (ref 'v mylang-binding? "unbound mylang var reference")
          (hash
-          'v #'v))
+          'v (pattern-var-value v)))
         'v)]
-      [(mylang-let ([v e]) b)
+      [(mylang-let ([v e] ...) b)
        (define res
          (simple-expand
           (group
@@ -41,17 +42,18 @@
                (bind 'v mylang-binding)
                (subexp 'b mylang-expand-expr))))))
           (hash
-           'v #'v
-           'e #'e
-           'b #'b)))
-       #`(mylang-let ([#,(hash-ref res 'v)
-                       #,(hash-ref res 'e)])
-                     #,(hash-ref res 'b))])))
+           'v (pattern-var-value v)
+           'e (pattern-var-value e)
+           'b (pattern-var-value b))))
+       
+       (rebind-pattern-vars ([(v e b) (values (hash-ref res 'v) (hash-ref res 'e) (hash-ref res 'b))])
+                            #`(mylang-let ([v e] ...)
+                                          b))])))
 
 (define-syntax (mylang stx)
   (syntax-parse stx
     [(_ e)
      #`#'#,(mylang-expand-expr #'e)]))
 
-(mylang (mylang-let ([x 5])
+(mylang (mylang-let ([x 5] [y 6])
                     x))

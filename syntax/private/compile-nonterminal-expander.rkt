@@ -13,12 +13,13 @@
          ee-lib
          "syntax-classes.rkt"
          "env-reps.rkt"
+         
          (only-in syntax/parse/private/residual-ct stxclass? has-stxclass-prop?)
 
          (for-template racket/base
-                       "../../syntax-spec/spec.rkt"
                        "../../binding-spec/spec.rkt"
-                       "runtime.rkt"  
+                       "../../binding-spec/expand.rkt"
+                       "rebind-pattern-vars.rkt"
                        syntax/parse
                        ee-lib))
 
@@ -27,9 +28,10 @@
     [(#:allow-extension (~or extclass:id #f)
       #:description description
       (prod:production-spec) ...)
-     (with-syntax ([(prod-pat ...) (stx-map generate-pattern #'(prod.sspec ...))]
-                   [(sspec-e ...) (stx-map compile-sspec #'(prod.sspec ...))]
+     (with-syntax ([((v ...) ...) (stx-map extract-pvars #'(prod.sspec ...))]
+                   [(prod-pat ...) (stx-map generate-pattern #'(prod.sspec ...))]
                    [(bspec-e ...) (stx-map compile-bspec #'(prod ...))]
+                   [(template ...) (stx-map generate-template #'(prod.sspec ...))]
                    [macro-clause
                     (if (attribute extclass)
                           
@@ -52,10 +54,10 @@
              (syntax-parse stx
                macro-clause
                [prod-pat
-                (nonterminal-expander-rt
-                 stx
-                 sspec-e
-                 bspec-e)]
+                (let* ([in (hash (~@ 'v (pattern-var-value v)) ...)]
+                       [out (simple-expand bspec-e in)])
+                  (rebind-pattern-vars ([(v ...) (values (hash-ref out 'v) ...)])
+                     #'template))]
                ...
                [_ (raise-syntax-error
                    #f
@@ -75,6 +77,8 @@
       #:context 'generate-pattern-term
       [()
        #'()]
+      [(~literal ...)
+       #'(... ...)]
       [(t1 . t2)
        (with-syntax ([t1-c (generate-pattern-term #'t1)]
                      [t2-c (generate-pattern-term #'t2)])
@@ -82,41 +86,56 @@
       [r:ref-id
        #:do [(define binding (lookup #'r.ref bindclass-rep?))]
        #:when binding
-       #'_:id]
+       #'(~var r.var id)]
       [r:ref-id
        #:do [(define binding (lookup #'r.ref nonterm-rep?))]
        #:when binding
-       #'_]
+       #'r.var]
       [r:ref-id
        #:do [(define binding (lookup #'r.ref (lambda (v) (or (stxclass? v)
                                                              (has-stxclass-prop? v)))))]
        #:when binding
-       #'(~var _ r.ref)]))
+       #'(~var r.var r.ref)]))
       
   (generate-pattern-form stx))
-    
-(define (compile-sspec stx)
-  (define compile-sspec-form
+
+(define (generate-template stx)
+  (define generate-template-form
     (syntax-parser
-      #:context 'compile-sspec-form
-      [(name:nonref-id . d)
-       (with-syntax ([d-c (compile-sspec-term #'d)])
-         #'(cons (pany) d-c))]
-      [_ (compile-sspec-term this-syntax)]))
-      
-  (define compile-sspec-term
+      #:context 'generate-pattern-form
+      [(name:nonref-id . term)
+       (with-syntax ([term-c (generate-template-term #'term)])
+         #'(name . term-c))]
+      [_ (generate-template-term this-syntax)]))
+  (define generate-template-term
     (syntax-parser
-      #:context 'compile-sspec-term
-      [(a . d)
-       (with-syntax ([a-c (compile-sspec-term #'a)]
-                     [d-c (compile-sspec-term #'d)])
-         #'(cons a-c d-c))]
+      #:context 'generate-template-term
+      [()
+       #'()]
+      [(~literal ...)
+       #'(... ...)]
+      [(t1 . t2)
+       (with-syntax ([t1-c (generate-template-term #'t1)]
+                     [t2-c (generate-template-term #'t2)])
+         #'(t1-c . t2-c))]
       [r:ref-id
-       #'(pvar 'r.var)]
-      [lit
-       #''lit]))
+       #:do [(define binding (lookup #'r.ref bindclass-rep?))]
+       #:when binding
+       #'r.var]
+      [r:ref-id
+       #:do [(define binding (lookup #'r.ref nonterm-rep?))]
+       #:when binding
+       #'r.var]
+      [r:ref-id
+       #:do [(define binding (lookup #'r.ref (lambda (v) (or (stxclass? v)
+                                                             (has-stxclass-prop? v)))))]
+       #:when binding
+       #'r.var]))
       
-  (compile-sspec-form stx))
+  (generate-template-form stx))
+
+(define (extract-pvars stx)
+  (bound-id-table-keys (extract-var-mapping stx)))
 
 (define (extract-var-mapping stx)
   (define res (make-immutable-bound-id-table))
