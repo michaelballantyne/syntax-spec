@@ -9,6 +9,6 @@
           binding-class-constructor
           nonterminal-expander))
 
-(require "private/interface-macros.rkt")
+(require "private/syntax/interface-macros.rkt")
 
 

@@ -28,11 +28,11 @@
 ; (not syntax lists) matching the pattern variable depth.
 (define-syntax rebind-pattern-vars
   (syntax-parser
-    [(_ ([(var ...) rhs]) body ...)
+    [(_ (var ...) rhs body)
      (with-syntax ([(depth ...)
                     (for/list ([v (syntax->list #'(var ...))])
                       (syntax-mapping-depth (get-pvar-info v)))]
                    [(new-val ...) (generate-temporaries #'(var ...))])
        #'(let-values ([(new-val ...) rhs])
            (let-syntaxes ([(var ...) (values (make-syntax-mapping 'depth #'new-val) ...)])
-              body ...)))]))
+              body)))]))

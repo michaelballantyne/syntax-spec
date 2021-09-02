@@ -5,7 +5,7 @@
          (struct-out nonterm-rep))
 
 (require syntax/parse
-         "errors.rkt"      
+         "../runtime/errors.rkt"      
          (for-template racket/base))
 
 (define (nonterm-lang-error-as-expression type)

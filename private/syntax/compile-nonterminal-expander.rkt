@@ -17,8 +17,7 @@
          (only-in syntax/parse/private/residual-ct stxclass? has-stxclass-prop?)
 
          (for-template racket/base
-                       "../../binding-spec/spec.rkt"
-                       "../../binding-spec/expand.rkt"
+                       "../runtime/binding-spec.rkt"
                        "rebind-pattern-vars.rkt"
                        syntax/parse
                        ee-lib))
@@ -56,8 +55,10 @@
                [prod-pat
                 (let* ([in (hash (~@ 'v (pattern-var-value v)) ...)]
                        [out (simple-expand bspec-e in)])
-                  (rebind-pattern-vars ([(v ...) (values (hash-ref out 'v) ...)])
-                     #'template))]
+                  (rebind-pattern-vars
+                   (v ...)
+                   (values (hash-ref out 'v) ...)
+                   #'template))]
                ...
                [_ (raise-syntax-error
                    #f

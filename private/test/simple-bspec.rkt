@@ -5,8 +5,7 @@
    racket/base
    syntax/parse
    ee-lib
-   "../binding-spec/spec.rkt"
-   "../binding-spec/expand.rkt")
+   "../runtime/binding-spec.rkt")
   
   ee-lib/define)
 
@@ -53,5 +52,15 @@
     [(_ e)
      #`#'#,(mylang-expand-expr #'e)]))
 
-(mylang (mylang-let ([x 5])
-                    x))
+(require rackunit syntax/macro-testing)
+
+(check-equal?
+ (syntax->datum
+  (mylang (mylang-let ([x 5]) x)))
+ '(mylang-let ((x 5)) x))
+
+(check-exn
+ #rx"^y: unbound mylang var reference$"
+ (lambda ()
+   (convert-compile-time-error
+    (mylang (mylang-let ([x 5]) y)))))

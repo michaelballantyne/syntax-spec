@@ -16,7 +16,7 @@
    racket/syntax
    syntax/parse
    "syntax-classes.rkt"
-   "errors.rkt")
+   "../runtime/errors.rkt")
   (for-meta 2
             racket/base
             syntax/parse
@@ -66,7 +66,7 @@
        (when maybe-dup-id
          (wrong-syntax maybe-dup-id "duplicate form name")))
 
-     (define/syntax-parse expander-name (generate-temporary #'expander))
+     (define/syntax-parse (expander-name ...) (generate-temporaries #'(name ...)))
        
      #'(begin
          ; TODO improve message

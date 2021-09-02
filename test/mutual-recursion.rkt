@@ -1,0 +1,82 @@
+#lang racket/base
+
+(require "../main.rkt"
+         rackunit
+         (for-syntax racket/base syntax/parse racket/pretty))
+
+(define-binding-class var "while variable")
+
+(define-extension-class expr-macro)
+(define-extension-class stmt-macro)
+
+(define-nonterminals
+  [expr
+   #:description "expression"
+
+   n:number
+
+   v:var
+   
+   (+ e1:expr e2:expr)
+   (< e1:expr e2:expr)
+
+   (vars (v:var ...) e:expr)
+   #:binding {(! v) e}
+   
+   (do s:stmt ... e:expr)
+   
+   ]
+  
+  [stmt
+   #:description "statement"
+   #:allow-extension stmt-macro
+
+   (set v:var e:expr)
+
+   (print e:expr)
+   
+   (while e:expr
+          s:stmt ...)
+   
+   (stmts s:stmt ...)
+
+   ])
+
+; simulated interface macro
+(define-syntax while-expr
+  (syntax-parser
+    [(_ e) #`'#,((nonterminal-expander expr) #'e)]))
+
+; sugar
+(define-syntax for
+  (stmt-macro
+   (syntax-parser
+     [(_ [init cond incr] stmt ...)
+      #'(stmts
+         init
+         (while cond
+                stmt ...
+                incr))])))
+      
+
+(check-equal?
+ (while-expr
+  (vars (i x)
+        (do
+          (set x 5)
+          (for [(set i 0) (< i x) (set i (+ i 1))]
+            (print i))
+          i)))
+ (while-expr
+  (vars (i x)
+        (do
+          (set x 5)
+
+          (stmts
+           (set i 0)
+           (while (< i x)
+             (print i)
+             (set i (+ i 1))))
+          
+          i))))
+

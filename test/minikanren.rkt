@@ -1,6 +1,7 @@
 #lang racket/base
 
-(require "../syntax/define-nonterminal.rkt"
+(require "../main.rkt"
+         rackunit
          (for-syntax racket/base syntax/parse racket/pretty))
 
 (define-binding-class term-variable "miniKanren term variable")
@@ -14,7 +15,6 @@
   s:id
   ()
   (a:quoted . d:quoted))
-
 
 (define-nonterminal term
   #:description "miniKanren term"
@@ -51,23 +51,20 @@
 ; Simulated interface macros
 (define-syntax mk
   (syntax-parser
-    [(_ e)
-     (pretty-display (syntax->datum ((nonterminal-expander goal) #'e)))
-     #'(void)]))
-
-(define-syntax define-relation
-  (syntax-parser
-    [(_ (name:id arg:id ...) b)
-     #'(begin
-        (define-syntax name ((binding-class-constructor relation-name)))
-        (mk (fresh (arg ...) b)))]))
+    [(_ e) #``#,((nonterminal-expander goal) #'e)]))
 
 ; Surface syntax
 (define-syntax conj
   (goal-macro
    (syntax-parser
      [(_ g) #'g]
-     [(_ g1 g* ...) #'(conj2 g1 (conj g* ...))])))
+     [(_ g1 g2 g* ...) #'(conj (conj2 g1 g2) g* ...)])))
+
+(define-syntax disj
+  (goal-macro
+   (syntax-parser
+     [(_ g) #'g]
+     [(_ g1 g* ...) #'(disj2 g1 (disj g* ...))])))
 
 (define-syntax fresh
   (goal-macro
@@ -78,17 +75,28 @@
 (define-syntax conde
   (goal-macro
    (syntax-parser
-     [(_ [g0 g1 ...] c* ...)
-      (syntax-parse #'(c* ...)
-        [() #'(conj g0 g1 ...)]
-        [_  #'(disj2
-               (conj g0 g1 ...)
-               (conde c* ...))])])))
+     [(_ [g ...+] ...+)
+      #'(disj
+         (conj g ...)
+         ...)])))
 
-(define-relation (appendo l1 l2 l3)
-  (conde
-   [(== l1 '()) (== l3 l2)]  ; base case
-   [(fresh (head rest result) ; recursive case
-      (== (cons head rest) l1)
-      (== (cons head result) l3)
-      (appendo rest l2 result))]))
+(define-syntax appendo ((binding-class-constructor relation-name)))
+
+(define expanded
+  (mk (fresh (l1 l2 l3)
+             (conde
+              [(== l1 '()) (== l3 l2)]  ; base case
+              [(fresh (head rest result) ; recursive case
+                      (== (cons head rest) l1)
+                      (== (cons head result) l3)
+                      (appendo rest l2 result))]))))
+
+(check-equal?
+ expanded
+ `(fresh1 (l1 l2 l3)
+          (disj2
+           (conj2 (== l1 '()) (== l3 l2))
+           (fresh1 (head rest result)
+                   (conj2 (conj2 (== (cons head rest) l1)
+                                 (== (cons head result) l3))
+                          (appendo rest l2 result))))))
