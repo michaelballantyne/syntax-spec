@@ -15,13 +15,18 @@
  binding-spec-well-formed?
 
  simple-expand)
-  
+
 
 (require
   racket/match
   racket/list
   racket/set
   ee-lib)
+
+
+;;
+;; Representation
+;;
 
 ;; Binding `spec`
 ;; is one of:
@@ -68,6 +73,11 @@
     [(group specs)
      (for/and ([spec specs])
        (binding-spec-well-formed? spec svars))]))
+
+
+;;
+;; Expansion
+;;
 
 ;; `exp-state` is (hashof symbol? (treeof syntax?))
 

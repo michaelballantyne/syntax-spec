@@ -4,14 +4,14 @@
          rackunit
          (for-syntax racket/base syntax/parse racket/pretty))
 
-(define-binding-class var "while variable")
+(define-binding-class var "while-language variable")
 
 (define-extension-class expr-macro)
 (define-extension-class stmt-macro)
 
 (define-nonterminals
   [expr
-   #:description "expression"
+   #:description "while-language expression"
 
    n:number
 
@@ -28,7 +28,7 @@
    ]
   
   [stmt
-   #:description "statement"
+   #:description "while-language statement"
    #:allow-extension stmt-macro
 
    (set v:var e:expr)

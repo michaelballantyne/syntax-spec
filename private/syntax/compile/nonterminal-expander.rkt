@@ -11,14 +11,14 @@
          syntax/id-table
          syntax/id-set
          ee-lib
-         "syntax-classes.rkt"
-         "env-reps.rkt"
+         "../syntax-classes.rkt"
+         "../env-reps.rkt"
          
          (only-in syntax/parse/private/residual-ct stxclass? has-stxclass-prop?)
 
          (for-template racket/base
-                       "../runtime/binding-spec.rkt"
-                       "rebind-pattern-vars.rkt"
+                       "../../runtime/binding-spec.rkt"
+                       "pattern-var-reflection.rkt"
                        syntax/parse
                        ee-lib))
 
@@ -182,7 +182,7 @@
        (when (not binding)
          (raise-syntax-error #f "no corresponding pattern variable" #'v))
        (match binding
-         [(nonterm-rep exp-proc)
+         [(nonterm-rep exp-proc _)
           #`(subexp 'v #,exp-proc)]
          [(bindclass-rep description _ pred)
           #`(ref 'v #,pred #,(string-append "not bound as " description))])]

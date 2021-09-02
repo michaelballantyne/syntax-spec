@@ -60,7 +60,7 @@
  '(mylang-let ((x 5)) x))
 
 (check-exn
- #rx"^y: unbound mylang var reference$"
+ #rx"y: unbound mylang var reference"
  (lambda ()
    (convert-compile-time-error
     (mylang (mylang-let ([x 5]) y)))))

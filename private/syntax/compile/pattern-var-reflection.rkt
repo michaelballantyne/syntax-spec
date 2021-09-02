@@ -1,7 +1,19 @@
 #lang racket/base
 
-(provide rebind-pattern-vars
-         pattern-var-value)
+(provide
+ ; (pattern-var-value v)
+ ;
+ ; Access the nested list of syntax objects assocated with pattern variable `v`.
+ pattern-var-value
+
+ ; (rebind-pattern-vars (v ...) e b)
+ ;
+ ; Rebind the pattern variables `v ...` to the values returned by `e`, for use in `b`.
+ ;
+ ; `e` must return a value for each pattern variable `v`, where the value has nested
+ ; list structure matching the depth associated with the pattern variable.
+ rebind-pattern-vars
+ )
 
 (require (for-syntax racket/base
                      syntax/parse
@@ -11,21 +23,11 @@
                               syntax-mapping-depth
                               syntax-mapping-valvar)))
 
-
-(define-for-syntax (get-pvar-info v)
-  (define (unbound-error) (raise-syntax-error #f "not bound as pattern var" v))
-  (define binding (syntax-local-value v unbound-error))
-  (when (not (syntax-pattern-variable? binding))
-                        (unbound-error))
-  binding)
-
 (define-syntax pattern-var-value
   (syntax-parser
     [(_ v:id)
      (syntax-mapping-valvar (get-pvar-info #'v))]))
 
-; invariant: rhs must return a value for each var, where the value has nested list structure
-; (not syntax lists) matching the pattern variable depth.
 (define-syntax rebind-pattern-vars
   (syntax-parser
     [(_ (var ...) rhs body)
@@ -35,4 +37,11 @@
                    [(new-val ...) (generate-temporaries #'(var ...))])
        #'(let-values ([(new-val ...) rhs])
            (let-syntaxes ([(var ...) (values (make-syntax-mapping 'depth #'new-val) ...)])
-              body)))]))
+                         body)))]))
+
+(define-for-syntax (get-pvar-info v)
+  (define (unbound-error) (raise-syntax-error #f "not bound as pattern var" v))
+  (define binding (syntax-local-value v unbound-error))
+  (when (not (syntax-pattern-variable? binding))
+    (unbound-error))
+  binding)

@@ -7,22 +7,24 @@
 
          (for-syntax binding-class-predicate
                      binding-class-constructor
-                     nonterminal-expander))
+                     nonterminal-expander
+                     nonterminal-literal-set))
   
 (require
   (for-syntax
    racket/base
    racket/list
+   racket/function
    racket/syntax
    syntax/parse
-   "syntax-classes.rkt"
-   "../runtime/errors.rkt")
+   "syntax-classes.rkt")
+  ee-lib/define
   (for-meta 2
             racket/base
             syntax/parse
             ee-lib
             "env-reps.rkt"
-            "compile-nonterminal-expander.rkt"))
+            "compile/nonterminal-expander.rkt"))
 
 (define-syntax define-binding-class
   (syntax-parser
@@ -55,43 +57,45 @@
     [(_ [name:id
          #:description description:string
          (~optional (~seq #:allow-extension extclass:id))
-         #;(~optional (~seq #:define-literal-set set-name:id))
          prod:production-spec
          ...]
         ...)
 
-     (let ([maybe-dup-id (check-duplicate-identifier
-                          (filter (lambda (x) x)
-                                  (flatten (attribute prod.form-name))))])
-       (when maybe-dup-id
-         (wrong-syntax maybe-dup-id "duplicate form name")))
+     (check-duplicate-forms (attribute prod.form-name))
 
-     (define/syntax-parse (expander-name ...) (generate-temporaries #'(name ...)))
-       
-     #'(begin
-         ; TODO improve message
-         (begin
-           (~? (define-syntax prod.form-name
-                 (error-as-expression "may not be used as an expression"))
-               (begin))
-           ...)
-         ...
-         (begin-for-syntax
-           #;(begin
-               (~? (define-literal-set set-name (prod.form-name ...))
-                   (begin))
-               ...)
-           (define-syntax name (nonterm-rep #'expander-name))
+     (with-syntax ([((form-name ...) ...) (for/list ([prod-forms (attribute prod.form-name)])
+                                            (filter identity prod-forms))]
+                   [(expander-name ...) (generate-temporaries #'(name ...))]
+                   [(litset-name ...) (generate-temporaries #'(name ...))]
+                   [(error-message ...) (map make-error-message (attribute description))])
+       #'(begin
+           (define-literal-forms litset-name 'error-message (form-name ...))
            ...
-           (define expander-name
-             (generate-nonterminal-expander
-              #:allow-extension (~? extclass #f)
-              #:description description
-              prod ...))
-           ...)
-         )]))
+           
+           (begin-for-syntax
+             (define-syntax name (nonterm-rep #'expander-name #'litset-name))
+             ...
+             
+             (define expander-name
+               (generate-nonterminal-expander
+                #:allow-extension (~? extclass #f)
+                #:description description
+                prod ...))
+             ...)
+           ))]))
 
 (begin-for-syntax
+  (define (check-duplicate-forms form-names)
+    (let ([maybe-dup-id (check-duplicate-identifier
+                         (filter identity (flatten form-names)))])
+      (when maybe-dup-id
+        (wrong-syntax maybe-dup-id "duplicate form name"))))
+
+  (define (make-error-message description)
+    (string-append
+     (syntax-e description)
+     " may not be used as an expression"))
+  
   (define-syntax generate-nonterminal-expander
     (syntax-parser [(_ . decls) (compile-nonterminal-expander #'decls)])))
 
@@ -118,4 +122,7 @@
     (accessor-macro bindclass-rep? "not bound as binding class" bindclass-rep-pred))
 
   (define-syntax nonterminal-expander
-    (accessor-macro nonterm-rep? "not bound as nonterminal" nonterm-rep-exp-proc)))
+    (accessor-macro nonterm-rep? "not bound as nonterminal" nonterm-rep-exp-proc))
+
+  (define-syntax nonterminal-literal-set
+    (accessor-macro nonterm-rep? "not bound as nonterminal" nonterm-rep-litset-ref)))

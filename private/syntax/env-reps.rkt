@@ -20,7 +20,7 @@
   (syntax-parse stx
     [(_ e)
      (with-syntax ([constr (extclass-rep-constr s)])
-       #`(constr e))]))
+       #'(constr e))]))
 
 (struct bindclass-rep (description constr pred)
   #:property prop:procedure
@@ -30,6 +30,6 @@
   #:property prop:procedure
   expand-as-constructor)
 
-(struct nonterm-rep (exp-proc)
+(struct nonterm-rep (exp-proc litset-ref)
   #:property prop:procedure
   (nonterm-lang-error-as-expression "nonterminals"))
