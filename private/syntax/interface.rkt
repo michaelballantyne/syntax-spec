@@ -17,7 +17,8 @@
    racket/function
    racket/syntax
    syntax/parse
-   "syntax-classes.rkt")
+   "syntax-classes.rkt"
+   "../runtime/errors.rkt")
   ee-lib/define
   (for-meta 2
             racket/base
@@ -54,7 +55,7 @@
   
 (define-syntax define-nonterminals
   (syntax-parser
-    [(_ [name:id
+    [(_ [name:id (~optional (nested-id:id))
          #:description description:string
          (~optional (~seq #:allow-extension ext:extclass-spec))
          prod:production-spec
@@ -67,19 +68,23 @@
                                             (filter identity prod-forms))]
                    [(expander-name ...) (generate-temporaries #'(name ...))]
                    [(litset-name ...) (generate-temporaries #'(name ...))]
-                   [(error-message ...) (map make-error-message (attribute description))])
+                   [(error-message ...) (map make-error-message (attribute description))]
+                   [(rep-to-use ...) (map (lambda (nested-id)
+                                            (if nested-id #'sequence-nonterm-rep #'nonterm-rep))
+                                          (attribute nested-id))])
        #'(begin
            (define-literal-forms litset-name 'error-message (form-name ...))
            ...
            
            (begin-for-syntax
-             (define-syntax name (nonterm-rep #'expander-name #'litset-name))
+             (define-syntax name (rep-to-use #'expander-name #'litset-name))
              ...
              
              (define expander-name
                (generate-nonterminal-expander
                 #:description description
                 #:allow-extension (~? (ext.classes ...) ())
+                #:nested-id (~? nested-id #f)
                 prod ...))
              ...)
            ))]))

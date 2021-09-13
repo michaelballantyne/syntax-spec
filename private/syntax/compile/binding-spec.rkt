@@ -20,7 +20,7 @@
   (define compile-bspec-term
     (syntax-parser
       #:context 'compile-bspec-term
-      #:datum-literals (! ^)
+      #:datum-literals (! ^ nest)
       [v:nonref-id
        (define binding (bound-id-table-ref varmap #'v #f))
        (when (not binding)
@@ -29,7 +29,11 @@
          [(nonterm-rep exp-proc _)
           #`(subexp 'v #,exp-proc)]
          [(bindclass-rep description _ pred)
-          #`(ref 'v #,pred #,(string-append "not bound as " description))])]
+          #`(ref 'v #,pred #,(string-append "not bound as " description))]
+         [(continuation-binding rtvar)
+          #`(continue #,rtvar)]
+         [(? sequence-nonterm-rep?)
+          (raise-syntax-error #f "sequence nonterminals may only be used with fold" #'v)])]
       [(! v:nonref-id ...+)
        (with-syntax
            ([(v-c ...)
@@ -41,17 +45,23 @@
                  [(bindclass-rep _ constr _)
                   #`(bind '#,v #,constr)]))])
          #'(group (list v-c ...)))]
-      [(^ v:ref-id ...+)
+      [(^ v:nonref-id ...+)
        (raise-syntax-error #f "^ not implemented yet" this-syntax)]
+      [(nest v:nonref-id spec)
+       (define binding (bound-id-table-ref varmap (attribute v) #f))
+       (when (not binding)
+         (raise-syntax-error #f "no corresponding pattern variable" #'v))
+       (when (not (sequence-nonterm-rep? binding))
+         (raise-syntax-error 'fold "not a sequence nonterminal" #'v))
+       (with-syntax ([spec-c (compile-bspec-term (attribute spec))])
+         #`(seq-fold 'v #,(sequence-nonterm-rep-exp-proc binding) spec-c))]
       [(~braces spec ...)
        (with-syntax ([(spec-c ...) (map compile-bspec-term (attribute spec))])
          #'(scope (group (list spec-c ...))))]
       [(~brackets spec ...)
        (with-syntax ([(spec-c ...) (map compile-bspec-term (attribute spec))])
          #'(group (list spec-c ...)))]))
-            
-  
-      
+
   (define/syntax-parse (unreferenced-pvars ...)
     (bound-id-set->list
      (bound-id-set-subtract
@@ -63,13 +73,15 @@
 (define bspec-referenced-pvars
   (syntax-parser
     #:context 'bspec-referenced-pvars
-    #:datum-literals (! ^)
+    #:datum-literals (! ^ nest)
     [v:nonref-id
      (list #'v)]
     [(! v:nonref-id ...+)
      (attribute v)]
     [(^ v:ref-id ...+)
      (attribute v)]
+    [(nest v e)
+     (cons (attribute v) (bspec-referenced-pvars (attribute e)))]
     [(~braces spec ...)
      (flatten (map bspec-referenced-pvars (attribute spec)))]
     [(~brackets spec ...)

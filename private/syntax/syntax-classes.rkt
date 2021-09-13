@@ -36,6 +36,7 @@
 
 
 (define-syntax-class ref-id
+  #:description "pattern variable with annotation"
   (pattern name:id #:when (has:? #'name)
            #:do [(define-values (var ref) (split: #'name))]
            #:attr var var
@@ -62,8 +63,8 @@
 (define (split: id)
   (define strs
     (string-split (symbol->string (syntax-e id)) ":" #:trim? #f))
-  (values (format-id id (first strs))
-          (format-id id (second strs))))
+  (values (datum->syntax id (string->symbol (first strs)) id id)
+          (datum->syntax id (string->symbol (second strs)) id id)))
 
 (define-splicing-syntax-class extclass-spec
   (pattern v:id #:attr [classes 1] (list #'v))

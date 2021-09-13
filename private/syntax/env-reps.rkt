@@ -2,7 +2,9 @@
 
 (provide (struct-out bindclass-rep)
          (struct-out extclass-rep)
-         (struct-out nonterm-rep))
+         (struct-out nonterm-rep)
+         (struct-out sequence-nonterm-rep)
+         (struct-out continuation-binding))
 
 (require syntax/parse
          "../runtime/errors.rkt"      
@@ -33,3 +35,9 @@
 (struct nonterm-rep (exp-proc litset-ref)
   #:property prop:procedure
   (nonterm-lang-error-as-expression "nonterminals"))
+
+(struct sequence-nonterm-rep (exp-proc litset-ref)
+  #:property prop:procedure
+  (nonterm-lang-error-as-expression "sequence nonterminals"))
+
+(struct continuation-binding [rt-var])

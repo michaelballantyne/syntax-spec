@@ -39,7 +39,8 @@
        #:when binding
        #'(~var r.var id)]
       [r:ref-id
-       #:do [(define binding (lookup #'r.ref nonterm-rep?))]
+       #:do [(define binding (lookup #'r.ref (lambda (v) (or (nonterm-rep? v)
+                                                             (sequence-nonterm-rep? v)))))]
        #:when binding
        #'r.var]
       [r:ref-id
@@ -75,7 +76,8 @@
        #:when binding
        #'r.var]
       [r:ref-id
-       #:do [(define binding (lookup #'r.ref nonterm-rep?))]
+       #:do [(define binding (lookup #'r.ref (lambda (v) (or (nonterm-rep? v)
+                                                             (sequence-nonterm-rep? v)))))]
        #:when binding
        #'r.var]
       [r:ref-id
@@ -103,12 +105,14 @@
                                (lambda (v)
                                  (or (bindclass-rep? v)
                                      (nonterm-rep? v)
+                                     (sequence-nonterm-rep? v)
                                      (stxclass? v)
                                      (has-stxclass-prop? v)))))
        (when (not binding)
          (raise-syntax-error #f "not a binding class, syntax class, or nonterminal" #'r.ref))
        (when (or (bindclass-rep? binding)
-                 (nonterm-rep? binding))
+                 (nonterm-rep? binding)
+                 (sequence-nonterm-rep? binding))
          (set! res (bound-id-table-set res #'r.var binding)))]
       [_ (void)]))
 

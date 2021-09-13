@@ -21,8 +21,8 @@
   (syntax-parse stx
     [(#:description description
       #:allow-extension (extclass ...)
+      #:nested-id #f
       (prod:production-spec) ...)
-
      (with-syntax ([prod-clauses (map generate-prod-clause (attribute prod.sspec) (attribute prod.bspec))]
                    [macro-clauses (for/list ([extclass (attribute extclass)])
                                     (generate-macro-clause extclass #'recur))])
@@ -34,12 +34,32 @@
                [_ (raise-syntax-error
                    #f
                    (string-append "not a " (#%datum . description))
+                   this-syntax)]))))]
+    [(#:description description
+      #:allow-extension (extclass ...)
+      #:nested-id nested-id:id
+      (prod:production-spec) ...)
+     (with-syntax ([prod-clauses (map (lambda (sspec bspec) (generate-prod-clause sspec bspec #'nested-id))
+                                      (attribute prod.sspec) (attribute prod.bspec))]
+                   [macro-clauses (for/list ([extclass (attribute extclass)])
+                                    (generate-macro-clause extclass #'recur))])
+       #'(lambda (stx-a k)
+           (let recur ([stx stx-a])
+             (syntax-parse stx
+               (~@ . macro-clauses)
+               (~@ . prod-clauses)
+               [_ (raise-syntax-error
+                   #f
+                   (string-append "not a " (#%datum . description))
                    this-syntax)]))))]))
 
-(define (generate-prod-clause sspec bspec)
-  (define varmap (sspec-varmap sspec))
-
-  (with-syntax ([(v ...) (bound-id-table-keys varmap)]
+(define (generate-prod-clause sspec bspec [nested-id #f])
+  (define spec-varmap (sspec-varmap sspec))
+  (define varmap (if nested-id
+                     (bound-id-table-set spec-varmap nested-id (continuation-binding #'k))
+                     spec-varmap))
+  
+  (with-syntax ([(v ...) (bound-id-table-keys spec-varmap)]
                 [pattern (compile-sspec-to-pattern sspec)]
                 [bspec-e (compile-bspec bspec varmap)]
                 [template (compile-sspec-to-template sspec)])
