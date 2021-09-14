@@ -4,50 +4,46 @@
          rackunit
          (for-syntax racket/base syntax/parse racket/pretty))
 
-(define-binding-class var "while-language variable")
+(define-hosted-syntaxes
+  (binding-class var "while-language variable")
 
-(define-extension-class expr-macro)
-(define-extension-class stmt-macro)
+  (extension-class expr-macro)
+  (extension-class stmt-macro)
 
-(define-nonterminals
-  [expr
-   #:description "while-language expression"
+  (nonterminal expr
+    #:description "while-language expression"
 
-   n:number
+    n:number
 
-   v:var
+    v:var
    
-   (+ e1:expr e2:expr)
-   (< e1:expr e2:expr)
+    (+ e1:expr e2:expr)
+    (< e1:expr e2:expr)
 
-   (vars (v:var ...) e:expr)
-   #:binding {(! v) e}
+    (vars (v:var ...) e:expr)
+    #:binding {(! v) e}
    
-   (do s:stmt ... e:expr)
+    (do s:stmt ... e:expr))
+
+  (nonterminal stmt
+    #:description "while-language statement"
+    #:allow-extension stmt-macro
+
+    (set v:var e:expr)
+
+    (print e:expr)
    
-   ]
-  
-  [stmt
-   #:description "while-language statement"
-   #:allow-extension stmt-macro
-
-   (set v:var e:expr)
-
-   (print e:expr)
+    (while e:expr
+           s:stmt ...)
    
-   (while e:expr
-          s:stmt ...)
-   
-   (stmts s:stmt ...)
+    (stmts s:stmt ...)))
 
-   ])
-
-; simulated interface macro
+;; simulated interface macro
 (define-syntax while-expr
   (syntax-parser
     [(_ e) #`'#,((nonterminal-expander expr) #'e)]))
 
-; sugar
+;; sugar
 (define-syntax for
   (stmt-macro
    (syntax-parser
@@ -58,6 +54,7 @@
                 stmt ...
                 incr))])))
       
+;; tests
 
 (check-equal?
  (while-expr
@@ -79,4 +76,3 @@
              (set i (+ i 1))))
           
           i))))
-

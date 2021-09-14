@@ -4,50 +4,51 @@
          rackunit
          (for-syntax racket/base syntax/parse racket/pretty))
 
-(define-binding-class term-variable "miniKanren term variable")
-(define-binding-class relation-name "miniKanren relation name")
-(define-extension-class term-macro)
-(define-extension-class goal-macro)
-
-(define-nonterminal quoted
-  #:description "quoted value"
-  n:number
-  s:id
-  ()
-  (a:quoted . d:quoted))
-
-(define-nonterminal term
-  #:description "miniKanren term"
-  n:number
-  x:term-variable
-  (quote t:quoted)
-  (cons t1:term t2:term))
-
-(define-nonterminal relation-args
-  #:description "relation arguments list"
-  ()
-  (t:term . a:relation-args))
-
-(define-nonterminal goal
-  #:description "miniKanren goal"
-  #:allow-extension goal-macro
-
-  (== t1:term t2:term)
-  (=/= t1:term t2:term)
-  (absento t1:term t2:term)
-  (symbolo t:term)
-  (numbero t:term)
-  (stringo t:term)
-
-  (disj2 g1:goal g2:goal)
-  (conj2 g1:goal g2:goal)
+(define-hosted-syntaxes
+  (binding-class term-variable "miniKanren term variable")
+  (binding-class relation-name "miniKanren relation name")
   
-  (fresh1 (x:term-variable ...) b:goal)
-  #:binding {(! x) b}
+  (extension-class term-macro)
+  (extension-class goal-macro)
+  
+  (nonterminal quoted
+    #:description "quoted value"
+    n:number
+    s:id
+    ()
+    (a:quoted . d:quoted))
 
-  (r:relation-name . a:relation-args)
-  )
+  (nonterminal term
+    #:description "miniKanren term"
+    n:number
+    x:term-variable
+    (quote t:quoted)
+    (cons t1:term t2:term))
 
+  (nonterminal relation-args
+    #:description "relation arguments list"
+    ()
+    (t:term . a:relation-args))
+
+  (nonterminal goal
+    #:description "miniKanren goal"
+    #:allow-extension goal-macro
+    
+    (== t1:term t2:term)
+    (=/= t1:term t2:term)
+    (absento t1:term t2:term)
+    (symbolo t:term)
+    (numbero t:term)
+    (stringo t:term)
+
+    (disj2 g1:goal g2:goal)
+    (conj2 g1:goal g2:goal)
+  
+    (fresh1 (x:term-variable ...) b:goal)
+    #:binding {(! x) b}
+    
+    (r:relation-name . a:relation-args)))
+  
 ; Simulated interface macros
 (define-syntax mk
   (syntax-parser

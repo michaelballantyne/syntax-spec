@@ -1,6 +1,6 @@
 #lang racket/base
 
-(require "../syntax/rebind-pattern-vars.rkt"
+(require "../syntax/compile/pattern-var-reflection.rkt"
          syntax/stx
          rackunit)
 

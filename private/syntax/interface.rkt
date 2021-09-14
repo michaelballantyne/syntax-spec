@@ -1,10 +1,6 @@
 #lang racket/base
 
-(provide define-binding-class
-         define-extension-class
-         define-nonterminals
-         define-nonterminal
-
+(provide define-hosted-syntaxes
          (for-syntax binding-class-predicate
                      binding-class-constructor
                      nonterminal-expander
@@ -14,9 +10,11 @@
   (for-syntax
    racket/base
    racket/list
+   racket/match
    racket/function
    racket/syntax
    syntax/parse
+   ee-lib
    "syntax-classes.rkt"
    "../runtime/errors.rkt")
   ee-lib/define
@@ -27,67 +25,117 @@
             "env-reps.rkt"
             "compile/nonterminal-expander.rkt"))
 
-(define-syntax define-binding-class
+(define-syntax define-hosted-syntaxes
   (syntax-parser
-    [(_ name:id description:expr)
-     (with-syntax ([sname (format-id #'here "~a-var" #'name)]
-                   [sname-pred (format-id #'here "~a-var?" #'name)])
-       #'(begin-for-syntax
-           (struct sname [])
-           (define-syntax name
-             (bindclass-rep
-              (#%datum . description)
-              (quote-syntax sname)
-              (quote-syntax sname-pred)))))]))
-
-(define-syntax define-extension-class
-  (syntax-parser
-    [(_ name:id)
-     (with-syntax ([sname (format-id #'here "~a" #'name)]
-                   [sname-pred (format-id #'here "~a?" #'name)]
-                   [sname-acc (format-id #'here "~a-transformer" #'name)])
-       #'(begin-for-syntax
-           (struct sname [transformer])
-           (define-syntax name
-             (extclass-rep (quote-syntax sname)
-                           (quote-syntax sname-pred)
-                           (quote-syntax sname-acc)))))]))
-  
-(define-syntax define-nonterminals
-  (syntax-parser
-    [(_ [name:id (~optional (nested-id:id))
-         #:description description:string
-         (~optional (~seq #:allow-extension ext:extclass-spec))
-         prod:production-spec
-         ...]
-        ...)
-
-     (check-duplicate-forms (attribute prod.form-name))
-
-     (with-syntax ([((form-name ...) ...) (for/list ([prod-forms (attribute prod.form-name)])
-                                            (filter identity prod-forms))]
-                   [(expander-name ...) (generate-temporaries #'(name ...))]
-                   [(litset-name ...) (generate-temporaries #'(name ...))]
-                   [(error-message ...) (map make-error-message (attribute description))]
-                   [(rep-to-use ...) (map (lambda (nested-id)
-                                            (if nested-id #'sequence-nonterm-rep #'nonterm-rep))
-                                          (attribute nested-id))])
+    #:context 'define-hosted-syntaxes
+    [(_ form ...+)
+     (match-define
+       (list (list pass1-res expander-defs) ...)
+       (for/list ([stx (attribute form)])
+         (let-values ([(a b) (define-hosted-syntaxes-compile-form stx)])
+           (list a b))))
+     
+     (with-syntax ([(pass1 ...) pass1-res]
+                   [(expander-def ...) (filter identity expander-defs)])
        #'(begin
-           (define-literal-forms litset-name 'error-message (form-name ...))
+           pass1
            ...
-           
            (begin-for-syntax
-             (define-syntax name (rep-to-use #'expander-name #'litset-name))
+             expander-def
+             ...)))]))
+
+(begin-for-syntax
+  (define/hygienic (define-hosted-syntaxes-compile-form stx) #:expression
+    (syntax-parse stx
+      #:context 'define-hosted-syntaxes-pass1
+      #:datum-literals (binding-class extension-class nonterminal)
+      
+      [(binding-class name:id description:expr)
+       (with-syntax ([sname (format-id #'here "~a-var" #'name)]
+                     [sname-pred (format-id #'here "~a-var?" #'name)])
+         (values
+          #'(begin-for-syntax
+              (struct sname [])
+              (define-syntax name
+                (bindclass-rep
+                 (#%datum . description)
+                 (quote-syntax sname)
+                 (quote-syntax sname-pred))))
+          #f))]
+      
+      [(extension-class name:id)
+       (with-syntax ([sname (format-id #'here "~a" #'name)]
+                     [sname-pred (format-id #'here "~a?" #'name)]
+                     [sname-acc (format-id #'here "~a-transformer" #'name)])
+         (values
+          #'(begin-for-syntax
+              (struct sname [transformer])
+              (define-syntax name
+                (extclass-rep (quote-syntax sname)
+                              (quote-syntax sname-pred)
+                              (quote-syntax sname-acc))))
+          #f))]
+
+      [(nonterminal name:id (~optional (nested-id:id))
+                    #:description description:string
+                    (~optional (~seq #:allow-extension ext:extclass-spec))
+                    prod:production-spec ...)
+
+       (check-duplicate-forms (attribute prod.form-name))
+
+       (with-syntax ([litset-name (generate-temporary #'name)]
+                     [error-message (make-error-message (attribute description))]
+                     [(form-name ...) (filter identity (attribute prod.form-name))]
+                     [rep-to-use (if (attribute nested-id) #'sequence-nonterm-rep #'nonterm-rep)]
+                     [expander-name (generate-temporary #'name)])
+         (values
+          #'(begin
+              (define-literal-forms litset-name 'error-message (form-name ...))
+              (begin-for-syntax
+                (define-syntax name (rep-to-use #'expander-name #'litset-name))))
+          #'(define expander-name
+              (generate-nonterminal-expander
+               #:description description
+               #:allow-extension (~? (ext.classes ...) ())
+               #:nested-id (~? nested-id #f)
+               prod ...))))]))
+  )
+  
+#;(define-syntax define-nonterminals
+    (syntax-parser
+      [(_ [name:id (~optional (nested-id:id))
+                   #:description description:string
+                   (~optional (~seq #:allow-extension ext:extclass-spec))
+                   prod:production-spec
+                   ...]
+          ...)
+
+       (check-duplicate-forms (attribute prod.form-name))
+
+       (with-syntax ([((form-name ...) ...) (for/list ([prod-forms (attribute prod.form-name)])
+                                              (filter identity prod-forms))]
+                   
+                     [(litset-name ...) (generate-temporaries #'(name ...))]
+                     [(error-message ...) (map make-error-message (attribute description))]
+                     [(rep-to-use ...) (map (lambda (nested-id)
+                                              (if nested-id #'sequence-nonterm-rep #'nonterm-rep))
+                                            (attribute nested-id))])
+         #'(begin
+             (define-literal-forms litset-name 'error-message (form-name ...))
              ...
+           
+             (begin-for-syntax
+               (define-syntax name (rep-to-use #'expander-name #'litset-name))
+               ...
              
-             (define expander-name
-               (generate-nonterminal-expander
-                #:description description
-                #:allow-extension (~? (ext.classes ...) ())
-                #:nested-id (~? nested-id #f)
-                prod ...))
-             ...)
-           ))]))
+               (define expander-name
+                 (generate-nonterminal-expander
+                  #:description description
+                  #:allow-extension (~? (ext.classes ...) ())
+                  #:nested-id (~? nested-id #f)
+                  prod ...))
+               ...)
+             ))]))
 
 (begin-for-syntax
   (define (check-duplicate-forms form-names)
