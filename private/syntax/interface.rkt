@@ -100,42 +100,6 @@
                #:nested-id (~? nested-id #f)
                prod ...))))]))
   )
-  
-#;(define-syntax define-nonterminals
-    (syntax-parser
-      [(_ [name:id (~optional (nested-id:id))
-                   #:description description:string
-                   (~optional (~seq #:allow-extension ext:extclass-spec))
-                   prod:production-spec
-                   ...]
-          ...)
-
-       (check-duplicate-forms (attribute prod.form-name))
-
-       (with-syntax ([((form-name ...) ...) (for/list ([prod-forms (attribute prod.form-name)])
-                                              (filter identity prod-forms))]
-                   
-                     [(litset-name ...) (generate-temporaries #'(name ...))]
-                     [(error-message ...) (map make-error-message (attribute description))]
-                     [(rep-to-use ...) (map (lambda (nested-id)
-                                              (if nested-id #'sequence-nonterm-rep #'nonterm-rep))
-                                            (attribute nested-id))])
-         #'(begin
-             (define-literal-forms litset-name 'error-message (form-name ...))
-             ...
-           
-             (begin-for-syntax
-               (define-syntax name (rep-to-use #'expander-name #'litset-name))
-               ...
-             
-               (define expander-name
-                 (generate-nonterminal-expander
-                  #:description description
-                  #:allow-extension (~? (ext.classes ...) ())
-                  #:nested-id (~? nested-id #f)
-                  prod ...))
-               ...)
-             ))]))
 
 (begin-for-syntax
   (define (check-duplicate-forms form-names)

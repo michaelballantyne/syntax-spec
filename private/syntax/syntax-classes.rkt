@@ -32,8 +32,8 @@
   racket/string
   racket/list
   syntax/parse
+  syntax/srcloc
   racket/syntax)
-
 
 (define-syntax-class ref-id
   #:description "pattern variable with annotation"
@@ -61,10 +61,29 @@
    ":"))
   
 (define (split: id)
+  (define str (symbol->string (syntax-e id)))
+  
   (define strs
-    (string-split (symbol->string (syntax-e id)) ":" #:trim? #f))
-  (values (datum->syntax id (string->symbol (first strs)) id id)
-          (datum->syntax id (string->symbol (second strs)) id id)))
+    (string-split str ":" #:trim? #f))
+
+  (define loc1
+    (update-source-location
+     id
+     #:span (string-length (first strs))))
+
+  (define loc2
+    (let ([loc2-offset (+ (string-length (first strs)) 1)])
+      (update-source-location
+       id
+       #:column (+ (syntax-column id) loc2-offset)
+       #:position (and (syntax-position id)
+                       (+ (syntax-position id)
+                          loc2-offset))
+       #:span (string-length (second strs)))))
+  
+  (values (datum->syntax id (string->symbol (first strs)) loc1 id)
+          (datum->syntax id (string->symbol (second strs)) loc2 id)))
+
 
 (define-splicing-syntax-class extclass-spec
   (pattern v:id #:attr [classes 1] (list #'v))
