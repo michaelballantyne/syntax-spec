@@ -4,7 +4,8 @@
          (struct-out extclass-rep)
          (struct-out nonterm-rep)
          (struct-out sequence-nonterm-rep)
-         (struct-out continuation-binding))
+         (struct-out continuation-binding)
+         (struct-out pvar-rep))
 
 (require syntax/parse
          "../runtime/errors.rkt"      
@@ -39,5 +40,12 @@
 (struct sequence-nonterm-rep (exp-proc litset-ref)
   #:property prop:procedure
   (nonterm-lang-error-as-expression "sequence nonterminals"))
+
+; var-info is one of:
+;   bindclass-rep
+;   nonterm-rep
+;   sequence-nonterm-rep
+;   continuation-binding
+(struct pvar-rep (var-info))
 
 (struct continuation-binding [rt-var])

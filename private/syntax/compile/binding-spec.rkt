@@ -8,13 +8,15 @@
          syntax/id-table
          syntax/id-set
          racket/list
+         (only-in syntax/parse/private/residual-ct stxclass? has-stxclass-prop?)
+         ee-lib
          "../env-reps.rkt"
          "../syntax-classes.rkt"
          (for-template racket/base
                        "../../runtime/binding-spec.rkt")
          )
 
-(define (compile-bspec maybe-bspec varmap)
+(define (compile-bspec maybe-bspec sspec-pvars)
   (define/syntax-parse bspec (or maybe-bspec #'[]))
 
   (define compile-bspec-term
@@ -22,10 +24,10 @@
       #:context 'compile-bspec-term
       #:datum-literals (! ^ nest)
       [v:nonref-id
-       (define binding (bound-id-table-ref varmap #'v #f))
+       (define binding (lookup #'v pvar-rep?))
        (when (not binding)
          (raise-syntax-error #f "no corresponding pattern variable" #'v))
-       (match binding
+       (match (pvar-rep-var-info binding)
          [(nonterm-rep exp-proc _)
           #`(subexp 'v #,exp-proc)]
          [(bindclass-rep description _ pred)
@@ -33,28 +35,30 @@
          [(continuation-binding rtvar)
           #`(continue #,rtvar)]
          [(? sequence-nonterm-rep?)
-          (raise-syntax-error #f "sequence nonterminals may only be used with fold" #'v)])]
+          (raise-syntax-error #f "sequence nonterminals may only be used with fold" #'v)]
+         [(or (? stxclass?) (? has-stxclass-prop?))
+          #`(group (list))])]
       [(! v:nonref-id ...+)
        (with-syntax
            ([(v-c ...)
              (for/list ([v (syntax->list #'(v ...))])
-               (define binding (bound-id-table-ref varmap v #f))
+               (define binding (lookup v pvar-rep?))
                (when (not binding)
                  (raise-syntax-error #f "no corresponding pattern variable" v))
                (match binding
-                 [(bindclass-rep _ constr _)
+                 [(pvar-rep (bindclass-rep _ constr _))
                   #`(bind '#,v #,constr)]))])
          #'(group (list v-c ...)))]
       [(^ v:nonref-id ...+)
        (raise-syntax-error #f "^ not implemented yet" this-syntax)]
       [(nest v:nonref-id spec)
-       (define binding (bound-id-table-ref varmap (attribute v) #f))
+       (define binding (lookup (attribute v) pvar-rep?))
        (when (not binding)
          (raise-syntax-error #f "no corresponding pattern variable" #'v))
-       (when (not (sequence-nonterm-rep? binding))
+       (when (not (sequence-nonterm-rep? (pvar-rep-var-info binding)))
          (raise-syntax-error 'fold "not a sequence nonterminal" #'v))
        (with-syntax ([spec-c (compile-bspec-term (attribute spec))])
-         #`(seq-fold 'v #,(sequence-nonterm-rep-exp-proc binding) spec-c))]
+         #`(seq-fold 'v #,(sequence-nonterm-rep-exp-proc (pvar-rep-var-info binding)) spec-c))]
       [(~braces spec ...)
        (with-syntax ([(spec-c ...) (map compile-bspec-term (attribute spec))])
          #'(scope (group (list spec-c ...))))]
@@ -65,7 +69,7 @@
   (define/syntax-parse (unreferenced-pvars ...)
     (bound-id-set->list
      (bound-id-set-subtract
-      (immutable-bound-id-set (bound-id-table-keys varmap))
+      sspec-pvars
       (immutable-bound-id-set (bspec-referenced-pvars #'bspec)))))
       
   (compile-bspec-term #'[unreferenced-pvars ... bspec]))

@@ -1,15 +1,15 @@
 #lang racket/base
 
-(provide sspec-pvars
-         sspec-varmap
+(provide sspec-bind-pvars!
          compile-sspec-to-pattern
          compile-sspec-to-template)
 
 (require syntax/parse
          "../syntax-classes.rkt"
          "../env-reps.rkt"
+         racket/pretty
          ee-lib
-         syntax/id-table
+         syntax/id-set
          (only-in syntax/parse/private/residual-ct stxclass? has-stxclass-prop?)
          (for-template racket/base
                        syntax/parse))
@@ -88,11 +88,8 @@
       
   (generate-template-form stx))
 
-(define (sspec-pvars stx)
-  (bound-id-table-keys (sspec-varmap stx)))
-
-(define (sspec-varmap stx)
-  (define res (make-immutable-bound-id-table))
+(define (sspec-bind-pvars! stx)
+  (define res (immutable-bound-id-set))
 
   (let rec ([stx stx])
     (syntax-parse stx
@@ -110,10 +107,11 @@
                                      (has-stxclass-prop? v)))))
        (when (not binding)
          (raise-syntax-error #f "not a binding class, syntax class, or nonterminal" #'r.ref))
-       (when (or (bindclass-rep? binding)
-                 (nonterm-rep? binding)
-                 (sequence-nonterm-rep? binding))
-         (set! res (bound-id-table-set res #'r.var binding)))]
+       (when (bound-id-set-member? res #'r.var)
+         (raise-syntax-error #f "duplicate pattern variable" #'r.var))
+       (bind! #'r.var (pvar-rep binding))
+       
+       (set! res (bound-id-set-add res #'r.var))]
       [_ (void)]))
-
+  
   res)
