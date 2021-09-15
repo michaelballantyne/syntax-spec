@@ -138,10 +138,10 @@
      (define (add-result! result)
        (set-box! result-list (cons result (unbox result-list))))
      
-     (let loop ([seq init-seq]
-                [acc-scopes '()])
+     (let recur ([seq init-seq]
+                 [acc-scopes '()])
        (define (k caller-local-scopes)
-         (loop (for/list ([el (cdr seq)])
+         (recur (for/list ([el (cdr seq)])
                  (add-scopes el caller-local-scopes))
                (append acc-scopes caller-local-scopes)))
        (if (null? seq)
@@ -170,11 +170,4 @@
           (for/list ([nested item])
             (for-nested nested))
           (let () body ...)))))
-
-
-
-
-
-
-
 
