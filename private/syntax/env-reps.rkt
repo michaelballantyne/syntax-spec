@@ -4,7 +4,7 @@
          (struct-out extclass-rep)
          (struct-out nonterm-rep)
          (struct-out sequence-nonterm-rep)
-         (struct-out continuation-binding)
+         (struct-out nested-binding)
          (struct-out pvar-rep))
 
 (require syntax/parse
@@ -45,7 +45,7 @@
 ;   bindclass-rep
 ;   nonterm-rep
 ;   sequence-nonterm-rep
-;   continuation-binding
+;   nested-binding
 (struct pvar-rep (var-info))
 
-(struct continuation-binding [rt-var])
+(struct nested-binding [])

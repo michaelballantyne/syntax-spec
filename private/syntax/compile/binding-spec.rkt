@@ -32,8 +32,8 @@
           #`(subexp 'v #,exp-proc)]
          [(bindclass-rep description _ pred)
           #`(ref 'v #,pred #,(string-append "not bound as " description))]
-         [(continuation-binding rtvar)
-          #`(continue #,rtvar)]
+         [(nested-binding )
+          #`(nested)]
          [(? sequence-nonterm-rep?)
           (raise-syntax-error #f "sequence nonterminals may only be used with fold" #'v)]
          [(or (? stxclass?) (? has-stxclass-prop?))
@@ -58,7 +58,7 @@
        (when (not (sequence-nonterm-rep? (pvar-rep-var-info binding)))
          (raise-syntax-error 'fold "not a sequence nonterminal" #'v))
        (with-syntax ([spec-c (compile-bspec-term (attribute spec))])
-         #`(seq-fold 'v #,(sequence-nonterm-rep-exp-proc (pvar-rep-var-info binding)) spec-c))]
+         #`(nest 'v #,(sequence-nonterm-rep-exp-proc (pvar-rep-var-info binding)) spec-c))]
       [(~braces spec ...)
        (with-syntax ([(spec-c ...) (map compile-bspec-term (attribute spec))])
          #'(scope (group (list spec-c ...))))]

@@ -16,20 +16,26 @@
 (begin-for-syntax
   (struct mylang-binding ())
   
-  (define/hygienic (mylang-expand-expr stx) #:expression
+  (define (mylang-expand-expr stx _)
     (syntax-parse stx
       #:literal-sets (mylang-lits)
       [n:number
-       #'n]
+       (values #'n
+               #f)]
       [v:id
-       (hash-ref
-        (simple-expand
-         (ref 'v mylang-binding? "unbound mylang var reference")
-         (hash
-          'v #'v))
-        'v)]
+       (define-values (res _)
+         (simple-expand
+          (ref 'v mylang-binding? "unbound mylang var reference")
+          (hash
+           'v #'v)
+          #f))
+       (values
+        (hash-ref
+         res
+         'v)
+        #f)]
       [(mylang-let ([v e]) b)
-       (define res
+       (define-values (res _)
          (simple-expand
           (group
            (list
@@ -42,15 +48,20 @@
           (hash
            'v #'v
            'e #'e
-           'b #'b)))
-       #`(mylang-let ([#,(hash-ref res 'v)
-                       #,(hash-ref res 'e)])
-                     #,(hash-ref res 'b))])))
+           'b #'b)
+          #f))
+       
+       (values
+        #`(mylang-let ([#,(hash-ref res 'v)
+                        #,(hash-ref res 'e)])
+                      #,(hash-ref res 'b))
+        #f)])))
 
 (define-syntax (mylang stx)
   (syntax-parse stx
     [(_ e)
-     #`#'#,(mylang-expand-expr #'e)]))
+     #`#'#,(let-values ([(res _) (mylang-expand-expr #'e #f)])
+             res)]))
 
 (require rackunit syntax/macro-testing)
 

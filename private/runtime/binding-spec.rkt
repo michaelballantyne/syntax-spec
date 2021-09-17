@@ -7,8 +7,8 @@
  (struct-out export)   ; ^
  (struct-out scope)    ; {}
  (struct-out group)    ; []
- (struct-out seq-fold) ; fold
- (struct-out continue) ; tail
+ (struct-out nest) ; fold
+ (struct-out nested) ; tail
 
  qualifier?
  svar?
@@ -18,13 +18,11 @@
 
  simple-expand)
 
-
 (require
   racket/match
   racket/list
   racket/set
   ee-lib)
-
 
 ;;
 ;; Representation
@@ -38,8 +36,8 @@
 (struct export [svars qualifier] #:transparent)
 (struct scope [spec] #:transparent)
 (struct group [specs] #:transparent)
-(struct seq-fold [svar nonterm spec] #:transparent)
-(struct continue [k] #:transparent)
+(struct nest [svar nonterm spec] #:transparent)
+(struct nested [] #:transparent)
 
 ;; `bvalc` is (-> any/c)
 
@@ -55,8 +53,11 @@
 (define (svar? v)
   (symbol? v))
 
-;; `nonterm` is syntax? -> syntax?
-;; The system assumes this procedure is defined with define/hygienic
+;; `nonterm-transformer` is (syntax?, maybe-nest-state?) -> (syntax?, maybe-nest-state?)
+;;
+;; Note: right now nonterminal expander must *not* be hygienic
+;;  in the sense of define/hygienic; otherwise continuing a `nest`
+;;  with `nested` will have the wrong scopes.
 (define (nonterm? v)
   (procedure? v))
 
@@ -77,86 +78,133 @@
     [(group specs)
      (for/and ([spec specs])
        (binding-spec-well-formed? spec svars))]
-    [(seq-fold (? svar? pv) (? procedure? nonterm) spec)
+    [(nest (? svar? pv) (? procedure? nonterm) spec)
      (and
       (set-member? svars pv)
       (binding-spec-well-formed? spec svars))]
-    [(continue (? procedure? k))
+    [(nested)
      #t]))
-
 
 ;;
 ;; Expansion
 ;;
 
-;; `exp-state` is (hashof symbol? (treeof syntax?))
+;; pvar-vals is (hashof symbol? (treeof syntax?))
+;; nest-state is #f, nest-call, or nest-ret
+(struct exp-state [pvar-vals nest-state])
 
-;; spec, exp-state -> exp-state
-(define (simple-expand spec exp-state)
-  (simple-expand-internal spec exp-state '()))
+;; Helpers for accessing and updating parts of the exp-state
+
+(define (get-pvar st pv)
+  (hash-ref (exp-state-pvar-vals st) pv))
+
+(define (set-pvar st pv val)
+  (struct-copy
+   exp-state st
+   [pvar-vals (hash-set (exp-state-pvar-vals st) pv val)]))
+
+(define (update-pvar st pv f)
+  (struct-copy
+   exp-state st
+   [pvar-vals (hash-update
+               (exp-state-pvar-vals st) pv f)]))
+
+(define (update-nest-state st f)
+  (struct-copy
+   exp-state st
+   [nest-state (f (exp-state-nest-state st))]))
+
+
+;; spec, env, (or/c #f nest-call?) -> env, (or/c #f nest-ret?)
+(define (simple-expand spec pvar-vals nest-st)
+  (define res (simple-expand-internal spec (exp-state pvar-vals nest-st) '()))
+  (values
+   (exp-state-pvar-vals res)
+   (exp-state-nest-state res)))
 
 ;; spec, exp-state, (listof scope-tagger) -> exp-state
-(define (simple-expand-internal spec exp-state local-scopes)
+(define (simple-expand-internal spec st local-scopes)
+  
+  (define-syntax-rule
+    ;; update the state of `pv` by mapping over its tree
+    (for/pv-state-tree ([item pv])
+      b ...)
+    (update-pvar st pv
+                 (lambda (st)
+                   (for/tree ([item st])
+                     b ...))))
+                  
   (match spec
+    
     [(ref pv pred msg)
-     (hash-update exp-state pv
-                  (lambda (ids)
-                    (for/tree ([id ids])
-                      (define id^ (add-scopes id local-scopes))
-                      (when (not (lookup id^ pred))
-                        (raise-syntax-error #f msg id^))
-                      id^)))]
+     (for/pv-state-tree ([id pv])
+       (define id^ (add-scopes id local-scopes))
+       (when (not (lookup id^ pred))
+         (raise-syntax-error #f msg id^))
+       id^)]
+    
     [(subexp pv f)
-     (hash-update exp-state pv
-                  (lambda (stxs)
-                    (for/tree ([stx stxs])
-                      (f (add-scopes stx local-scopes)))))]
+     (for/pv-state-tree ([stx pv])
+       (let-values ([(res _) (f (add-scopes stx local-scopes) #f)])
+         res))]
+    
     [(bind pv valc)
-     (hash-update exp-state pv
-                  (lambda (stxs)
-                    (for/tree ([stx stxs])
-                      (bind! (add-scopes stx local-scopes) (valc)))))]
+     (for/pv-state-tree ([stx pv])
+       (bind! (add-scopes stx local-scopes) (valc)))]
+    
     [(export (list-rest (? svar? pvs)) (? qualifier?))
      (error 'simple-expand "export specs not supported")]
+    
     [(scope spec)
      (with-scope sc
-       (simple-expand-internal spec exp-state (cons sc local-scopes)))]
-    [(group specs)
-     (for/fold ([exp-state exp-state])
-               ([spec specs])
-       (simple-expand-internal spec exp-state local-scopes))]
-    [(seq-fold pv f tail-spec)
-     (define init-seq (for/list ([el (hash-ref exp-state pv)])
-                        (add-scopes el local-scopes)))
-     
-     (define tail-result (box #f))
-     (define result-list (box '()))
-     
-     (define (finish! tail-exp-state)
-       (set-box! tail-result tail-exp-state))
-
-     (define (add-result! result)
-       (set-box! result-list (cons result (unbox result-list))))
-     
-     (let recur ([seq init-seq]
-                 [acc-scopes '()])
-       (define (k caller-local-scopes)
-         (recur (for/list ([el (cdr seq)])
-                 (add-scopes el caller-local-scopes))
-               (append acc-scopes caller-local-scopes)))
-       (if (null? seq)
-           (finish!
-            (simple-expand-internal
-             tail-spec exp-state (append local-scopes acc-scopes)))
-           (add-result!
-            (f (car seq) k))))
-     
-     (hash-set (unbox tail-result) pv (unbox result-list))]
+       (simple-expand-internal spec st (cons sc local-scopes)))]
     
-    [(continue k)
-     (begin
-       (k local-scopes)
-       exp-state)]))
+    [(group specs)
+     (for/fold ([st st])
+               ([spec specs])
+       (simple-expand-internal spec st local-scopes))]
+    
+    [(nest pv f inner-spec)
+     (define init-seq (for/list ([el (get-pvar st pv)])
+                        (add-scopes el local-scopes)))
+
+     (match-define
+       (nest-ret done-seq st^)
+       (simple-expand-nest (nest-call f init-seq '() st inner-spec) '()))
+     
+     (set-pvar st^ pv done-seq)]
+    
+    [(nested)
+     (update-nest-state
+      st
+      (lambda (nest-st)
+        (simple-expand-nest nest-st local-scopes)))]))
+
+; f is nonterm-transformer
+; seq is (listof (treeof syntax?))
+; inner-spec-st is exp-state?
+; inner-spec is spec
+(struct nest-call [f seq acc-scopes inner-spec-st inner-spec])
+
+; seq is (listof (treeof syntax?))
+(struct nest-ret [done-seq inner-spec-st^])
+
+; nest-call? -> nest-ret?
+(define (simple-expand-nest nest-st new-local-scopes)
+  (match-define (nest-call f seq acc-scopes inner-spec-st inner-spec) nest-st)
+  
+  (define acc-scopes^ (append acc-scopes new-local-scopes))
+
+  (match seq
+    [(cons stx rest)
+     (define-values
+       (stx^ nest-st^)
+       (f (add-scopes stx acc-scopes^)
+          (nest-call f rest acc-scopes^ inner-spec-st inner-spec)))
+     (match-define (nest-ret done-seq inner-spec-st^) nest-st^)
+     (nest-ret (cons stx^ done-seq) inner-spec-st^)]
+    ['()
+     (nest-ret '() (simple-expand-internal inner-spec inner-spec-st acc-scopes^))]))
 
 ;; maps over a tree
 ;;

@@ -131,15 +131,22 @@
          (when (not binding)
            (raise-syntax-error #f error-message #'ref))
          (accessor binding)])))
+
+  (define-syntax nonterminal-expander
+    (syntax-parser
+      [(_ ref:id)
+       (define binding (lookup #'ref nonterm-rep?))
+       (when (not binding)
+         (raise-syntax-error #f "not bound as nonterminal" #'ref))
+       (with-syntax ([exp-proc (nonterm-rep-exp-proc binding)])
+         #'(#%expression (lambda (stx) (let-values ([(res _) (exp-proc stx #f)])
+                                         res))))]))
       
   (define-syntax binding-class-constructor
     (accessor-macro bindclass-rep? "not bound as binding class" bindclass-rep-constr))
   
   (define-syntax binding-class-predicate
     (accessor-macro bindclass-rep? "not bound as binding class" bindclass-rep-pred))
-
-  (define-syntax nonterminal-expander
-    (accessor-macro nonterm-rep? "not bound as nonterminal" nonterm-rep-exp-proc))
 
   (define-syntax nonterminal-literal-set
     (accessor-macro nonterm-rep? "not bound as nonterminal" nonterm-rep-litset-ref)))

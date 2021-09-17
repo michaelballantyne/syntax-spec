@@ -28,13 +28,12 @@
        (define/syntax-parse ((prod:production-spec) ...) (add-scope #'(prod-arg ...) sc))
 
        (when (attribute nested-id)
-         (bind! (add-scope (attribute nested-id) sc) (pvar-rep (continuation-binding #'k))))
+         (bind! (add-scope (attribute nested-id) sc) (pvar-rep (nested-binding))))
      
-       (with-syntax ([args (if (attribute nested-id) #'(stx-a k) #'(stx-a))]
-                     [prod-clauses (map generate-prod-clause (attribute prod.sspec) (attribute prod.bspec))]
+       (with-syntax ([prod-clauses (map generate-prod-clause (attribute prod.sspec) (attribute prod.bspec))]
                      [macro-clauses (for/list ([extclass (attribute extclass)])
                                       (generate-macro-clause extclass #'recur))])
-         #'(lambda args
+         #'(lambda (stx-a nest-st)
              (let recur ([stx stx-a])
                (syntax-parse stx
                  (~@ . macro-clauses)
@@ -55,12 +54,12 @@
                   [bspec-e (compile-bspec bspec sspec-pvars)]
                   [template (compile-sspec-to-template sspec)])
       #'[pattern
-         (let* ([in (hash (~@ 'v (pattern-var-value v)) ...)]
-                [out (simple-expand bspec-e in)])
+         (let*-values ([(in) (hash (~@ 'v (pattern-var-value v)) ...)]
+                       [(out nest-st^) (simple-expand bspec-e in nest-st)])
            (rebind-pattern-vars
             (v ...)
             (values (hash-ref out 'v) ...)
-            #'template))])))
+            (values #'template nest-st^)))])))
 
 (define (generate-macro-clause extclass recur-id)
   (let ([ext-info (lookup extclass extclass-rep?)])
