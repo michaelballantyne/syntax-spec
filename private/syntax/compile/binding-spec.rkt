@@ -32,7 +32,7 @@
           #`(subexp 'v #,exp-proc)]
          [(bindclass-rep description _ pred)
           #`(ref 'v #,pred #,(string-append "not bound as " description))]
-         [(nested-binding )
+         [(nested-binding)
           #`(nested)]
          [(? sequence-nonterm-rep?)
           (raise-syntax-error #f "sequence nonterminals may only be used with fold" #'v)]

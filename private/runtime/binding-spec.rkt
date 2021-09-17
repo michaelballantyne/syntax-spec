@@ -168,9 +168,10 @@
      (define init-seq (for/list ([el (get-pvar st pv)])
                         (add-scopes el local-scopes)))
 
-     (match-define
-       (nest-ret done-seq st^)
+     (define res
        (simple-expand-nest (nest-call f init-seq '() st inner-spec) '()))
+     
+     (match-define (nest-ret done-seq st^) res)
      
      (set-pvar st^ pv done-seq)]
     
@@ -184,10 +185,10 @@
 ; seq is (listof (treeof syntax?))
 ; inner-spec-st is exp-state?
 ; inner-spec is spec
-(struct nest-call [f seq acc-scopes inner-spec-st inner-spec])
+(struct nest-call [f seq acc-scopes inner-spec-st inner-spec] #:transparent)
 
 ; seq is (listof (treeof syntax?))
-(struct nest-ret [done-seq inner-spec-st^])
+(struct nest-ret [done-seq inner-spec-st^] #:transparent)
 
 ; nest-call? -> nest-ret?
 (define (simple-expand-nest nest-st new-local-scopes)
@@ -201,6 +202,7 @@
        (stx^ nest-st^)
        (f (add-scopes stx acc-scopes^)
           (nest-call f rest acc-scopes^ inner-spec-st inner-spec)))
+
      (match-define (nest-ret done-seq inner-spec-st^) nest-st^)
      (nest-ret (cons stx^ done-seq) inner-spec-st^)]
     ['()

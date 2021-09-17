@@ -37,16 +37,18 @@
   (syntax-parser
     [(_ e) #`'#,((nonterminal-expander expr) #'e)]))
 
-;; sugar
-
 ;; tests
 (check-equal?
  (mylang-expr
   (block
-   (define* x 5)
+   (begin
+     (define* x 5)
+     (define* x (+ x 1)))
    (define* x (+ x 1))
    (+ x 1)))
  '(block
-   (define* x 5)
+   (begin
+     (define* x 5)
+     (define* x (+ x 1)))
    (define* x (+ x 1))
    (+ x 1)))

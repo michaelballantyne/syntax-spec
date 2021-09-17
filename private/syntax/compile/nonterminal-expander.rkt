@@ -30,7 +30,9 @@
        (when (attribute nested-id)
          (bind! (add-scope (attribute nested-id) sc) (pvar-rep (nested-binding))))
      
-       (with-syntax ([prod-clauses (map generate-prod-clause (attribute prod.sspec) (attribute prod.bspec))]
+       (with-syntax ([prod-clauses (map (lambda (sspec bspec)
+                                          (generate-prod-clause sspec bspec (and (attribute nested-id) (add-scope (attribute nested-id) sc))))
+                                        (attribute prod.sspec) (attribute prod.bspec))]
                      [macro-clauses (for/list ([extclass (attribute extclass)])
                                       (generate-macro-clause extclass #'recur))])
          #'(lambda (stx-a nest-st)
@@ -43,15 +45,19 @@
                      (string-append "not a " (#%datum . description))
                      this-syntax)])))))]))
 
-(define (generate-prod-clause sspec-arg bspec-arg)
+(define (generate-prod-clause sspec-arg bspec-arg nested-id)
   (with-scope sc
     (define sspec (add-scope sspec-arg sc))
     (define bspec (if bspec-arg (add-scope bspec-arg sc) bspec-arg))
     
     (define sspec-pvars (sspec-bind-pvars! sspec))
+    (define referenced-pvars (if nested-id
+                                 (bound-id-set-add sspec-pvars (add-scope nested-id sc))
+                                 sspec-pvars))
+    
     (with-syntax ([(v ...) (bound-id-set->list sspec-pvars)]
                   [pattern (compile-sspec-to-pattern sspec)]
-                  [bspec-e (compile-bspec bspec sspec-pvars)]
+                  [bspec-e (compile-bspec bspec referenced-pvars)]
                   [template (compile-sspec-to-template sspec)])
       #'[pattern
          (let*-values ([(in) (hash (~@ 'v (pattern-var-value v)) ...)]
