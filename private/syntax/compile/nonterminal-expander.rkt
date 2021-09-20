@@ -31,7 +31,8 @@
          (bind! (add-scope (attribute nested-id) sc) (pvar-rep (nested-binding))))
      
        (with-syntax ([prod-clauses (map (lambda (sspec bspec)
-                                          (generate-prod-clause sspec bspec (and (attribute nested-id) (add-scope (attribute nested-id) sc))))
+                                          (generate-prod-clause sspec bspec (and (attribute nested-id)
+                                                                                 (add-scope (attribute nested-id) sc))))
                                         (attribute prod.sspec) (attribute prod.bspec))]
                      [macro-clauses (for/list ([extclass (attribute extclass)])
                                       (generate-macro-clause extclass #'recur))])
