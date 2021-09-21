@@ -25,7 +25,9 @@
 
                n:nonterm           ; confusing! Probably shouldn't use pegs as the paper example...
                (eps)               ; can't just be `eps` yet.
-               (seq e1:peg e2:peg)
+
+               (seq e1:peg e2:peg) ; relies on left-to-right order for effectful binds
+               
                (alt e1:peg e2:peg)
                (repeat e:peg)      ; *
                (not e:peg)         ; !
@@ -53,7 +55,11 @@
     [(_ e) #`'#,((nonterminal-expander peg) #'e)]))
 
 
-(peg-expr
- (=> (seq (bind a (text "a")) (bind b (=> (bind c (text "b"))
-                                          (list a c))))
-     b))
+(check-equal?
+ (peg-expr
+  (=> (seq (bind a (text "a")) (bind b (=> (bind c (text "b"))
+                                           (list a c))))
+      b))
+ '(=> (seq (bind a (text "a")) (bind b (=> (bind c (text "b"))
+                                           (list a c))))
+      b))

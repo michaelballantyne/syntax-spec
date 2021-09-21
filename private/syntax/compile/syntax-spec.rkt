@@ -89,8 +89,9 @@
   (generate-template-form stx))
 
 (define (sspec-bind-pvars! stx)
-  (define res (immutable-bound-id-set))
+  (define res '())
 
+  ;; records left-to-right
   (let rec ([stx stx])
     (syntax-parse stx
       #:context 'extract-var-mapping
@@ -107,11 +108,11 @@
                                      (has-stxclass-prop? v)))))
        (when (not binding)
          (raise-syntax-error #f "not a binding class, syntax class, or nonterminal" #'r.ref))
-       (when (bound-id-set-member? res #'r.var)
+       (when (member #'r.var res bound-identifier=?)
          (raise-syntax-error #f "duplicate pattern variable" #'r.var))
        (bind! #'r.var (pvar-rep binding))
        
-       (set! res (bound-id-set-add res #'r.var))]
+       (set! res (cons #'r.var res))]
       [_ (void)]))
   
-  (bound-id-set->list res))
+  (reverse res))
