@@ -16,7 +16,7 @@
                        "../../runtime/binding-spec.rkt")
          )
 
-(define (compile-bspec maybe-bspec sspec-pvars)
+(define (compile-bspec maybe-bspec bound-pvars)
   (define/syntax-parse bspec (or maybe-bspec #'[]))
 
   (define compile-bspec-term
@@ -67,12 +67,12 @@
          #'(group (list spec-c ...)))]))
 
   (define/syntax-parse (unreferenced-pvars ...)
-    (bound-id-set->list
-     (bound-id-set-subtract
-      sspec-pvars
-      (immutable-bound-id-set (bspec-referenced-pvars #'bspec)))))
+    (remove*
+     (bspec-referenced-pvars #'bspec)
+     bound-pvars
+     bound-identifier=?))
       
-  (compile-bspec-term #'[unreferenced-pvars ... bspec]))
+  (compile-bspec-term #'[bspec unreferenced-pvars ...]))
 
 (define bspec-referenced-pvars
   (syntax-parser

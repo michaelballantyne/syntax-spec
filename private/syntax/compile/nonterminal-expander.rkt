@@ -52,13 +52,13 @@
     (define bspec (if bspec-arg (add-scope bspec-arg sc) bspec-arg))
     
     (define sspec-pvars (sspec-bind-pvars! sspec))
-    (define referenced-pvars (if nested-id
-                                 (bound-id-set-add sspec-pvars (add-scope nested-id sc))
-                                 sspec-pvars))
+    (define bound-pvars (if nested-id
+                            (append sspec-pvars (list (add-scope nested-id sc)))
+                            sspec-pvars))
     
-    (with-syntax ([(v ...) (bound-id-set->list sspec-pvars)]
+    (with-syntax ([(v ...) sspec-pvars]
                   [pattern (compile-sspec-to-pattern sspec)]
-                  [bspec-e (compile-bspec bspec referenced-pvars)]
+                  [bspec-e (compile-bspec bspec bound-pvars)]
                   [template (compile-sspec-to-template sspec)])
       #'[pattern
          (let*-values ([(in) (hash (~@ 'v (pattern-var-value v)) ...)]

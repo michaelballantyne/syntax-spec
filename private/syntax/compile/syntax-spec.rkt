@@ -114,4 +114,4 @@
        (set! res (bound-id-set-add res #'r.var))]
       [_ (void)]))
   
-  res)
+  (bound-id-set->list res))
