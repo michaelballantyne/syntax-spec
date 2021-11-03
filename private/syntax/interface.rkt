@@ -93,7 +93,7 @@
            #'(simple-nonterm-info (quote-syntax expander-name)))
           #'(define expander-name
               (generate-nonterminal-expander
-               #:simple opts prod ...))))]
+               #:simple name opts prod ...))))]
       [(nesting-nonterminal
         name:id (nested-id:id)
         opts:nonterminal-options
@@ -105,7 +105,7 @@
            #'(nesting-nonterm-info (quote-syntax expander-name)))
           #'(define expander-name
               (generate-nonterminal-expander
-               (#:nesting nested-id) opts prod ...))))]
+               (#:nesting nested-id) name opts prod ...))))]
       [(two-pass-nonterminal
         name:id
         opts:nonterminal-options
@@ -118,10 +118,10 @@
           #'(begin
               (define pass1-expander-name
                 (generate-nonterminal-expander
-                 #:pass1 opts prod ...))
+                 #:pass1 name opts prod ...))
               (define pass2-expander-name
                 (generate-nonterminal-expander
-                 #:pass2 opts prod ...)))))])))
+                 #:pass2 name opts prod ...)))))])))
 
 (begin-for-syntax
   (define (generate-nonterminal-declarations name-stx description form-names variant-info-stx)

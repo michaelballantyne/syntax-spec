@@ -21,23 +21,25 @@
   (syntax-parse stx
     #:context 'compile-nonterminal-expander
     [(variant
+      name
       (opts:nonterminal-options)
       prod-arg ...)
 
-     (define (generate-loop prods-stx maybe-bound-nested-id maybe-nest-st-id)
+     (define (generate-loop prods-stx maybe-nested-id maybe-nest-st-id)
        (define/syntax-parse ((prod:production-spec) ...) prods-stx)
        (with-syntax ([prod-clauses (map (lambda (sspec bspec)
-                                          (generate-prod-clause sspec bspec maybe-bound-nested-id maybe-nest-st-id))
+                                          (generate-prod-clause sspec bspec maybe-nested-id maybe-nest-st-id))
                                         (attribute prod.sspec) (attribute prod.bspec))]
                      [macro-clauses (for/list ([extclass (attribute opts.ext-classes)])
-                                      (generate-macro-clause extclass #'recur))])
+                                      (generate-macro-clause extclass #'recur))]
+                     [description (or (attribute opts.description) (symbol->string (syntax-e (attribute name))))])
          #'(let recur ([stx stx-a])
              (syntax-parse stx
                (~@ . macro-clauses)
                (~@ . prod-clauses)
                [_ (raise-syntax-error
                    #f
-                   (string-append "not a " (#%datum . description))
+                   (string-append "expected " (#%datum . description))
                    this-syntax)]))))
 
      (define (generate-header)
