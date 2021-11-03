@@ -173,9 +173,10 @@
        (define binding (lookup #'ref nonterm-rep?))
        (when (not binding)
          (raise-syntax-error #f "not bound as nonterminal" #'ref))
-       (with-syntax ([exp-proc (simple-nonterm-info-expander (nonterm-rep-variant-info binding))])
-         #'(#%expression (lambda (stx) (let-values ([(res _) (exp-proc stx #f)])
-                                         res))))]))
+       (define variant-info (nonterm-rep-variant-info binding))
+       (when (not (simple-nonterm-info? variant-info))
+         (raise-syntax-error #f "only simple non-terminals may be used as entry points" #'ref))
+       (simple-nonterm-info-expander variant-info)]))
       
   (define-syntax binding-class-constructor
     (accessor-macro bindclass-rep? "not bound as binding class" bindclass-rep-constr))

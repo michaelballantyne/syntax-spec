@@ -145,8 +145,7 @@
     
     [(subexp pv f)
      (for/pv-state-tree ([stx pv])
-       (let-values ([(res _) (f (add-scopes stx local-scopes) #f)])
-         res))]
+       (f (add-scopes stx local-scopes)))]
     
     [(bind pv valc)
      (for/pv-state-tree ([stx pv])
@@ -159,11 +158,9 @@
      (with-scope sc
        (simple-expand-internal spec st (cons sc local-scopes)))]
     
-    [(group specs)
-     (define-values (binds others) (order-group specs))
-     
+    [(group specs)     
      (for/fold ([st st])
-               ([spec (append binds others)])
+               ([spec specs])
        (simple-expand-internal spec st local-scopes))]
     
     [(nest pv f inner-spec)
@@ -182,22 +179,6 @@
       st
       (lambda (nest-st)
         (simple-expand-nest nest-st local-scopes)))]))
-
-(define (order-group specs)
-  (define binds '())
-  (define others '())
-
-  (let recur ([specs specs])
-    (for/list ([spec specs])
-      (match spec
-        [(bind _ _)
-         (set! binds (cons spec binds))]
-        [(group specs)
-         (recur specs)]
-        [_
-         (set! others (cons spec others))])))
-
-  (values (reverse binds) (reverse others)))
 
 ; f is nonterm-transformer
 ; seq is (listof (treeof syntax?))
