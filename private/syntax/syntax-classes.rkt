@@ -25,6 +25,8 @@
  production-spec
 
  extclass-spec
+
+ nonterminal-options
  )
 
 
@@ -52,7 +54,7 @@
 
 (define-syntax-class sspec
   (pattern (form-name:nonref-id . _))
-  (pattern _ #:attr form-name #f))
+  (pattern _:expr #:attr form-name #f))
 
   
 (define (has:? id)
@@ -88,3 +90,8 @@
 (define-splicing-syntax-class extclass-spec
   (pattern v:id #:attr [classes 1] (list #'v))
   (pattern (classes:id ...)))
+
+(define-splicing-syntax-class nonterminal-options
+  (pattern (~seq (~optional (~seq #:description description:string))
+                 (~optional (~seq #:allow-extension extensions:extclass-spec)))
+           #:attr ext-classes (if (attribute extensions) (attribute extensions.classes) '())))

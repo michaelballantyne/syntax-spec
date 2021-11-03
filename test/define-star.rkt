@@ -20,7 +20,7 @@
                (block d:def-or-expr ...)
                #:binding (nest d []))
 
-  (nonterminal def-or-expr (tail)
+  (nesting-nonterminal def-or-expr (tail)
                #:description "mylang definition context"
                #:allow-extension mylang-macro
 

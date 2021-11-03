@@ -21,7 +21,7 @@
     (let* (b:binding ...) e:expr)
     #:binding (nest b e))
 
-  (nonterminal binding (nested)
+  (nesting-nonterminal binding (nested)
     #:description "let* binding group"
     
     [v:var e:expr]

@@ -20,21 +20,22 @@
 (define (compile-nonterminal-expander stx)
   (syntax-parse stx
     #:context 'compile-nonterminal-expander
-    [(#:description description
-      #:allow-extension (extclass ...)
-      #:nested-id (~or nested-id:id #f)
+    [(variant
+      (opts:nonterminal-options)
       prod-arg ...)
      (with-scope sc
        (define/syntax-parse ((prod:production-spec) ...) (add-scope #'(prod-arg ...) sc))
 
-       (when (attribute nested-id)
-         (bind! (add-scope (attribute nested-id) sc) (pvar-rep (nested-binding))))
+       (define nested-id^
+         (syntax-parse (attribute variant)
+           [(#:nesting nested-id:id)
+            (bind! (add-scope (attribute nested-id) sc) (pvar-rep (nested-binding)))]
+           [_ #f]))
      
        (with-syntax ([prod-clauses (map (lambda (sspec bspec)
-                                          (generate-prod-clause sspec bspec (and (attribute nested-id)
-                                                                                 (add-scope (attribute nested-id) sc))))
+                                          (generate-prod-clause sspec bspec nested-id^))
                                         (attribute prod.sspec) (attribute prod.bspec))]
-                     [macro-clauses (for/list ([extclass (attribute extclass)])
+                     [macro-clauses (for/list ([extclass (attribute opts.ext-classes)])
                                       (generate-macro-clause extclass #'recur))])
          #'(lambda (stx-a nest-st)
              (let recur ([stx stx-a])

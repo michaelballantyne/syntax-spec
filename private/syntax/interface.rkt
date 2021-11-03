@@ -45,10 +45,16 @@
              ...)))]))
 
 (begin-for-syntax
+  ; syntax? -> (values syntax? (or/c syntax? #f))
+  ; the first return value is used as part of the first-pass compilation;
+  ; if present, the second value is used as part of the second-pass compilation,
+  ; in begin-for-syntax.
   (define/hygienic (define-hosted-syntaxes-compile-form stx) #:expression
     (syntax-parse stx
       #:context 'define-hosted-syntaxes-pass1
-      #:datum-literals (binding-class extension-class nonterminal)
+      #:datum-literals (binding-class
+                        extension-class
+                        nonterminal nesting-nonterminal two-pass-nonterminal)
       
       [(binding-class name:id description:expr)
        (with-syntax ([sname (format-id #'here "~a-var" #'name)]
@@ -75,46 +81,75 @@
                               (quote-syntax sname-pred)
                               (quote-syntax sname-acc))))
           #f))]
-
-      [(nonterminal name:id (~optional (nested-id:id))
-                    #:description description:string
-                    (~optional (~seq #:allow-extension ext:extclass-spec))
-                    prod:production-spec ...)
-
-       (check-duplicate-forms (attribute prod.form-name))
-
-       (with-syntax ([litset-name (generate-temporary #'name)]
-                     [error-message (make-error-message (attribute description))]
-                     [(form-name ...) (filter identity (attribute prod.form-name))]
-                     [rep-to-use (if (attribute nested-id) #'sequence-nonterm-rep #'nonterm-rep)]
-                     [expander-name (generate-temporary #'name)])
+      
+      [(nonterminal
+        name:id
+        opts:nonterminal-options
+        prod:production-spec ...)
+       (with-syntax ([expander-name (generate-temporary #'name)])
          (values
-          #'(begin
-              (define-literal-forms litset-name 'error-message (form-name ...))
-              (begin-for-syntax
-                (define-syntax name (rep-to-use #'expander-name #'litset-name))))
+          (generate-nonterminal-declarations
+           (attribute name) (attribute opts.description) (attribute prod.form-name)
+           #'(simple-nonterm-info (quote-syntax expander-name)))
           #'(define expander-name
               (generate-nonterminal-expander
-               #:description description
-               #:allow-extension (~? (ext.classes ...) ())
-               #:nested-id (~? nested-id #f)
-               prod ...))))]))
-  )
+               #:simple opts prod ...))))]
+      [(nesting-nonterminal
+        name:id (nested-id:id)
+        opts:nonterminal-options
+        prod:production-spec ...)
+       (with-syntax ([expander-name (generate-temporary #'name)])
+         (values
+          (generate-nonterminal-declarations
+           (attribute name) (attribute opts.description) (attribute prod.form-name)
+           #'(nesting-nonterm-info (quote-syntax expander-name)))
+          #'(define expander-name
+              (generate-nonterminal-expander
+               (#:nesting nested-id) opts prod ...))))]
+      [(two-pass-nonterminal
+        name:id
+        opts:nonterminal-options
+        prod:production-spec ...)
+       (with-syntax ([(pass1-expander-name pass2-expander-name) (generate-temporaries #'(name name))])
+         (values
+          (generate-nonterminal-declarations
+           (attribute name) (attribute opts.description) (attribute prod.form-name)
+           #'(two-pass-nonterm-info (quote-syntax pass1-expander-name) (quote-syntax pass2-expander-name)))
+          #'(begin
+              (define pass1-expander-name
+                (generate-nonterminal-expander
+                 #:pass1 opts prod ...))
+              (define pass2-expander-name
+                (generate-nonterminal-expander
+                 #:pass2 opts prod ...)))))])))
 
 (begin-for-syntax
+  (define (generate-nonterminal-declarations name-stx description form-names variant-info-stx)
+    (with-syntax ([name name-stx]
+                  [litset-name (generate-temporary name-stx)]
+                  [error-message (make-error-message name-stx description)]
+                  [(form-name ...) (filter identity form-names)]
+                  [variant-info variant-info-stx])
+      (check-duplicate-forms form-names)
+      #'(begin
+          (define-literal-forms litset-name 'error-message (form-name ...))
+          (begin-for-syntax
+            (define-syntax name (nonterm-rep (quote-syntax litset-name) variant-info))))))
+  
   (define (check-duplicate-forms form-names)
     (let ([maybe-dup-id (check-duplicate-identifier
                          (filter identity (flatten form-names)))])
       (when maybe-dup-id
         (wrong-syntax maybe-dup-id "duplicate form name"))))
 
-  (define (make-error-message description)
+  (define (make-error-message name description)
     (string-append
-     (syntax-e description)
+     (if description (syntax-e description) (symbol->string (syntax-e name)))
      " may not be used as an expression"))
   
   (define-syntax generate-nonterminal-expander
-    (syntax-parser [(_ . decls) (compile-nonterminal-expander #'decls)])))
+    (syntax-parser [(_ . decls) (compile-nonterminal-expander #'decls)]))  
+  )
 
 (define-syntax define-nonterminal
   (syntax-parser
@@ -138,7 +173,7 @@
        (define binding (lookup #'ref nonterm-rep?))
        (when (not binding)
          (raise-syntax-error #f "not bound as nonterminal" #'ref))
-       (with-syntax ([exp-proc (nonterm-rep-exp-proc binding)])
+       (with-syntax ([exp-proc (simple-nonterm-info-expander (nonterm-rep-variant-info binding))])
          #'(#%expression (lambda (stx) (let-values ([(res _) (exp-proc stx #f)])
                                          res))))]))
       

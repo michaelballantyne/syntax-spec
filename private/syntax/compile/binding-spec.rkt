@@ -28,13 +28,13 @@
        (when (not binding)
          (raise-syntax-error #f "no corresponding pattern variable" #'v))
        (match (pvar-rep-var-info binding)
-         [(nonterm-rep exp-proc _)
+         [(nonterm-rep _ (simple-nonterm-info exp-proc))
           #`(subexp 'v #,exp-proc)]
          [(bindclass-rep description _ pred)
           #`(ref 'v #,pred #,(string-append "not bound as " description))]
          [(nested-binding)
           #`(nested)]
-         [(? sequence-nonterm-rep?)
+         [(nonterm-rep _ (nesting-nonterm-info _))
           (raise-syntax-error #f "sequence nonterminals may only be used with fold" #'v)]
          [(or (? stxclass?) (? has-stxclass-prop?))
           #`(group (list))])]
@@ -55,10 +55,14 @@
        (define binding (lookup (attribute v) pvar-rep?))
        (when (not binding)
          (raise-syntax-error #f "no corresponding pattern variable" #'v))
-       (when (not (sequence-nonterm-rep? (pvar-rep-var-info binding)))
-         (raise-syntax-error 'fold "not a sequence nonterminal" #'v))
+       (define var-info (pvar-rep-var-info binding))
+       (when (not (nonterm-rep? var-info))
+         (raise-syntax-error 'fold "not a nonterminal" #'v))
+       (define variant-info (nonterm-rep-variant-info var-info))
+       (when (not (nesting-nonterm-info? variant-info))
+         (raise-syntax-error 'fold "not a nesting nonterminal"))
        (with-syntax ([spec-c (compile-bspec-term (attribute spec))])
-         #`(nest 'v #,(sequence-nonterm-rep-exp-proc (pvar-rep-var-info binding)) spec-c))]
+         #`(nest 'v #,(nesting-nonterm-info-expander variant-info) spec-c))]
       [(~braces spec ...)
        (with-syntax ([(spec-c ...) (map compile-bspec-term (attribute spec))])
          #'(scope (group (list spec-c ...))))]
