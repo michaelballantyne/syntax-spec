@@ -25,14 +25,15 @@
       (opts:nonterminal-options)
       prod-arg ...)
 
-     (define (generate-loop prods-stx maybe-nested-id maybe-nest-st-id)
+     (define (generate-loop prods-stx maybe-nested-id init-stx-id maybe-nest-st-id)
        (define/syntax-parse ((prod:production-spec) ...) prods-stx)
        (with-syntax ([prod-clauses (map (lambda (sspec bspec)
-                                          (generate-prod-clause sspec bspec maybe-nested-id maybe-nest-st-id))
+                                          (generate-prod-clause sspec bspec maybe-nested-id maybe-nest-st-id (attribute variant)))
                                         (attribute prod.sspec) (attribute prod.bspec))]
                      [macro-clauses (for/list ([extclass (attribute opts.ext-classes)])
                                       (generate-macro-clause extclass #'recur))]
-                     [description (or (attribute opts.description) (symbol->string (syntax-e (attribute name))))])
+                     [description (or (attribute opts.description) (symbol->string (syntax-e (attribute name))))]
+                     [stx-a init-stx-id])
          #'(let recur ([stx stx-a])
              (syntax-parse stx
                (~@ . macro-clauses)
@@ -48,14 +49,14 @@
           (with-scope sc
             (define id^ (bind! (add-scope (attribute nested-id) sc) (pvar-rep (nested-binding))))
             #`(lambda (stx-a nest-st)
-                #,(generate-loop (add-scope #'(prod-arg ...) sc) id^ #'nest-st)))]
+                #,(generate-loop (add-scope #'(prod-arg ...) sc) id^ #'stx-a #'nest-st)))]
          [_
           #`(lambda (stx-a)
-              #,(generate-loop #'(prod-arg ...) #f #f))]))
+              #,(generate-loop #'(prod-arg ...) #f #'stx-a #f))]))
      
      (generate-header)]))
 
-(define (generate-prod-clause sspec-arg bspec-arg maybe-nested-id maybe-nest-st-id)
+(define (generate-prod-clause sspec-arg bspec-arg maybe-nested-id maybe-nest-st-id variant)
   (with-scope sc
     (define sspec (add-scope sspec-arg sc))
     (define bspec (if bspec-arg (add-scope bspec-arg sc) bspec-arg))
