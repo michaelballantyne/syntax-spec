@@ -4,7 +4,6 @@
  (struct-out ref)      ; v:binding-class
  (struct-out subexp)   ; v:nonterminal
  (struct-out bind)     ; !
- (struct-out export)   ; ^
  (struct-out scope)    ; {}
  (struct-out group)    ; []
  (struct-out nest) ; fold
@@ -33,7 +32,6 @@
 (struct ref [svar pred msg] #:transparent)
 (struct subexp [svar nonterm] #:transparent)
 (struct bind [svar bvalc] #:transparent)
-(struct export [svars qualifier] #:transparent)
 (struct scope [spec] #:transparent)
 (struct group [specs] #:transparent)
 (struct nest [svar nonterm spec] #:transparent)
@@ -70,9 +68,6 @@
      (set-member? svars pv)]
     [(bind (? svar? pv) (? procedure?))
      (set-member? svars pv)]
-    [(export (list-rest (? svar? pvs)) (? qualifier?))
-     (for/and ([pv pvs])
-       (set-member? svars pv))]
     [(scope spec)
      (binding-spec-well-formed? spec svars)]
     [(group specs)
@@ -150,9 +145,6 @@
     [(bind pv valc)
      (for/pv-state-tree ([stx pv])
        (bind! (add-scopes stx local-scopes) (valc)))]
-    
-    [(export (list-rest (? svar? pvs)) (? qualifier?))
-     (error 'simple-expand "export specs not supported")]
     
     [(scope spec)
      (with-scope sc
