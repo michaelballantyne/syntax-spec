@@ -56,10 +56,10 @@
      
      (generate-header)]))
 
-(define (generate-prod-clause sspec-arg bspec-arg maybe-nested-id maybe-nest-st-id variant)
+(define (generate-prod-clause sspec-arg maybe-bspec-arg maybe-nested-id maybe-nest-st-id variant)
   (with-scope sc
     (define sspec (add-scope sspec-arg sc))
-    (define bspec (if bspec-arg (add-scope bspec-arg sc) bspec-arg))
+    (define maybe-bspec (if maybe-bspec-arg (add-scope maybe-bspec-arg sc) maybe-bspec-arg))
     
     (define sspec-pvars (sspec-bind-pvars! sspec))
     (define bound-pvars (if maybe-nested-id
@@ -68,7 +68,7 @@
     
     (with-syntax ([(v ...) sspec-pvars]
                   [pattern (compile-sspec-to-pattern sspec)]
-                  [bspec-e (compile-bspec bspec bound-pvars)]
+                  [bspec-e (compile-bspec maybe-bspec bound-pvars variant)]
                   [template (compile-sspec-to-template sspec)]
                   [nest-st (or maybe-nest-st-id #'#f)])
       #`[pattern
