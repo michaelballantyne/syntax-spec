@@ -5,6 +5,7 @@
          compile-sspec-to-template)
 
 (require syntax/parse
+         racket/syntax
          "../syntax-classes.rkt"
          "../env-reps.rkt"
          racket/pretty
@@ -46,7 +47,8 @@
        #:do [(define binding (lookup #'r.ref (lambda (v) (or (stxclass? v)
                                                              (has-stxclass-prop? v)))))]
        #:when binding
-       #'(~var r.var r.ref)]))
+       #'(~var r.var r.ref)]
+      [_ (wrong-syntax/orig this-syntax "not a valid syntax spec term")]))
       
   (generate-pattern-form stx))
 
@@ -104,9 +106,9 @@
                                      (stxclass? v)
                                      (has-stxclass-prop? v)))))
        (when (not binding)
-         (raise-syntax-error #f "not a binding class, syntax class, or nonterminal" #'r.ref))
+         (wrong-syntax/orig #'r.ref "expected a reference to a binding class, syntax class, or nonterminal"))
        (when (member #'r.var res bound-identifier=?)
-         (raise-syntax-error #f "duplicate pattern variable" #'r.var))
+         (wrong-syntax/orig #'r.ref "duplicate pattern variable"))
        (bind! #'r.var (pvar-rep binding))
        
        (set! res (cons #'r.var res))]

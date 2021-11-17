@@ -21,13 +21,15 @@
   (for-meta 2
             racket/base
             syntax/parse
+            racket/syntax
             ee-lib
             "env-reps.rkt"
+            "syntax-classes.rkt"
             "compile/nonterminal-expander.rkt"))
 
 (define-syntax define-hosted-syntaxes
   (syntax-parser
-    #:context 'define-hosted-syntaxes
+    #:context (list 'define-hosted-syntaxes this-syntax)
     [(_ form ...+)
      (match-define
        (list (list pass1-res expander-defs) ...)
@@ -51,7 +53,6 @@
   ; in begin-for-syntax.
   (define/hygienic (define-hosted-syntaxes-compile-form stx) #:expression
     (syntax-parse stx
-      #:context 'define-hosted-syntaxes-pass1
       #:datum-literals (binding-class
                         extension-class
                         nonterminal nesting-nonterminal two-pass-nonterminal)
@@ -91,8 +92,9 @@
           (generate-nonterminal-declarations
            (attribute name) (attribute opts.description) (attribute prod.form-name)
            #'(simple-nonterm-info (quote-syntax expander-name)))
-          #'(define expander-name
+          #`(define expander-name
               (generate-nonterminal-expander
+               #,this-syntax
                #:simple name opts prod ...))))]
       [(nesting-nonterminal
         name:id (nested-id:id)
@@ -103,8 +105,9 @@
           (generate-nonterminal-declarations
            (attribute name) (attribute opts.description) (attribute prod.form-name)
            #'(nesting-nonterm-info (quote-syntax expander-name)))
-          #'(define expander-name
+          #`(define expander-name
               (generate-nonterminal-expander
+               #,this-syntax
                (#:nesting nested-id) name opts prod ...))))]
       [(two-pass-nonterminal
         name:id
@@ -115,12 +118,14 @@
           (generate-nonterminal-declarations
            (attribute name) (attribute opts.description) (attribute prod.form-name)
            #'(two-pass-nonterm-info (quote-syntax pass1-expander-name) (quote-syntax pass2-expander-name)))
-          #'(begin
+          #`(begin
               (define pass1-expander-name
                 (generate-nonterminal-expander
+                 #,this-syntax
                  #:pass1 name opts prod ...))
               (define pass2-expander-name
                 (generate-nonterminal-expander
+                 #,this-syntax
                  #:pass2 name opts prod ...)))))])))
 
 (begin-for-syntax
@@ -148,7 +153,10 @@
      " may not be used as an expression"))
   
   (define-syntax generate-nonterminal-expander
-    (syntax-parser [(_ . decls) (compile-nonterminal-expander #'decls)]))  
+    (syntax-parser
+      [(_ orig-stx . decls)
+       (parameterize ([current-orig-stx #'orig-stx])
+         (compile-nonterminal-expander #'decls))]))  
   )
 
 (define-syntax define-nonterminal
@@ -164,7 +172,7 @@
         [(_ ref:id)
          (define binding (lookup #'ref predicate))
          (when (not binding)
-           (raise-syntax-error #f error-message #'ref))
+           (wrong-syntax #'ref error-message))
          (accessor binding)])))
 
   (define-syntax nonterminal-expander
@@ -172,10 +180,10 @@
       [(_ ref:id)
        (define binding (lookup #'ref nonterm-rep?))
        (when (not binding)
-         (raise-syntax-error #f "not bound as nonterminal" #'ref))
+         (wrong-syntax #'ref  "not bound as nonterminal"))
        (define variant-info (nonterm-rep-variant-info binding))
        (when (not (simple-nonterm-info? variant-info))
-         (raise-syntax-error #f "only simple non-terminals may be used as entry points" #'ref))
+         (wrong-syntax #'ref "only simple non-terminals may be used as entry points"))
        (simple-nonterm-info-expander variant-info)]))
       
   (define-syntax binding-class-constructor

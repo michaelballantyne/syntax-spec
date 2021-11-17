@@ -5,6 +5,7 @@
 (require racket/base
          syntax/parse
          syntax/id-set
+         racket/syntax
          ee-lib
          "../syntax-classes.rkt"
          "../env-reps.rkt"
@@ -24,7 +25,6 @@
       name
       (opts:nonterminal-options)
       prod-arg ...)
-
      (define (generate-loop prods-stx maybe-nested-id init-stx-id maybe-nest-st-id)
        (define/syntax-parse ((prod:production-spec) ...) prods-stx)
        (with-syntax ([prod-clauses (map (lambda (sspec bspec)

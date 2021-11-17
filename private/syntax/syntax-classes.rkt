@@ -1,6 +1,9 @@
 #lang racket/base
 
 (provide
+ current-orig-stx
+ wrong-syntax/orig
+ 
  ;; Syntax class matching identifiers with a `:`
  ;;
  ;; Attributes:
@@ -37,6 +40,13 @@
   syntax/srcloc
   racket/syntax)
 
+(define current-orig-stx (make-parameter #f))
+
+(define (wrong-syntax/orig stx #:extra [extras null] format-string . args)
+  (parameterize ([current-syntax-context (current-orig-stx)])
+    (apply wrong-syntax stx #:extra extras format-string args)))
+
+
 (define-syntax-class ref-id
   #:description "pattern variable with annotation"
   (pattern name:id #:when (has:? #'name)
@@ -53,6 +63,7 @@
            #:attr form-name (attribute sspec.form-name)))
 
 (define-syntax-class sspec
+  #:description "syntax spec"
   (pattern (form-name:nonref-id . _))
   (pattern _:expr #:attr form-name #f))
 
