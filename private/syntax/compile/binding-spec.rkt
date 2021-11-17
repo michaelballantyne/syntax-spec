@@ -18,8 +18,11 @@
          )
 
 (define (compile-bspec maybe-bspec bound-pvars variant)
-  (define bspec (or maybe-bspec #'[]))
-  (define bspec-with-implicits (add-implicit-pvar-refs bspec bound-pvars))
+  (define bspec-stx (or maybe-bspec #'[]))
+
+  (define bspec-elaborated (elaborate-bspec bspec-stx))
+  (define bspec-with-implicits (add-implicit-pvar-refs bspec-elaborated bound-pvars))
+  (define bspec-flattened (bspec-flatten-groups bspec-with-implicits))
 
   (define variant-compiler
     (syntax-parse variant
@@ -27,34 +30,76 @@
       [#:pass1 compile-bspec-term/pass1]
       [#:pass2 compile-bspec-term/pass2]))
 
-  (variant-compiler bspec-with-implicits))
+  (variant-compiler bspec-flattened))
 
-(define (add-implicit-pvar-refs bspec bound-pvars)
-  (define/syntax-parse (unreferenced-pvars ...)
-    (remove*
-     (bspec-referenced-pvars bspec)
-     bound-pvars
-     bound-identifier=?))
+;; Elaborated representation; variables are associated with expander-environment information
 
-  #`[#,bspec unreferenced-pvars ...])
+(struct pvar [id info])
 
-(define bspec-referenced-pvars
+(struct ref [pvar])
+(struct bind [pvar])
+(struct rec [pvars])
+(struct export [pvar])
+(struct nest [pvar spec])
+(struct scope [spec])
+(struct group [specs])
+
+;; Elaborate
+
+(define elaborate-bspec
   (syntax-parser
     #:datum-literals (! rec ^ nest)
     [v:nonref-id
-     (list #'v)]
+     (ref (pvar (attribute v) (lookup-pvar (attribute v))))]
     [(! v:nonref-id ...+)
-     (attribute v)]
-    [(^ v:nonref-id ...+)
-     (attribute v)]
+     (group
+      (for/list ([v (attribute v)])
+        (bind
+         (elaborate-pvar v
+                         (struct* bindclass-rep ())
+                         "binding class"))))]
     [(rec v:nonref-id ...+)
-     (attribute v)]
-    [(nest v:nonref-id e:bspec-term)
-     (cons (attribute v) (bspec-referenced-pvars (attribute e)))]
-    [(~braces spec:bspec-term ...)
-     (flatten (map bspec-referenced-pvars (attribute spec)))]
-    [(~brackets spec:bspec-term ...)
-     (flatten (map bspec-referenced-pvars (attribute spec)))]))
+     (rec
+         (for/list ([v (attribute v)])
+           (elaborate-pvar v
+                           (struct* nonterm-rep ([variant-info (struct* two-pass-nonterm-info ())]))
+                           "two-pass nonterminal")))]
+    [(^ v:nonref-id ...+)
+     (group
+      (for/list ([v (attribute v)])
+        (export
+         (elaborate-pvar v
+                         (or (struct* bindclass-rep ())
+                             (struct* nonterm-rep ([variant-info (struct* two-pass-nonterm-info ())])))
+                         "binding class or two-pass nonterminal"))))]
+    [(nest v:nonref-id spec:bspec-term)
+     (nest
+      (elaborate-pvar (attribute v)
+                      (struct* nonterm-rep ([variant-info (struct* nesting-nonterm-info ())]))
+                      "nesting nonterminal")
+      (elaborate-bspec (attribute spec)))]
+    [(~braces spec ...)
+     (scope (group (map elaborate-bspec (attribute spec))))]
+    [(~brackets spec ...)
+     (group (map elaborate-bspec (attribute spec)))]))
+
+
+;; Elaborator helpers
+
+(define-syntax-rule
+  (elaborate-pvar v-e pattern expected-str-e)
+  (elaborate-pvar-rt
+   v-e
+   (match-lambda
+     [pattern #t]
+     [_ #f])
+   expected-str-e))
+
+(define (elaborate-pvar-rt v info-pred expected-str)
+  (let ([info (lookup-pvar v)])
+    (if (info-pred info)
+        (pvar v info)
+        (wrong-syntax v (string-append "expected pattern variable associated with a " expected-str)))))
 
 (define (lookup-pvar v)
   (define binding (lookup v pvar-rep?))
@@ -64,76 +109,107 @@
         (wrong-syntax v "expected a reference to a pattern variable")))
   (pvar-rep-var-info binding))
 
-(define compile-bspec-term/single-pass
-  (syntax-parser
-    #:context 'compile-bspec-term/single-pass
-    #:datum-literals (! rec ^ nest)
-    [v:nonref-id
-     (match (lookup-pvar #'v)
+;; Infer implicit pvar refs
+
+(define (add-implicit-pvar-refs bspec bound-pvars)
+  (define unreferenced-pvars
+    (remove*
+     (bspec-referenced-pvars bspec)
+     bound-pvars
+     bound-identifier=?))
+
+  (group (cons bspec (for/list ([v unreferenced-pvars])
+                       (ref (pvar v (lookup-pvar v)))))))
+
+(define (bspec-referenced-pvars spec)
+  (match spec
+    [(or (ref (pvar v _))
+         (bind (pvar v _))
+         (export (pvar v _)))
+     (list v)]
+    [(rec (list (pvar vs _)))
+     vs]
+    [(nest (pvar v _) spec)
+     (cons v (bspec-referenced-pvars spec))]
+    [(scope spec)
+     (bspec-referenced-pvars spec)]
+    [(group specs)
+     (apply append (map bspec-referenced-pvars specs))]))
+
+;; Flatten groups for easier order analysis
+
+(define (bspec-flatten-groups bspec)
+  (define (flattened-elements el)
+    (match el
+      [(group l)
+       (apply append (map flattened-elements l))]
+      [_ (list (bspec-flatten-groups el))]))
+  
+  (match bspec
+    [(nest v spec)
+     (nest v (bspec-flatten-groups spec))]
+    [(scope spec)
+     (scope (bspec-flatten-groups spec))]
+    [(group l) (group (flattened-elements bspec))]
+    [other other]))
+
+(define (flat-bspec-top-elements el)
+  (match el
+    [(group l) l]
+    [_ (list el)]))
+
+(define (compile-bspec-term/single-pass spec)
+  (match spec
+    [(ref (pvar v info))
+     (match info
        [(nonterm-rep _ (simple-nonterm-info exp-proc))
-        #`(subexp 'v #,exp-proc)]
+        #`(subexp '#,v #,exp-proc)]
        [(bindclass-rep description _ pred)
-        #`(ref 'v #,pred #,(string-append "not bound as " description))]
+        #`(ref '#,v #,pred #,(string-append "not bound as " description))]
        [(nested-binding)
         #`(nested)]
        [(nonterm-rep _ (nesting-nonterm-info _))
-        (wrong-syntax/orig #'v "nesting nonterminals may only be used with `nest`")]
+        (wrong-syntax/orig v "nesting nonterminals may only be used with `nest`")]
        [(or (? stxclass?) (? has-stxclass-prop?))
         #`(group (list))])]
-    [(! v:nonref-id ...+)
-     (with-syntax
-         ([(v-c ...)
-           (for/list ([v (syntax->list #'(v ...))])
-             (match (lookup-pvar v)
-               [(bindclass-rep _ constr _)
-                #`(bind '#,v #,constr)]
-               [_ (wrong-syntax #'v "expected pattern variable associated with a binding class")]))])
-       #'(group (list v-c ...)))]
-    [(rec v:nonref-id ...+)
-     (define nonterm-infos
-       (for/list ([v (syntax->list #'(v ...))])
-         (match (lookup-pvar v)
-           [(nonterm-rep _ (and info (two-pass-nonterm-info _ _)))
-            info]
-           [_ (wrong-syntax v "expected pattern variable associated with a two-pass nonterminal")])))
+    [(bind (pvar v info))
+     (match info
+       [(bindclass-rep _ constr _)
+        #`(bind '#,v #,constr)])]
+    [(rec pvars)
      ;TODO
      (error 'compile-bspec-term/single-pass "rec not implemented yet")]
-    [(^ v:nonref-id ...+)
-     (wrong-syntax/orig this-syntax "exports may only occur at the top-level of a two-pass binding spec")]
-    [(nest v:nonref-id spec)
-     (match (lookup-pvar (attribute v))
+    [(export (pvar v _))
+     (wrong-syntax/orig v "exports may only occur at the top-level of a two-pass binding spec")]
+    [(nest (pvar v info) spec)
+     (match info
        [(nonterm-rep _ (nesting-nonterm-info expander))
-        (with-syntax ([spec-c (compile-bspec-term/single-pass (attribute spec))])
-          #`(nest 'v #,expander spec-c))]
-       [_ (wrong-syntax #'v "expected pattern variable assocated with a nesting nonterminal")])]
-    [(~braces spec ...)
-     (with-syntax ([(spec-c ...) (map compile-bspec-term/single-pass (attribute spec))])
-       #'(scope (group (list spec-c ...))))]
-    [(~brackets spec ...)
-     (with-syntax ([(spec-c ...) (map compile-bspec-term/single-pass (attribute spec))])
+        (with-syntax ([spec-c (compile-bspec-term/single-pass spec)])
+          #`(nest '#,v #,expander spec-c))])]
+    [(scope spec)
+     (with-syntax ([spec-c (compile-bspec-term/single-pass spec)])
+       #'(scope spec-c))]
+    [(group specs)
+     (with-syntax ([(spec-c ...) (map compile-bspec-term/single-pass specs)])
        #'(group (list spec-c ...)))]))
 
 ; TODO
-(define compile-bspec-term/pass1
-  (syntax-parser
-    #:context 'compile-bspec-term/pass1
-    #:datum-literals (! rec ^ nest)
-    [v:nonref-id 'TODO]
-    [(! v:nonref-id ...+) 'TODO]
-    [(rec v:nonref-id ...+) 'TODO]
-    [(^ v:nonref-id ...+) 'TODO]
-    [(nest v:nonref-id spec) 'TODO]
-    [(~braces spec ...) 'TODO]
-    [(~brackets spec ...) 'TODO]))
+(define (compile-bspec-term/pass1 spec)
+  (match spec
+    [(ref pv) 'TODO]
+    [(bind pv) 'TODO]
+    [(rec pv) 'TODO]
+    [(export pv) 'TODO]
+    [(nest pv spec) 'TODO]
+    [(scope spec) 'TODO]
+    [(group specs) 'TODO]))
 
-(define compile-bspec-term/pass2
-  (syntax-parser
-    #:context 'compile-bspec-term/pass2
-    #:datum-literals (! rec ^ nest)
-    [v:nonref-id 'TODO]
-    [(! v:nonref-id ...+) 'TODO]
-    [(rec v:nonref-id ...+) 'TODO]
-    [(^ v:nonref-id ...+) 'TODO]
-    [(nest v:nonref-id spec) 'TODO]
-    [(~braces spec ...) 'TODO]
-    [(~brackets spec ...) 'TODO]))
+(define (compile-bspec-term/pass2 spec)
+  (match spec
+    [(ref pv) 'TODO]
+    [(bind pv) 'TODO]
+    [(rec pv) 'TODO]
+    [(export pv) 'TODO]
+    [(nest pv spec) 'TODO]
+    [(scope spec) 'TODO]
+    [(group specs) 'TODO]))

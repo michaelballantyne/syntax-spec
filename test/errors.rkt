@@ -103,7 +103,7 @@
                           [])))
 
 (check-decl-error
- #rx"nest: expected pattern variable assocated with a nesting nonterminal"
+ #rx"nest: expected pattern variable associated with a nesting nonterminal"
  #'(define-hosted-syntaxes
      (nonterminal expr
                   (e:expr)
