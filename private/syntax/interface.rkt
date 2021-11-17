@@ -29,7 +29,6 @@
 
 (define-syntax define-hosted-syntaxes
   (syntax-parser
-    #:context (list 'define-hosted-syntaxes this-syntax)
     [(_ form ...+)
      (match-define
        (list (list pass1-res expander-defs) ...)
@@ -86,7 +85,7 @@
       [(nonterminal
         name:id
         opts:nonterminal-options
-        prod:production-spec ...)
+        prod:production-spec ...+)
        (with-syntax ([expander-name (generate-temporary #'name)])
          (values
           (generate-nonterminal-declarations
@@ -97,9 +96,9 @@
                #,this-syntax
                #:simple name opts prod ...))))]
       [(nesting-nonterminal
-        name:id (nested-id:id)
+        name:id nested:nested-binding-syntax
         opts:nonterminal-options
-        prod:production-spec ...)
+        prod:production-spec ...+)
        (with-syntax ([expander-name (generate-temporary #'name)])
          (values
           (generate-nonterminal-declarations
@@ -108,11 +107,11 @@
           #`(define expander-name
               (generate-nonterminal-expander
                #,this-syntax
-               (#:nesting nested-id) name opts prod ...))))]
-      [(two-pass-nonterminal
+               (#:nesting nested.id) name opts prod ...))))]
+      [(two-pass-nonterminal ~!
         name:id
         opts:nonterminal-options
-        prod:production-spec ...)
+        prod:production-spec ...+)
        (with-syntax ([(pass1-expander-name pass2-expander-name) (generate-temporaries #'(name name))])
          (values
           (generate-nonterminal-declarations
@@ -180,17 +179,17 @@
       [(_ ref:id)
        (define binding (lookup #'ref nonterm-rep?))
        (when (not binding)
-         (wrong-syntax #'ref  "not bound as nonterminal"))
+         (wrong-syntax #'ref  "expected a nonterminal name"))
        (define variant-info (nonterm-rep-variant-info binding))
        (when (not (simple-nonterm-info? variant-info))
          (wrong-syntax #'ref "only simple non-terminals may be used as entry points"))
        (simple-nonterm-info-expander variant-info)]))
       
   (define-syntax binding-class-constructor
-    (accessor-macro bindclass-rep? "not bound as binding class" bindclass-rep-constr))
+    (accessor-macro bindclass-rep? "expected a binding class name" bindclass-rep-constr))
   
   (define-syntax binding-class-predicate
-    (accessor-macro bindclass-rep? "not bound as binding class" bindclass-rep-pred))
+    (accessor-macro bindclass-rep? "expected a binding class name" bindclass-rep-pred))
 
   (define-syntax nonterminal-literal-set
-    (accessor-macro nonterm-rep? "not bound as nonterminal" nonterm-rep-litset-ref)))
+    (accessor-macro nonterm-rep? "expected a nonterminal name" nonterm-rep-litset-ref)))

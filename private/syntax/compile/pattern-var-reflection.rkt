@@ -17,6 +17,7 @@
 
 (require (for-syntax racket/base
                      syntax/parse
+                     racket/syntax
                      (only-in racket/private/sc
                               make-syntax-mapping
                               syntax-pattern-variable?
@@ -40,7 +41,7 @@
                          body)))]))
 
 (define-for-syntax (get-pvar-info v)
-  (define (unbound-error) (raise-syntax-error #f "not bound as pattern var" v))
+  (define (unbound-error) (wrong-syntax v "expected pattern var"))
   (define binding (syntax-local-value v unbound-error))
   (when (not (syntax-pattern-variable? binding))
     (unbound-error))

@@ -48,7 +48,7 @@
                                                              (has-stxclass-prop? v)))))]
        #:when binding
        #'(~var r.var r.ref)]
-      [_ (wrong-syntax/orig this-syntax "not a valid syntax spec term")]))
+      [_ (wrong-syntax/orig this-syntax "expected a syntax spec term")]))
       
   (generate-pattern-form stx))
 

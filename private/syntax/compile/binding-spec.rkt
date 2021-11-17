@@ -4,6 +4,7 @@
 
 (require racket/match
          syntax/parse
+         racket/syntax
          syntax/parse/class/paren-shape
          syntax/id-table
          syntax/id-set
@@ -39,27 +40,28 @@
 
 (define bspec-referenced-pvars
   (syntax-parser
-    #:context 'bspec-referenced-pvars
     #:datum-literals (! rec ^ nest)
     [v:nonref-id
      (list #'v)]
     [(! v:nonref-id ...+)
      (attribute v)]
-    [(^ v:ref-id ...+)
+    [(^ v:nonref-id ...+)
      (attribute v)]
-    [(rec v:ref-id ...+)
+    [(rec v:nonref-id ...+)
      (attribute v)]
-    [(nest v e)
+    [(nest v:nonref-id e:bspec-term)
      (cons (attribute v) (bspec-referenced-pvars (attribute e)))]
-    [(~braces spec ...)
+    [(~braces spec:bspec-term ...)
      (flatten (map bspec-referenced-pvars (attribute spec)))]
-    [(~brackets spec ...)
+    [(~brackets spec:bspec-term ...)
      (flatten (map bspec-referenced-pvars (attribute spec)))]))
 
 (define (lookup-pvar v)
   (define binding (lookup v pvar-rep?))
   (when (not binding)
-    (raise-syntax-error #f "no corresponding pattern variable" v))
+    (if (identifier? (current-syntax-context))
+        (wrong-syntax/orig v "binding spec expected a reference to a pattern variable")
+        (wrong-syntax v "expected a reference to a pattern variable")))
   (pvar-rep-var-info binding))
 
 (define compile-bspec-term/single-pass
@@ -75,7 +77,7 @@
        [(nested-binding)
         #`(nested)]
        [(nonterm-rep _ (nesting-nonterm-info _))
-        (raise-syntax-error #f "sequence nonterminals may only be used with fold" #'v)]
+        (wrong-syntax/orig #'v "nesting nonterminals may only be used with `nest`")]
        [(or (? stxclass?) (? has-stxclass-prop?))
         #`(group (list))])]
     [(! v:nonref-id ...+)
@@ -85,25 +87,25 @@
              (match (lookup-pvar v)
                [(bindclass-rep _ constr _)
                 #`(bind '#,v #,constr)]
-               [_ (raise-syntax-error '! "not associated with a binding class" #'v)]))])
+               [_ (wrong-syntax #'v "expected pattern variable associated with a binding class")]))])
        #'(group (list v-c ...)))]
     [(rec v:nonref-id ...+)
      (define nonterm-infos
-       (for/list ([v #'(v ...)])
-         (match (lookup-pvar #'v)
+       (for/list ([v (syntax->list #'(v ...))])
+         (match (lookup-pvar v)
            [(nonterm-rep _ (and info (two-pass-nonterm-info _ _)))
             info]
-           [_ (raise-syntax-error 'rec "expected a two-pass nonterminal" v)])))
+           [_ (wrong-syntax v "expected pattern variable associated with a two-pass nonterminal")])))
      ;TODO
      (error 'compile-bspec-term/single-pass "rec not implemented yet")]
     [(^ v:nonref-id ...+)
-     (raise-syntax-error #f "exports may only occur at the top-level of a two-pass binding spec" this-syntax)]
+     (wrong-syntax/orig this-syntax "exports may only occur at the top-level of a two-pass binding spec")]
     [(nest v:nonref-id spec)
      (match (lookup-pvar (attribute v))
        [(nonterm-rep _ (nesting-nonterm-info expander))
         (with-syntax ([spec-c (compile-bspec-term/single-pass (attribute spec))])
           #`(nest 'v #,expander spec-c))]
-       [_ (raise-syntax-error 'nest "not a nesting nonterminal" #'v)])]
+       [_ (wrong-syntax #'v "expected pattern variable assocated with a nesting nonterminal")])]
     [(~braces spec ...)
      (with-syntax ([(spec-c ...) (map compile-bspec-term/single-pass (attribute spec))])
        #'(scope (group (list spec-c ...))))]

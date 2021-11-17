@@ -43,7 +43,7 @@
  '(let* ([x 5] [x (+ x 1)]) x))
 
 (check-exn
- #rx"y: not bound as expr language variable"
+ #rx"exprlang: not bound as expr language variable"
  (lambda ()
    (convert-compile-time-error
     (exprlang (let* ([x 5]) y)))))

@@ -3,6 +3,10 @@
 (provide
  current-orig-stx
  wrong-syntax/orig
+
+ nested-binding-syntax
+ sspec-term
+ bspec-term
  
  ;; Syntax class matching identifiers with a `:`
  ;;
@@ -47,6 +51,18 @@
     (apply wrong-syntax stx #:extra extras format-string args)))
 
 
+(define-syntax-class sspec-term
+  #:description "syntax spec term"
+  (pattern _))
+
+(define-syntax-class bspec-term
+  #:description "binding spec term"
+  (pattern _))
+
+(define-syntax-class nested-binding-syntax
+  #:description "pattern variable binding for nested syntax"
+  (pattern (id:id)))
+
 (define-syntax-class ref-id
   #:description "pattern variable with annotation"
   (pattern name:id #:when (has:? #'name)
@@ -59,6 +75,7 @@
 
 
 (define-splicing-syntax-class production-spec
+  #:description "production spec"
   (pattern (~seq sspec:sspec (~optional (~seq #:binding bspec)))
            #:attr form-name (attribute sspec.form-name)))
 

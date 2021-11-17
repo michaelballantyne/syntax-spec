@@ -16,6 +16,7 @@
                        "../../runtime/binding-spec.rkt"
                        "pattern-var-reflection.rkt"
                        syntax/parse
+                       racket/syntax
                        ee-lib))
 
 (define (compile-nonterminal-expander stx)
@@ -36,12 +37,12 @@
                      [stx-a init-stx-id])
          #'(let recur ([stx stx-a])
              (syntax-parse stx
+               #:context (current-syntax-context)
                (~@ . macro-clauses)
                (~@ . prod-clauses)
-               [_ (raise-syntax-error
-                   #f
-                   (string-append "expected " (#%datum . description))
-                   this-syntax)]))))
+               [_ (wrong-syntax
+                   this-syntax
+                   (string-append "expected " (#%datum . description)))]))))
 
      (define (generate-header)
        (syntax-parse (attribute variant)
@@ -84,7 +85,7 @@
 (define (generate-macro-clause extclass recur-id)
   (let ([ext-info (lookup extclass extclass-rep?)])
     (when (not ext-info)
-      (raise-syntax-error #f "not bound as extension class" extclass))
+      (wrong-syntax/orig extclass "expected extension class name"))
         
     (with-syntax ([m-pred (extclass-rep-pred ext-info)]
                   [m-acc (extclass-rep-acc ext-info)]

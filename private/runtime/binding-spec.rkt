@@ -21,6 +21,7 @@
   racket/match
   racket/list
   racket/set
+  racket/syntax
   ee-lib)
 
 ;;
@@ -135,7 +136,7 @@
      (for/pv-state-tree ([id pv])
        (define id^ (add-scopes id local-scopes))
        (when (not (lookup id^ pred))
-         (raise-syntax-error #f msg id^))
+         (wrong-syntax id^ msg))
        id^)]
     
     [(subexp pv f)
