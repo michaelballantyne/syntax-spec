@@ -16,12 +16,11 @@
 (begin-for-syntax
   (struct mylang-binding ())
   
-  (define (mylang-expand-expr stx _)
+  (define (mylang-expand-expr stx)
     (syntax-parse stx
       #:literal-sets (mylang-lits)
       [n:number
-       (values #'n
-               #f)]
+       #'n]
       [v:id
        (define-values (res _)
          (simple-expand
@@ -29,11 +28,9 @@
           (hash
            'v #'v)
           #f))
-       (values
-        (hash-ref
-         res
-         'v)
-        #f)]
+       (hash-ref
+        res
+        'v)]
       [(mylang-let ([v e]) b)
        (define-values (res _)
          (simple-expand
@@ -51,17 +48,14 @@
            'b #'b)
           #f))
        
-       (values
-        #`(mylang-let ([#,(hash-ref res 'v)
-                        #,(hash-ref res 'e)])
-                      #,(hash-ref res 'b))
-        #f)])))
+       #`(mylang-let ([#,(hash-ref res 'v)
+                       #,(hash-ref res 'e)])
+                     #,(hash-ref res 'b))])))
 
 (define-syntax (mylang stx)
   (syntax-parse stx
     [(_ e)
-     #`#'#,(let-values ([(res _) (mylang-expand-expr #'e #f)])
-             res)]))
+     #`#'#,(mylang-expand-expr #'e)]))
 
 (require rackunit syntax/macro-testing)
 

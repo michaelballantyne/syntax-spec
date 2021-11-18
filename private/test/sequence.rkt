@@ -36,11 +36,11 @@
           nest-st))
        (values #`[#,(hash-ref res 'v) #,(hash-ref res 'e)] nest-st^)]))
   
-  (define (mylang-expand-expr stx _)
+  (define (mylang-expand-expr stx)
     (syntax-parse stx
       #:literal-sets (mylang-lits)
       [n:number
-       (values #'n #f)]
+       #'n]
       [v:id
        (define-values (res _)
          (simple-expand
@@ -48,10 +48,9 @@
           (hash
            'v #'v)
           #f))
-       (values (hash-ref
-                res
-                'v)
-               #f)]
+       (hash-ref
+        res
+        'v)]
       [(mylang-let* (b ...) e)
        ; #:binding (fold b e)
        (define bspec
@@ -65,15 +64,13 @@
            'b (pattern-var-value b)
            'e (pattern-var-value e))
           #f))
-       (values #`(mylang-let* (#,@(hash-ref res 'b))
-                              #,(hash-ref res 'e))
-               #f)])))
+       #`(mylang-let* (#,@(hash-ref res 'b))
+                      #,(hash-ref res 'e))])))
 
 (define-syntax (mylang stx)
   (syntax-parse stx
     [(_ e)
-     #`#'#,(let-values ([(res _) (mylang-expand-expr #'e #f)])
-             res)]))
+     #`#'#,(mylang-expand-expr #'e)]))
 
 (require rackunit syntax/macro-testing)
 
