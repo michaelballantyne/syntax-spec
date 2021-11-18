@@ -69,9 +69,8 @@
       (for/list ([v (attribute v)])
         (export
          (elaborate-pvar v
-                         (or (struct* bindclass-rep ())
-                             (struct* nonterm-rep ([variant-info (struct* two-pass-nonterm-info ())])))
-                         "binding class or two-pass nonterminal"))))]
+                         (struct* bindclass-rep ())
+                         "binding class"))))]
     [(nest v:nonref-id spec:bspec-term)
      (nest
       (elaborate-pvar (attribute v)
@@ -127,7 +126,7 @@
          (bind (pvar v _))
          (export (pvar v _)))
      (list v)]
-    [(rec (list (pvar vs _)))
+    [(rec (list (pvar vs _) ...))
      vs]
     [(nest (pvar v _) spec)
      (cons v (bspec-referenced-pvars spec))]
@@ -172,13 +171,16 @@
         (wrong-syntax/orig v "nesting nonterminals may only be used with `nest`")]
        [(or (? stxclass?) (? has-stxclass-prop?))
         #`(group (list))])]
-    [(bind (pvar v info))
-     (match info
-       [(bindclass-rep _ constr _)
-        #`(bind '#,v #,constr)])]
+    [(bind (pvar v (bindclass-rep _ constr _)))
+     #`(bind '#,v #,constr)]
     [(rec pvars)
-     ;TODO
-     (error 'compile-bspec-term/single-pass "rec not implemented yet")]
+     (with-syntax ([(s-cp1 ...) (for/list ([pv pvars])
+                                  (match-define (pvar v (nonterm-rep _ (two-pass-nonterm-info pass1-expander _))) pv)
+                                  #`(subexp '#,v #,pass1-expander))]
+                   [(s-cp2 ...) (for/list ([pv pvars])
+                                  (match-define (pvar v (nonterm-rep _ (two-pass-nonterm-info _ pass2-expander))) pv)
+                                  #`(subexp '#,v #,pass2-expander))])
+       #`(group (list s-cp1 ... s-cp2 ...)))]
     [(export (pvar v _))
      (wrong-syntax/orig v "exports may only occur at the top-level of a two-pass binding spec")]
     [(nest (pvar v info) spec)
@@ -193,23 +195,45 @@
      (with-syntax ([(spec-c ...) (map compile-bspec-term/single-pass specs)])
        #'(group (list spec-c ...)))]))
 
+(define no-op #'(group (list)))
+
 ; TODO
 (define (compile-bspec-term/pass1 spec)
   (match spec
-    [(ref pv) 'TODO]
-    [(bind pv) 'TODO]
-    [(rec pv) 'TODO]
-    [(export pv) 'TODO]
-    [(nest pv spec) 'TODO]
-    [(scope spec) 'TODO]
-    [(group specs) 'TODO]))
+    [(bind (pvar v _))
+     (wrong-syntax/orig v "bindings must appear within a scope")]
+    [(group specs)
+     (with-syntax ([(spec-c ...) (map compile-bspec-term/pass1 specs)])
+       #'(group (list spec-c ...)))]
+    
+    [(or (ref _)
+         (nest _ _)
+         (scope _))
+     no-op]
+    
+    [(export (pvar v (bindclass-rep _ constr _)))
+     #`(bind '#,v #,constr)]
+    [(rec pvars)
+     (with-syntax ([(s-c ...) (for/list ([pv pvars])
+                                (match-define (pvar v (nonterm-rep _ (two-pass-nonterm-info pass1-expander _))) pv)
+                                #`(subexp '#,v #,pass1-expander))])
+       #`(group (list s-c ...)))]))
 
 (define (compile-bspec-term/pass2 spec)
   (match spec
-    [(ref pv) 'TODO]
-    [(bind pv) 'TODO]
-    [(rec pv) 'TODO]
-    [(export pv) 'TODO]
-    [(nest pv spec) 'TODO]
-    [(scope spec) 'TODO]
-    [(group specs) 'TODO]))
+    [(bind (pvar v _)) (wrong-syntax/orig v "bindings must appear within a scope")]
+    [(group specs)
+     (with-syntax ([(spec-c ...) (map compile-bspec-term/pass2 specs)])
+       #'(group (list spec-c ...)))]
+
+    [(or (ref _)
+         (nest _ _)
+         (scope _))
+     (compile-bspec-term/single-pass spec)]
+    
+    [(export _) no-op]
+    [(rec pvars)
+     (with-syntax ([(s-c ...) (for/list ([pv pvars])
+                                (match-define (pvar v (nonterm-rep _ (two-pass-nonterm-info _ pass2-expander))) pv)
+                                #`(subexp '#,v #,pass2-expander))])
+       #`(group (list s-c ...)))]))
