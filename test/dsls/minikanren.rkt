@@ -1,6 +1,6 @@
 #lang racket/base
 
-(require "../main.rkt"
+(require "../../main.rkt"
          rackunit
          (for-syntax racket/base syntax/parse racket/pretty))
 
@@ -25,11 +25,6 @@
     (quote t:quoted)
     (cons t1:term t2:term))
 
-  (nonterminal relation-args
-    #:description "relation arguments list"
-    ()
-    (t:term . a:relation-args))
-
   (nonterminal goal
     #:description "miniKanren goal"
     #:allow-extension goal-macro
@@ -47,7 +42,7 @@
     (fresh1 (x:term-variable ...) b:goal)
     #:binding {(! x) b}
     
-    (r:relation-name . a:relation-args)))
+    (r:relation-name t:term ...)))
   
 ; Simulated interface macros
 (define-syntax mk

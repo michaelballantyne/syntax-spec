@@ -1,6 +1,6 @@
 #lang racket/base
 
-(require "../main.rkt"
+(require "../../main.rkt"
          rackunit
          syntax/macro-testing
          (for-syntax racket/base syntax/parse racket/pretty))

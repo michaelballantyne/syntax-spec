@@ -1,6 +1,6 @@
 #lang racket/base
 
-(require "../main.rkt"
+(require "../../main.rkt"
          rackunit
          (for-syntax racket/base syntax/parse racket/pretty))
 
@@ -60,19 +60,19 @@
  (while-expr
   (vars (i x)
         (do
-          (set x 5)
+            (set x 5)
           (for [(set i 0) (< i x) (set i (+ i 1))]
             (print i))
           i)))
  (while-expr
   (vars (i x)
         (do
-          (set x 5)
+            (set x 5)
 
           (stmts
            (set i 0)
            (while (< i x)
-             (print i)
-             (set i (+ i 1))))
+                  (print i)
+                  (set i (+ i 1))))
           
           i))))

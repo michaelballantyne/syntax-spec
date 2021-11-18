@@ -1,6 +1,6 @@
 #lang racket/base
 
-(require "../main.rkt"
+(require "../../main.rkt"
          rackunit
          syntax/macro-testing
          (for-syntax racket/base syntax/parse racket/pretty))
@@ -11,29 +11,29 @@
   (extension-class dsl-macro)
 
   (nonterminal expr
-               #:description "dsl expression"
-               #:allow-extension dsl-macro
+    #:description "dsl expression"
+    #:allow-extension dsl-macro
 
-               v:var
-               n:number
-               (dsl-+ e1:expr e2:expr)
+    v:var
+    n:number
+    (dsl-+ e1:expr e2:expr)
                
-               (dsl-lambda (v:var ...) d:def-or-expr ...)
-               #:binding {(! v) {(rec d)}}
+    (dsl-lambda (v:var ...) d:def-or-expr ...)
+    #:binding {(! v) {(rec d)}}
 
-               (v:var e:expr ...))
+    (v:var e:expr ...))
 
   (two-pass-nonterminal def-or-expr
-                        #:description "mylang definition context"
-                        #:allow-extension dsl-macro
+    #:description "mylang definition context"
+    #:allow-extension dsl-macro
 
-                        (dsl-begin d:def-or-expr ...)
-                        #:binding (rec d)
+    (dsl-begin d:def-or-expr ...)
+    #:binding (rec d)
     
-                        (dsl-define-values (v:var ...) e:expr)
-                        #:binding [(^ v) e]
+    (dsl-define-values (v:var ...) e:expr)
+    #:binding [(^ v) e]
     
-                        e:expr))
+    e:expr))
 
 ;; simulated interface macro
 (define-syntax mylang-expr
