@@ -1,7 +1,7 @@
 #lang racket/base
 
 (require
-  "../../main.rkt"
+  "../../../main.rkt"
   json
   racket/list
   racket/system
