@@ -9,8 +9,8 @@
     (pattern val #:when (string? (syntax-e #'val)))))
 
 (define-hosted-syntaxes
-  (binding-class var "peg variable")
-  (binding-class nonterm "peg nonterminal")
+  (binding-class var #:description "peg variable")
+  (binding-class nonterm #:description "peg nonterminal")
   (extension-class peg-macro)
 
   (nonterminal expr

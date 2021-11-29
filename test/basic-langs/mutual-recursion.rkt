@@ -5,7 +5,7 @@
          (for-syntax racket/base syntax/parse racket/pretty))
 
 (define-hosted-syntaxes
-  (binding-class var "while-language variable")
+  (binding-class var #:description "while-language variable")
 
   (extension-class expr-macro)
   (extension-class stmt-macro)

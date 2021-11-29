@@ -7,6 +7,7 @@
                      nonterminal-literal-set))
   
 (require
+  "../runtime/errors.rkt"
   (for-syntax
    racket/base
    racket/list
@@ -56,26 +57,30 @@
                         extension-class
                         nonterminal nesting-nonterminal two-pass-nonterminal)
       
-      [(binding-class name:id description:expr)
+      [(binding-class name:id (~var descr (description #'name)))
        (with-syntax ([sname (format-id #'here "~a-var" #'name)]
                      [sname-pred (format-id #'here "~a-var?" #'name)])
          (values
           #'(begin-for-syntax
-              (struct sname [])
+              (struct sname []
+                #:property prop:procedure
+                (dsl-error-as-expression (#%datum . descr.str)))
               (define-syntax name
                 (bindclass-rep
-                 (#%datum . description)
+                 (#%datum . descr.str)
                  (quote-syntax sname)
                  (quote-syntax sname-pred))))
           #f))]
       
-      [(extension-class name:id)
+      [(extension-class name:id (~var descr (description #'name)))
        (with-syntax ([sname (format-id #'here "~a" #'name)]
                      [sname-pred (format-id #'here "~a?" #'name)]
                      [sname-acc (format-id #'here "~a-transformer" #'name)])
          (values
           #'(begin-for-syntax
-              (struct sname [transformer])
+              (struct sname [transformer]
+                #:property prop:procedure
+                (dsl-error-as-expression (#%datum . descr.str)))
               (define-syntax name
                 (extclass-rep (quote-syntax sname)
                               (quote-syntax sname-pred)

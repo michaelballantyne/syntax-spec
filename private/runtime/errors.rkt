@@ -1,9 +1,17 @@
 #lang racket/base
 
-(provide error-as-expression)
+(provide struct-error-as-expression
+         dsl-error-as-expression)
 
-(define (error-as-expression message)
-  (lambda (stx)
+(define (struct-error-as-expression message)
+  (lambda (s stx)
     (raise-syntax-error
      #f
-     message)))
+     message
+     stx)))
+
+(define (dsl-error-as-expression type)
+  (struct-error-as-expression
+   (string-append
+    type
+    " may not be used as a racket expression")))

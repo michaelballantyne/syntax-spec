@@ -6,7 +6,7 @@
          (for-syntax racket/base syntax/parse racket/pretty))
 
 (define-hosted-syntaxes
-  (binding-class var "expr language variable")
+  (binding-class var #:description "expr language variable")
   
   (nonterminal expr
     #:description "simple expr language expression"

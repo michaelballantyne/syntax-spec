@@ -4,6 +4,8 @@
  current-orig-stx
  wrong-syntax/orig
 
+ description
+
  nested-binding-syntax
  sspec-term
  bspec-term
@@ -36,13 +38,19 @@
  nonterminal-options
  )
 
-
 (require
   racket/string
   racket/list
   syntax/parse
   syntax/srcloc
   racket/syntax)
+
+(define-splicing-syntax-class (description name)
+  #:description "description keyword"
+  (pattern (~seq #:description string-stx:string)
+           #:attr str #`#,(syntax-e (attribute string-stx)))
+  (pattern (~seq)
+           #:attr str #`#,(symbol->string (syntax-e name))))
 
 (define current-orig-stx (make-parameter #f))
 

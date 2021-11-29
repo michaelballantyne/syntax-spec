@@ -39,7 +39,7 @@
   (+ * - / < <= > >= ==))
 
 (define-hosted-syntaxes
-  (binding-class js-var "Javascript variable")
+  (binding-class js-var #:description "Javascript variable")
 
   (extension-class js-macro)
 

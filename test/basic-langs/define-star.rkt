@@ -5,7 +5,7 @@
          (for-syntax racket/base syntax/parse racket/pretty))
 
 (define-hosted-syntaxes
-  (binding-class var "mylang variable")
+  (binding-class var #:description "mylang variable")
 
   (extension-class mylang-macro)
 

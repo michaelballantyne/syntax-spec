@@ -6,7 +6,7 @@
          (for-syntax racket/base syntax/parse racket/pretty))
 
 (define-hosted-syntaxes
-  (binding-class var "dsl variable")
+  (binding-class var #:description "dsl variable")
 
   (extension-class dsl-macro)
 

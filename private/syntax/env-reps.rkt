@@ -12,11 +12,12 @@
          (struct-out pvar-rep))
 
 (require syntax/parse
-         "../runtime/errors.rkt"      
+         "../runtime/errors.rkt"
+         racket/syntax
          (for-template racket/base))
 
 (define (nonterm-lang-error-as-expression type)
-  (error-as-expression
+  (struct-error-as-expression
    (string-append
     type
     " may only be referenced in nonterminal specifications")))
@@ -27,7 +28,9 @@
   (syntax-parse stx
     [(_ e)
      (with-syntax ([constr (extclass-rep-constr s)])
-       #'(constr e))]))
+       #'(constr e))]
+    [_
+     (wrong-syntax stx "expected expression producing a macro transformer")]))
 
 (struct bindclass-rep (description constr pred)
   #:property prop:procedure

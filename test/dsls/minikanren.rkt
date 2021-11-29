@@ -5,8 +5,8 @@
          (for-syntax racket/base syntax/parse racket/pretty))
 
 (define-hosted-syntaxes
-  (binding-class term-variable "miniKanren term variable")
-  (binding-class relation-name "miniKanren relation name")
+  (binding-class term-variable #:description "miniKanren term variable")
+  (binding-class relation-name #:description "miniKanren relation name")
   
   (extension-class term-macro)
   (extension-class goal-macro)
