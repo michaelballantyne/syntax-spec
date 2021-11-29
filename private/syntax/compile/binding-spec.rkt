@@ -161,13 +161,13 @@
   (match spec
     [(ref (pvar v info))
      (match info
-       [(nonterm-rep _ (simple-nonterm-info exp-proc))
+       [(nonterm-rep (simple-nonterm-info exp-proc))
         #`(subexp '#,v #,exp-proc)]
        [(bindclass-rep description _ pred)
         #`(ref '#,v #,pred #,(string-append "not bound as " description))]
        [(nested-binding)
         #`(nested)]
-       [(nonterm-rep _ (nesting-nonterm-info _))
+       [(nonterm-rep (nesting-nonterm-info _))
         (wrong-syntax/orig v "nesting nonterminals may only be used with `nest`")]
        [(or (? stxclass?) (? has-stxclass-prop?))
         #`(group (list))])]
@@ -175,17 +175,17 @@
      #`(bind '#,v #,constr)]
     [(rec pvars)
      (with-syntax ([(s-cp1 ...) (for/list ([pv pvars])
-                                  (match-define (pvar v (nonterm-rep _ (two-pass-nonterm-info pass1-expander _))) pv)
+                                  (match-define (pvar v (nonterm-rep (two-pass-nonterm-info pass1-expander _))) pv)
                                   #`(subexp '#,v #,pass1-expander))]
                    [(s-cp2 ...) (for/list ([pv pvars])
-                                  (match-define (pvar v (nonterm-rep _ (two-pass-nonterm-info _ pass2-expander))) pv)
+                                  (match-define (pvar v (nonterm-rep (two-pass-nonterm-info _ pass2-expander))) pv)
                                   #`(subexp '#,v #,pass2-expander))])
        #`(group (list s-cp1 ... s-cp2 ...)))]
     [(export (pvar v _))
      (wrong-syntax/orig v "exports may only occur at the top-level of a two-pass binding spec")]
     [(nest (pvar v info) spec)
      (match info
-       [(nonterm-rep _ (nesting-nonterm-info expander))
+       [(nonterm-rep (nesting-nonterm-info expander))
         (with-syntax ([spec-c (compile-bspec-term/single-pass spec)])
           #`(nest '#,v #,expander spec-c))])]
     [(scope spec)
@@ -215,7 +215,7 @@
      #`(bind '#,v #,constr)]
     [(rec pvars)
      (with-syntax ([(s-c ...) (for/list ([pv pvars])
-                                (match-define (pvar v (nonterm-rep _ (two-pass-nonterm-info pass1-expander _))) pv)
+                                (match-define (pvar v (nonterm-rep (two-pass-nonterm-info pass1-expander _))) pv)
                                 #`(subexp '#,v #,pass1-expander))])
        #`(group (list s-c ...)))]))
 
@@ -234,6 +234,6 @@
     [(export _) no-op]
     [(rec pvars)
      (with-syntax ([(s-c ...) (for/list ([pv pvars])
-                                (match-define (pvar v (nonterm-rep _ (two-pass-nonterm-info _ pass2-expander))) pv)
+                                (match-define (pvar v (nonterm-rep (two-pass-nonterm-info _ pass2-expander))) pv)
                                 #`(subexp '#,v #,pass2-expander))])
        #`(group (list s-c ...)))]))

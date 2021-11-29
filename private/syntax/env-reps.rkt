@@ -40,7 +40,7 @@
   #:property prop:procedure
   expand-as-constructor)
 
-(struct nonterm-rep (litset-ref variant-info)
+(struct nonterm-rep (variant-info)
   #:property prop:procedure
   (nonterm-lang-error-as-expression "nonterminals"))
 

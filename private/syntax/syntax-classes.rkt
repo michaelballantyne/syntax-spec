@@ -129,5 +129,6 @@
 
 (define-splicing-syntax-class nonterminal-options
   (pattern (~seq (~optional (~seq #:description description:string))
+                 (~optional (~seq #:bind-literal-set litset-binder:id))
                  (~optional (~seq #:allow-extension extensions:extclass-spec)))
            #:attr ext-classes (if (attribute extensions) (attribute extensions.classes) '())))

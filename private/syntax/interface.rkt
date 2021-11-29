@@ -3,8 +3,7 @@
 (provide define-hosted-syntaxes
          (for-syntax binding-class-predicate
                      binding-class-constructor
-                     nonterminal-expander
-                     nonterminal-literal-set))
+                     nonterminal-expander))
   
 (require
   "../runtime/errors.rkt"
@@ -94,7 +93,7 @@
        (with-syntax ([expander-name (generate-temporary #'name)])
          (values
           (generate-nonterminal-declarations
-           (attribute name) (attribute opts.description) (attribute prod.form-name)
+           (attribute name) (attribute opts.description) (attribute opts.litset-binder) (attribute prod.form-name)
            #'(simple-nonterm-info (quote-syntax expander-name)))
           #`(define expander-name
               (generate-nonterminal-expander
@@ -107,7 +106,7 @@
        (with-syntax ([expander-name (generate-temporary #'name)])
          (values
           (generate-nonterminal-declarations
-           (attribute name) (attribute opts.description) (attribute prod.form-name)
+           (attribute name) (attribute opts.description) (attribute opts.litset-binder) (attribute prod.form-name)
            #'(nesting-nonterm-info (quote-syntax expander-name)))
           #`(define expander-name
               (generate-nonterminal-expander
@@ -120,7 +119,7 @@
        (with-syntax ([(pass1-expander-name pass2-expander-name) (generate-temporaries #'(name name))])
          (values
           (generate-nonterminal-declarations
-           (attribute name) (attribute opts.description) (attribute prod.form-name)
+           (attribute name) (attribute opts.description) (attribute opts.litset-binder) (attribute prod.form-name)
            #'(two-pass-nonterm-info (quote-syntax pass1-expander-name) (quote-syntax pass2-expander-name)))
           #`(begin
               (define pass1-expander-name
@@ -133,9 +132,9 @@
                  #:pass2 name opts prod ...)))))])))
 
 (begin-for-syntax
-  (define (generate-nonterminal-declarations name-stx description form-names variant-info-stx)
+  (define (generate-nonterminal-declarations name-stx description maybe-litset-binder form-names variant-info-stx)
     (with-syntax ([name name-stx]
-                  [litset-name (generate-temporary name-stx)]
+                  [litset-name (or maybe-litset-binder (generate-temporary name-stx))]
                   [error-message (make-error-message name-stx description)]
                   [(form-name ...) (filter identity form-names)]
                   [variant-info variant-info-stx])
@@ -143,7 +142,7 @@
       #'(begin
           (define-literal-forms litset-name 'error-message (form-name ...))
           (begin-for-syntax
-            (define-syntax name (nonterm-rep (quote-syntax litset-name) variant-info))))))
+            (define-syntax name (nonterm-rep variant-info))))))
   
   (define (check-duplicate-forms form-names)
     (let ([maybe-dup-id (check-duplicate-identifier
@@ -195,6 +194,4 @@
   
   (define-syntax binding-class-predicate
     (accessor-macro bindclass-rep? "expected a binding class name" bindclass-rep-pred))
-
-  (define-syntax nonterminal-literal-set
-    (accessor-macro nonterm-rep? "expected a nonterminal name" nonterm-rep-litset-ref)))
+  )

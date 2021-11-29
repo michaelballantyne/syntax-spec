@@ -45,6 +45,7 @@
 
   (nonterminal js-expr
     #:description "Javascript expression"
+    #:bind-literal-set js-exprs
     #:allow-extension js-macro
 
     ; TODO
@@ -66,6 +67,7 @@
   
   (two-pass-nonterminal js-stmt
     #:description "Javascript statement"
+    #:bind-literal-set js-stmts
     #:allow-extension js-macro
     
     ; TODO
@@ -86,13 +88,7 @@
     e:js-expr))
 
 
-(begin-for-syntax
-  ; TODO shouldn't need these
-  (define-literal-set js-exprs
-    (function ? set!))
-  (define-literal-set js-stmts
-    (let return while if))
-  
+(begin-for-syntax  
   ; Compilation to JS
   (define (extract-js-expression stx)
     (syntax-parse stx
