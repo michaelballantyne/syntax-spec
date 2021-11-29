@@ -172,6 +172,17 @@
    (syntax-parser
      [(_ v e)
       #'[v e]])))
+
+(define-syntax (dsl-expr1 stx)
+  (syntax-parse stx
+    [(_ e)
+     #`'#,((nonterminal-expander expr1) #'e)]))
+
+(define-syntax (dsl-expr2 stx)
+  (syntax-parse stx
+    [(_ e)
+     #`'#,((nonterminal-expander expr2) #'e)]))
+
 ;;
 ;; Improper use of phase1 names (nonterminals, binding class names, extension class names)
 ;;
@@ -211,35 +222,30 @@
 
 ;; Syntax not matching the nonterminal spec
 
-(define-syntax (dsl-expr1 stx)
-  (syntax-parse stx
-    [(_ e)
-     #`'#,((nonterminal-expander expr1) #'e)]))
-
-(define-syntax (dsl-expr2 stx)
-  (syntax-parse stx
-    [(_ e)
-     #`'#,((nonterminal-expander expr2) #'e)]))
-
-;; the interface macro is named as the syntax raising the error.
+;; Bad syntax
+;; 1.The interface macro is named as the syntax raising the error
+;; 2. In absence of description, the nonterminal name is used in the error
 (check-syntax-error
- #rx"dsl-expr1: expected expr1"
+ #rx"dsl-expr1: expected expr1"  
  (dsl-expr1 (foo)))
 
+;; Bad reference given variable case
 (check-syntax-error
  #rx"dsl-expr1: not bound as DSL var"
  (dsl-expr1 foo))
 
-;; in subexpression
+;; Bad syntax in subexpression
 (check-syntax-error
  #rx"dsl-expr1: expected expr1"
  (dsl-expr1 [foo (foo)]))
 
+;; Bad reference in subexpression
 (check-syntax-error
  #rx"dsl-expr1: not bound as DSL var"
  (dsl-expr1 [foo bar]))
 
-;; with description, and no variable case
+;; 1. Reference is bad syntax for nonterminal with no variable case
+;; 2. Description is used when present
 (check-syntax-error
  #rx"dsl-expr2: expected DSL expression"
  (dsl-expr2 foo))
@@ -247,10 +253,12 @@
 
 ;; Use of DSL macro outside of DSL
 
+;; Without description
 (check-syntax-error
  #rx"m1: dsl-macro1 may not be used as a racket expression"
  (m1))
 
+;; With description
 (check-syntax-error
  #rx"m2: DSL macro may not be used as a racket expression"
  (m2))
