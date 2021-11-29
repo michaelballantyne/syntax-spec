@@ -31,6 +31,8 @@
        #'()]
       [(~literal ...)
        #'(... ...)]
+      [(~literal ...+)
+       #'(... ...+)]
       [(t1 . t2)
        (with-syntax ([t1-c (generate-pattern-term #'t1)]
                      [t2-c (generate-pattern-term #'t2)])
@@ -67,6 +69,8 @@
       [()
        #'()]
       [(~literal ...)
+       #'(... ...)]
+      [(~literal ...+)
        #'(... ...)]
       [(t1 . t2)
        (with-syntax ([t1-c (generate-template-term #'t1)]

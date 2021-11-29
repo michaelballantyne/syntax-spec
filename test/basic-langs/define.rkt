@@ -63,7 +63,7 @@
    
 
 (check-exn
- #rx"mylang-expr: identifier already defined"
+ #rx"dsl-define-values: identifier already defined"
  (lambda ()
    (convert-compile-time-error
     (mylang-expr

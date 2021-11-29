@@ -13,6 +13,7 @@
          "binding-spec.rkt"
 
          (for-template racket/base
+                       "../syntax-classes.rkt"
                        "../../runtime/binding-spec.rkt"
                        "pattern-var-reflection.rkt"
                        syntax/parse
@@ -35,14 +36,16 @@
                                       (generate-macro-clause extclass #'recur))]
                      [description (or (attribute opts.description) (symbol->string (syntax-e (attribute name))))]
                      [stx-a init-stx-id])
-         #'(let recur ([stx stx-a])
-             (syntax-parse stx
-               #:context (current-syntax-context)
-               (~@ . macro-clauses)
-               (~@ . prod-clauses)
-               [_ (wrong-syntax
-                   this-syntax
-                   (string-append "expected " (#%datum . description)))]))))
+         #'(parameterize
+               ;; TODO: find a cleaner way to name the interface macro for syntax production errors.
+               ([current-orig-stx (or (current-orig-stx) (current-syntax-context))])
+             (let recur ([stx stx-a])
+               (syntax-parse stx
+                 (~@ . macro-clauses)
+                 (~@ . prod-clauses)
+                 [_ (wrong-syntax/orig
+                     this-syntax
+                     (string-append "expected " (#%datum . description)))])))))
 
      (define (generate-header)
        (syntax-parse (attribute variant)

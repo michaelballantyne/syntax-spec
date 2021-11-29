@@ -152,7 +152,8 @@
     #:allow-extension (dsl-macro1 dsl-macro2)
     n:number
     v:dsl-var2
-    [b:dsl-var2 e:expr1]
+    (dsl-begin e:expr1 ...+)
+    [b:dsl-var2 e:expr1 ...+]
     #:binding {(! b) e})
   (nonterminal expr2
     #:description "DSL expression"
@@ -230,8 +231,9 @@
  (dsl-expr1 (foo)))
 
 ;; Bad reference given variable case
+;; TODO: make reference errors in syntax productions appear to be raised by DSL expander
 (check-syntax-error
- #rx"dsl-expr1: not bound as DSL var"
+ #rx"foo: not bound as DSL var"
  (dsl-expr1 foo))
 
 ;; Bad syntax in subexpression
@@ -241,7 +243,7 @@
 
 ;; Bad reference in subexpression
 (check-syntax-error
- #rx"dsl-expr1: not bound as DSL var"
+ #rx"bar: not bound as DSL var"
  (dsl-expr1 [foo bar]))
 
 ;; 1. Reference is bad syntax for nonterminal with no variable case
@@ -249,6 +251,20 @@
 (check-syntax-error
  #rx"dsl-expr2: expected DSL expression"
  (dsl-expr2 foo))
+
+;; No terms in ...+ position in form
+(check-syntax-error
+ ;; TODO: I should generate syntax classes corresponding to non-terminals
+ ;; to improve errors like this. Ideally the message would be
+ ;; "dsl-begin: expected more terms starting with dslexpr1"
+ #rx"dsl-begin: expected more terms starting with any term"
+ (dsl-expr1 (dsl-begin)))
+
+;; No terms in ...+ position in syntax
+;; TODO: this could be made nicer when there is only one possible syntax production that matches.
+(check-syntax-error
+ #rx"dsl-expr1: expected expr1"
+ (dsl-expr1 [x]))
 
 
 ;; Use of DSL macro outside of DSL

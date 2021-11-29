@@ -38,12 +38,12 @@
 
   (nonterminal option
     #:allow-extension option-macro
-    (choice/required f:flag ...)
-    (choice/default default:expr f:flag ...)
-    (multi init:expr f:flag ...))
+    (choice/required f:flag ...+)
+    (choice/default default:expr f:flag ...+)
+    (multi init:expr f:flag ...+))
 
   (nonterminal flag
-    (flag-begin f:flag ...)
+    (flag-begin f:flag ...+)
     [names:flag-names [name:id parser:expr] desc:string-stx e:expr]))
 
 ;; TODO lots, see ee-lib version

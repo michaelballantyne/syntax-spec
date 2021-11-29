@@ -42,7 +42,7 @@
     (fresh1 (x:term-variable ...) b:goal)
     #:binding {(! x) b}
     
-    (r:relation-name t:term ...)))
+    (r:relation-name t:term ...+)))
   
 ; Simulated interface macros
 (define-syntax mk
