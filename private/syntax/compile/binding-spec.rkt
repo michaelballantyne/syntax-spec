@@ -24,6 +24,8 @@
   (define bspec-with-implicits (add-implicit-pvar-refs bspec-elaborated bound-pvars))
   (define bspec-flattened (bspec-flatten-groups bspec-with-implicits))
 
+  (check-no-unscoped-binds bspec-flattened)
+
   (define variant-compiler
     (syntax-parse variant
       [(~or #:simple (#:nesting _)) compile-bspec-term/single-pass]
@@ -61,17 +63,17 @@
        (f (group ss^)))]
     [_ (f spec)]))
 
-(define (fold-bspec f-node f-combine spec)
+(define (fold-bspec f spec)
   (match spec
     [(or (nest _ s)
          (nest-one _ s)
          (scope s))
-     (let ([s^ (fold-bspec f-node f-combine s)])
-       (f-combine (f-node spec) (list s^)))]
+     (let ([s^ (fold-bspec f s)])
+       (f spec (list s^)))]
     [(group ss)
-     (let ([ss^ (map (lambda (s) (fold-bspec f-node f-combine s)) ss)])
-       (f-combine (f-node spec) ss^))]
-    [_ (f-node spec)]))
+     (let ([ss^ (map (lambda (s) (fold-bspec f s)) ss)])
+       (f spec ss^))]
+    [_ (f spec '())]))
 
 
 ;; Elaborate
@@ -158,18 +160,19 @@
 
 (define (bspec-referenced-pvars spec)
   (fold-bspec
-   (lambda (spec)
-     (match spec
-       [(or (ref (pvar v _))
-            (bind (pvar v _))
-            (export (pvar v _))
-            (nest (pvar v _) _)
-            (nest-one (pvar v _) _))
-        (list v)]
+   (lambda (spec children)
+     (define node-vars
+       (match spec
+         [(or (ref (pvar v _))
+              (bind (pvar v _))
+              (export (pvar v _))
+              (nest (pvar v _) _)
+              (nest-one (pvar v _) _))
+          (list v)]
        [(rec (list (pvar vs _) ...))
         vs]
-       [_ '()]))
-   append*
+         [_ '()]))
+     (append* node-vars children))
    spec))
 
 ;; Flatten groups for easier order analysis
@@ -187,6 +190,26 @@
     [(group l) l]
     [_ (list el)]))
 
+;; Static checks
+
+(define (check-no-unscoped-binds spec)
+  (define (find-unscoped-bind spec)
+    (fold-bspec
+     (lambda (node children)
+       (match node
+         [(scope _)
+          #f]
+         [(bind _) node]
+         [_ (ormap (lambda (x) x) children)]))
+     spec))
+
+  (match (find-unscoped-bind spec)
+    [(bind (pvar v _))
+     (wrong-syntax/orig v "variable binding must occur within a scope")]
+    [#f (void)]))
+
+;; Runtime code generation
+  
 (define (compile-bspec-term/single-pass spec)
   (match spec
     [(ref (pvar v info))
@@ -232,7 +255,6 @@
 
 (define no-op #'(group (list)))
 
-; TODO
 (define (compile-bspec-term/pass1 spec)
   (match spec
     [(bind (pvar v _))

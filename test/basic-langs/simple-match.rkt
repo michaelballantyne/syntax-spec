@@ -29,17 +29,18 @@
     #:description "mylang match clause"
 
     [p:pat rhs:expr]
-    #:binding {p rhs})
+    #:binding (nest-one p rhs))
 
-  (nonterminal pat
+  (nesting-nonterminal pat (nested)
     #:description "mylang match pattern"
                
     v:var
-    #:binding (! v) ; should this be an error, with an export required? Check in compile or runtime?
-
+    #:binding {(! v) nested}
+    
     (pempty)
                
-    (pcons p1:pat p2:pat)))
+    (pcons p1:pat p2:pat)
+    #:binding (nest-one p1 (nest-one p2 nested))))
 
 ;; simulated interface macro
 (define-syntax mylang-expr

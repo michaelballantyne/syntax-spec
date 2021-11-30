@@ -19,7 +19,7 @@
    (lambda ()
      (eval-syntax #`(module m racket/base
                       (require "../main.rkt")
-                      #,decl-stx)))))
+                      decl-stx)))))
 
 (define-syntax-rule (check-phase1-error rx e)
   (check-exn
@@ -37,17 +37,17 @@
 
 (check-decl-error
  #rx"nonterminal: expected extension class name"
- #'(define-hosted-syntaxes
-     (binding-class var #:description "var")
-     (nonterminal expr
-       #:allow-extension unbound-name
-       v:var)))
+ (define-hosted-syntaxes
+   (binding-class var #:description "var")
+   (nonterminal expr
+     #:allow-extension unbound-name
+     v:var)))
 
 (check-decl-error
  #rx"nesting-nonterminal: expected pattern variable binding for nested syntax"
- #'(define-hosted-syntaxes
-     (nesting-nonterminal binding-group
-       1)))
+ (define-hosted-syntaxes
+   (nesting-nonterminal binding-group
+     1)))
 
 ;;
 ;; Syntax spec syntax errors
@@ -55,22 +55,22 @@
 
 (check-decl-error
  #rx"nonterminal: expected a syntax spec term"
- #'(define-hosted-syntaxes
-     (nonterminal expr
-       1)))
+ (define-hosted-syntaxes
+   (nonterminal expr
+     1)))
 
 (check-decl-error
  #rx"nonterminal: expected a reference to a binding class, syntax class, or nonterminal"
- #'(define-hosted-syntaxes
-     (nonterminal expr
-       x:unbound-name)))
+ (define-hosted-syntaxes
+   (nonterminal expr
+     x:unbound-name)))
 
 (check-decl-error
  #rx"nonterminal: duplicate pattern variable"
- #'(define-hosted-syntaxes
-     (binding-class dsl-var #:description "dsl-var")
-     (nonterminal expr
-       [x:dsl-var x:dsl-var])))
+ (define-hosted-syntaxes
+   (binding-class dsl-var #:description "dsl-var")
+   (nonterminal expr
+     [x:dsl-var x:dsl-var])))
 
 ;;
 ;; Binding spec syntax errors
@@ -78,66 +78,74 @@
 
 (check-decl-error
  #rx"nonterminal: binding spec expected a reference to a pattern variable"
- #'(define-hosted-syntaxes
-     (binding-class dsl-var #:description "DSL variable")
-     (nonterminal expr
-       x:dsl-var
-       #:binding {y})))
+ (define-hosted-syntaxes
+   (binding-class dsl-var #:description "DSL variable")
+   (nonterminal expr
+     x:dsl-var
+     #:binding {y})))
 
 (check-decl-error
  #rx"!: expected a reference to a pattern variable"
- #'(define-hosted-syntaxes
-     (binding-class dsl-var #:description "DSL variable")
-     (nonterminal expr
-       x:dsl-var
-       #:binding {(! y)})))
+ (define-hosted-syntaxes
+   (binding-class dsl-var #:description "DSL variable")
+   (nonterminal expr
+     x:dsl-var
+     #:binding {(! y)})))
 
 (check-decl-error
  #rx"nonterminal: nesting nonterminals may only be used with `nest`"
- #'(define-hosted-syntaxes
-     (binding-class dsl-var #:description "DSL variable")
-     (nonterminal expr
-       b:binding-group
-       #:binding b)
-     (nesting-nonterminal binding-group (nested)
-       [])))
+ (define-hosted-syntaxes
+   (binding-class dsl-var #:description "DSL variable")
+   (nonterminal expr
+     b:binding-group
+     #:binding b)
+   (nesting-nonterminal binding-group (nested)
+     [])))
 
 (check-decl-error
  #rx"nest: expected pattern variable associated with a nesting nonterminal"
- #'(define-hosted-syntaxes
-     (nonterminal expr
-       (e:expr)
-       #:binding (nest e []))))
+ (define-hosted-syntaxes
+   (nonterminal expr
+     (e:expr)
+     #:binding (nest e []))))
 
 (check-decl-error
  #rx"nest: expected more terms starting with binding spec term"
- #'(define-hosted-syntaxes
-     (nonterminal expr
-       b:expr
-       #:binding (nest b))))
+ (define-hosted-syntaxes
+   (nonterminal expr
+     b:expr
+     #:binding (nest b))))
 
 (check-decl-error
  #rx"!: expected pattern variable associated with a binding class"
- #'(define-hosted-syntaxes
-     (nonterminal expr
-       b:expr
-       #:binding (! b))))
+ (define-hosted-syntaxes
+   (nonterminal expr
+     b:expr
+     #:binding (! b))))
 
 (check-decl-error
  #rx"rec: expected pattern variable associated with a two-pass nonterminal"
- #'(define-hosted-syntaxes
-     (nonterminal expr
-       b:expr
-       #:binding (rec b))))
+ (define-hosted-syntaxes
+   (nonterminal expr
+     b:expr
+     #:binding (rec b))))
 
 
 (check-decl-error
  #rx"nonterminal: exports may only occur at the top-level of a two-pass binding spec"
- #'(define-hosted-syntaxes
-     (binding-class var #:description "var")
-     (nonterminal expr
-       v:var
-       #:binding (^ v))))
+ (define-hosted-syntaxes
+   (binding-class var #:description "var")
+   (nonterminal expr
+     v:var
+     #:binding (^ v))))
+
+(check-decl-error
+ #rx"nonterminal: variable binding must occur within a scope"
+ (define-hosted-syntaxes
+   (binding-class pvar)
+   (nonterminal pat
+     x:pvar
+     #:binding (! x))))
 
 ;;
 ;; Valid definitions used to exercise errors
