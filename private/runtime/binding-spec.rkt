@@ -6,8 +6,9 @@
  (struct-out bind)     ; !
  (struct-out scope)    ; {}
  (struct-out group)    ; []
- (struct-out nest) ; fold
- (struct-out nested) ; tail
+ (struct-out nest)
+ (struct-out nest-one)
+ (struct-out nested)
 
  qualifier?
  svar?
@@ -22,6 +23,7 @@
   racket/list
   racket/set
   racket/syntax
+  racket/pretty
   ee-lib)
 
 ;;
@@ -36,6 +38,7 @@
 (struct scope [spec] #:transparent)
 (struct group [specs] #:transparent)
 (struct nest [svar nonterm spec] #:transparent)
+(struct nest-one [svar nonterm spec] #:transparent)
 (struct nested [] #:transparent)
 
 ;; `bvalc` is (-> any/c)
@@ -74,7 +77,8 @@
     [(group specs)
      (for/and ([spec specs])
        (binding-spec-well-formed? spec svars))]
-    [(nest (? svar? pv) (? procedure? nonterm) spec)
+    [(or (nest (? svar? pv) (? procedure? nonterm) spec)
+         (nest-one (? svar? pv) (? procedure? nonterm) spec))
      (and
       (set-member? svars pv)
       (binding-spec-well-formed? spec svars))]
@@ -136,6 +140,7 @@
      (for/pv-state-tree ([id pv])
        (define id^ (add-scopes id local-scopes))
        (when (not (lookup id^ pred))
+         ;(pretty-write (syntax-debug-info (flip-intro-scope id^) 0 #t))
          (wrong-syntax id^ msg))
        id^)]
     
@@ -157,15 +162,24 @@
        (simple-expand-internal spec st local-scopes))]
     
     [(nest pv f inner-spec)
-     (define init-seq (for/list ([el (get-pvar st pv)])
-                        (add-scopes el local-scopes)))
+     (define init-seq (get-pvar st pv))
 
      (define res
-       (simple-expand-nest (nest-call f init-seq '() st inner-spec) '()))
+       (simple-expand-nest (nest-call f init-seq '() st inner-spec) local-scopes))
      
      (match-define (nest-ret done-seq st^) res)
      
      (set-pvar st^ pv done-seq)]
+
+    [(nest-one pv f inner-spec)
+     (define init-seq (list (get-pvar st pv)))
+
+     (define res
+       (simple-expand-nest (nest-call f init-seq '() st inner-spec) local-scopes))
+     
+     (match-define (nest-ret done-seq st^) res)
+     
+     (set-pvar st^ pv (car done-seq))]
     
     [(nested)
      (update-nest-state
@@ -181,6 +195,9 @@
 
 ; seq is (listof (treeof syntax?))
 (struct nest-ret [done-seq inner-spec-st^] #:transparent)
+
+(define (display-scopes l)
+  (pretty-write (syntax-debug-info (flip-intro-scope (add-scopes (datum->syntax #f '||) l)))))
 
 ; nest-call? -> nest-ret?
 (define (simple-expand-nest nest-st new-local-scopes)

@@ -1,6 +1,6 @@
 #lang racket/base
 
-(require "../main.rkt"
+(require "../../main.rkt"
          rackunit
          (for-syntax racket/base syntax/parse racket/pretty))
 
@@ -9,25 +9,29 @@
     (pattern val #:when (string? (syntax-e #'val)))))
 
 (define-hosted-syntaxes
-  (binding-class var "peg variable")
-  (binding-class nonterm "peg nonterminal")
-  (extension-class peg-macro)
+  (binding-class var #:description "PEG variable")
+  (binding-class nonterm #:description "PEG nonterminal")
+  (extension-class peg-macro #:description "PEG macro")
 
   (nonterminal expr
-               #:description "action expression"
+               #:description "PEG action expression"
                v:var
                s:string
                (list e:expr ...))
+
+  (nonterminal peg-top
+    n:peg
+    #:binding (nest-one n []))
   
-  (nonterminal peg (tail)
-    #:description "peg expression"
+  (nesting-nonterminal peg (tail)
+    #:description "PEG expression"
     #:allow-extension peg-macro
 
     n:nonterm           ; confusing! Probably shouldn't use pegs as the paper example...
     (eps)               ; can't just be `eps` yet.
     
-    (seq e1:peg e2:peg) ; relies on left-to-right order for effectful binds
-    #:binding (nest-one e1 (nest-one e2 []))
+    (seq e1:peg e2:peg)
+    #:binding (nest-one e1 (nest-one e2 tail))
     
     (alt e1:peg e2:peg)
     #:binding [(nest-one e1 []) (nest-one e2 [])]
@@ -39,11 +43,9 @@
     #:binding [(nest-one e [])]
     
     (bind x:var e:peg)  ; :
-    #:binding {(! x) tail}
+    #:binding {(! x) (nest-one e []) tail}
     
     (=> pe:peg e:expr)
-    ; Seems like we want an `apply` here, if we want left-to-right scope.
-    ; or, generalize `nest` treat a single item as a list of length 1.
     #:binding (nest-one pe e)
     
     (text e:expr) ; right now these are referring to the expr syntax class. Need escape to Racket...
@@ -51,6 +53,7 @@
     (char e:expr)
     (token e:expr)
     (src-span v:var e:peg)
+    #:binding {(nest-one e [])}
     
     ;; can't do implicit #%peg-datum yet.
     
@@ -59,19 +62,13 @@
 ;; simulated interface macro
 (define-syntax peg-expr
   (syntax-parser
-    [(_ e) #`'#,((nonterminal-expander peg) #'e)]))
-
-
-(peg-expr
-  (=> (seq (bind a (text "a")) (bind b (=> (bind c (text "b"))
-                                           (list a c))))
-      b))
+    [(_ e) #`'#,((nonterminal-expander peg-top) #'e)]))
 
 (check-equal?
  (peg-expr
   (=> (seq (bind a (text "a")) (bind b (=> (bind c (text "b"))
                                            (list a c))))
-      b))
+      (list a b)))
  '(=> (seq (bind a (text "a")) (bind b (=> (bind c (text "b"))
                                            (list a c))))
-      b))
+      (list a b)))

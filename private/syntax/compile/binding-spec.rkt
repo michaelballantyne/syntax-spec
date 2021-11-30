@@ -41,6 +41,7 @@
 (struct rec [pvars])
 (struct export [pvar])
 (struct nest [pvar spec])
+(struct nest-one [pvar spec])
 (struct scope [spec])
 (struct group [specs])
 
@@ -48,7 +49,7 @@
 
 (define elaborate-bspec
   (syntax-parser
-    #:datum-literals (! rec ^ nest)
+    #:datum-literals (! rec ^ nest nest-one)
     [v:nonref-id
      (ref (pvar (attribute v) (lookup-pvar (attribute v))))]
     [(! v:nonref-id ...+)
@@ -73,6 +74,12 @@
                          "binding class"))))]
     [(nest v:nonref-id spec:bspec-term)
      (nest
+      (elaborate-pvar (attribute v)
+                      (struct* nonterm-rep ([variant-info (struct* nesting-nonterm-info ())]))
+                      "nesting nonterminal")
+      (elaborate-bspec (attribute spec)))]
+    [(nest-one v:nonref-id spec:bspec-term)
+     (nest-one
       (elaborate-pvar (attribute v)
                       (struct* nonterm-rep ([variant-info (struct* nesting-nonterm-info ())]))
                       "nesting nonterminal")
@@ -130,6 +137,8 @@
      vs]
     [(nest (pvar v _) spec)
      (cons v (bspec-referenced-pvars spec))]
+    [(nest-one (pvar v _) spec)
+     (cons v (bspec-referenced-pvars spec))]
     [(scope spec)
      (bspec-referenced-pvars spec)]
     [(group specs)
@@ -147,6 +156,8 @@
   (match bspec
     [(nest v spec)
      (nest v (bspec-flatten-groups spec))]
+    [(nest-one v spec)
+     (nest-one v (bspec-flatten-groups spec))]
     [(scope spec)
      (scope (bspec-flatten-groups spec))]
     [(group l) (group (flattened-elements bspec))]
@@ -188,6 +199,11 @@
        [(nonterm-rep (nesting-nonterm-info expander))
         (with-syntax ([spec-c (compile-bspec-term/single-pass spec)])
           #`(nest '#,v #,expander spec-c))])]
+    [(nest-one (pvar v info) spec)
+     (match info
+       [(nonterm-rep (nesting-nonterm-info expander))
+        (with-syntax ([spec-c (compile-bspec-term/single-pass spec)])
+          #`(nest-one '#,v #,expander spec-c))])]
     [(scope spec)
      (with-syntax ([spec-c (compile-bspec-term/single-pass spec)])
        #'(scope spec-c))]
@@ -208,6 +224,7 @@
     
     [(or (ref _)
          (nest _ _)
+         (nest-one _ _)
          (scope _))
      no-op]
     
@@ -228,6 +245,7 @@
 
     [(or (ref _)
          (nest _ _)
+         (nest-one _ _)
          (scope _))
      (compile-bspec-term/single-pass spec)]
     
