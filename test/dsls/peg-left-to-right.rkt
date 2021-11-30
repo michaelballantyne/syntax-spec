@@ -20,8 +20,7 @@
                (list e:expr ...))
 
   (nonterminal peg-top
-    n:peg
-    #:binding (nest-one n []))
+    n:peg #:binding (nest-one n []))
   
   (nesting-nonterminal peg (tail)
     #:description "PEG expression"
@@ -37,10 +36,10 @@
     #:binding [(nest-one e1 []) (nest-one e2 [])]
     
     (repeat e:peg)      ; *
-    #:binding [(nest-one e [])]
+    #:binding (nest-one e [])
     
     (not e:peg)         ; !
-    #:binding [(nest-one e [])]
+    #:binding (nest-one e [])
     
     (bind x:var e:peg)  ; :
     #:binding {(! x) (nest-one e []) tail}
