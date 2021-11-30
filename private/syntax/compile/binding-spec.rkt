@@ -45,6 +45,35 @@
 (struct scope [spec])
 (struct group [specs])
 
+(define (map-bspec f spec)
+  (match spec
+    [(nest pv s)
+     (let ([s^ (map-bspec f s)])
+       (f (nest pv s^)))]
+    [(nest-one pv s)
+     (let ([s^ (map-bspec f s)])
+       (f (nest-one pv s^)))]
+    [(scope s)
+     (let ([s^ (map-bspec f s)])
+       (f (scope s^)))]
+    [(group ss)
+     (let ([ss^ (map (lambda (s) (map-bspec f s)) ss)])
+       (f (group ss^)))]
+    [_ (f spec)]))
+
+(define (fold-bspec f-node f-combine spec)
+  (match spec
+    [(or (nest _ s)
+         (nest-one _ s)
+         (scope s))
+     (let ([s^ (fold-bspec f-node f-combine s)])
+       (f-combine (f-node spec) (list s^)))]
+    [(group ss)
+     (let ([ss^ (map (lambda (s) (fold-bspec f-node f-combine s)) ss)])
+       (f-combine (f-node spec) ss^))]
+    [_ (f-node spec)]))
+
+
 ;; Elaborate
 
 (define elaborate-bspec
@@ -128,40 +157,30 @@
                        (ref (pvar v (lookup-pvar v)))))))
 
 (define (bspec-referenced-pvars spec)
-  (match spec
-    [(or (ref (pvar v _))
-         (bind (pvar v _))
-         (export (pvar v _)))
-     (list v)]
-    [(rec (list (pvar vs _) ...))
-     vs]
-    [(nest (pvar v _) spec)
-     (cons v (bspec-referenced-pvars spec))]
-    [(nest-one (pvar v _) spec)
-     (cons v (bspec-referenced-pvars spec))]
-    [(scope spec)
-     (bspec-referenced-pvars spec)]
-    [(group specs)
-     (apply append (map bspec-referenced-pvars specs))]))
+  (fold-bspec
+   (lambda (spec)
+     (match spec
+       [(or (ref (pvar v _))
+            (bind (pvar v _))
+            (export (pvar v _))
+            (nest (pvar v _) _)
+            (nest-one (pvar v _) _))
+        (list v)]
+       [(rec (list (pvar vs _) ...))
+        vs]
+       [_ '()]))
+   append*
+   spec))
 
 ;; Flatten groups for easier order analysis
 
 (define (bspec-flatten-groups bspec)
-  (define (flattened-elements el)
-    (match el
-      [(group l)
-       (apply append (map flattened-elements l))]
-      [_ (list (bspec-flatten-groups el))]))
-  
-  (match bspec
-    [(nest v spec)
-     (nest v (bspec-flatten-groups spec))]
-    [(nest-one v spec)
-     (nest-one v (bspec-flatten-groups spec))]
-    [(scope spec)
-     (scope (bspec-flatten-groups spec))]
-    [(group l) (group (flattened-elements bspec))]
-    [other other]))
+  (map-bspec
+   (lambda (spec)
+     (match spec
+       [(group l) (group (append* (map flat-bspec-top-elements l)))] 
+       [_ spec]))
+   bspec))
 
 (define (flat-bspec-top-elements el)
   (match el
