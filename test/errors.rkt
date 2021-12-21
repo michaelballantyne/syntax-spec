@@ -147,6 +147,63 @@
      x:pvar
      #:binding (! x))))
 
+(check-decl-error
+ #rx"nonterminal: recursive binding groups must occur within a scope or at the top-level of a two-pass binding spec"
+ (define-hosted-syntaxes
+   (binding-class var #:description "var")
+   (two-pass-nonterminal def
+     (define x:var e:expr)
+     #:binding [(^ x) e])
+   (nonterminal expr
+     (block d:def)
+     #:binding (rec d))))
+
+(check-decl-error
+ #rx"nonterminal: bindings must appear first within a scope"
+ (define-hosted-syntaxes
+   (binding-class var)
+   (nonterminal expr
+     (let x:var e:expr)
+     #:binding {e (! x)})))
+
+(check-decl-error
+ #rx"nonterminal: only one recursive binding group may appear in a scope, and must occur before references and subexpressions"
+ (define-hosted-syntaxes
+   (binding-class var)
+   (two-pass-nonterminal def
+     (define x:var e:expr)
+     #:binding [(^ x) e])
+   (nonterminal expr
+     (block d:def e:expr)
+     #:binding {e (rec d)})))
+
+(check-decl-error
+ #rx"nonterminal: only one recursive binding group may appear in a scope, and must occur before references and subexpressions"
+ (define-hosted-syntaxes
+   (binding-class var)
+   (two-pass-nonterminal def
+     (define x:var e:expr)
+     #:binding [(^ x) e])
+   (nonterminal expr
+     (block d1:def d2:def)
+     #:binding {(rec d1) (rec d2)})))
+
+(check-decl-error
+ #rx"exports must appear first in a two-pass spec"
+ (define-hosted-syntaxes
+   (binding-class var)
+   (two-pass-nonterminal def
+     (define x:var e:expr)
+     #:binding [e (^ x)])))
+
+(check-decl-error
+ #rx"recursively-bound subexpressions must occur before references and subexpressions"
+ (define-hosted-syntaxes
+   (binding-class var)
+   (two-pass-nonterminal def
+     (define x:var d:def e:expr)
+     #:binding [(^ x) e (rec d)])))
+
 ;;
 ;; Valid definitions used to exercise errors
 ;;
