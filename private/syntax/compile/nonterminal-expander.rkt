@@ -28,10 +28,10 @@
       (opts:nonterminal-options)
       prod-arg ...)
      (define (generate-loop prods-stx maybe-nested-id init-stx-id maybe-nest-st-id)
-       (define/syntax-parse ((prod:production-spec) ...) prods-stx)
-       (with-syntax ([prod-clauses (map (lambda (sspec bspec)
-                                          (generate-prod-clause sspec bspec maybe-nested-id maybe-nest-st-id (attribute variant)))
-                                        (attribute prod.sspec) (attribute prod.bspec))]
+       (define/syntax-parse ((prod:production) ...) prods-stx)
+       (with-syntax ([prod-clauses (map (lambda (prod)
+                                          (generate-prod-clause prod maybe-nested-id maybe-nest-st-id (attribute variant) #'recur))
+                                        (attribute prod))]
                      [macro-clauses (for/list ([extclass (attribute opts.ext-classes)])
                                       (generate-macro-clause extclass #'recur))]
                      [description (or (attribute opts.description) (symbol->string (syntax-e (attribute name))))]
@@ -60,30 +60,36 @@
      
      (generate-header)]))
 
-(define (generate-prod-clause sspec-arg maybe-bspec-arg maybe-nested-id maybe-nest-st-id variant)
-  (with-scope sc
-    (define sspec (add-scope sspec-arg sc))
-    (define maybe-bspec (if maybe-bspec-arg (add-scope maybe-bspec-arg sc) maybe-bspec-arg))
+(define (generate-prod-clause prod-stx maybe-nested-id maybe-nest-st-id variant recur-id)
+  (syntax-parse prod-stx
+    [(p:rewrite-production)
+     (with-syntax ([recur recur-id])
+       #`[p.pat
+          (recur (let () p.body ...))])]
+    [(p:syntax-production)
+     (with-scope sc
+       (define sspec (add-scope (attribute p.sspec) sc))
+       (define maybe-bspec (and (attribute p.bspec) (add-scope (attribute p.bspec) sc)))
     
-    (define sspec-pvars (sspec-bind-pvars! sspec))
-    (define bound-pvars (if maybe-nested-id
-                            (append sspec-pvars (list (add-scope maybe-nested-id sc)))
-                            sspec-pvars))
+       (define sspec-pvars (sspec-bind-pvars! sspec))
+       (define bound-pvars (if maybe-nested-id
+                               (append sspec-pvars (list (add-scope maybe-nested-id sc)))
+                               sspec-pvars))
     
-    (with-syntax ([(v ...) sspec-pvars]
-                  [pattern (compile-sspec-to-pattern sspec)]
-                  [bspec-e (compile-bspec maybe-bspec bound-pvars variant)]
-                  [template (compile-sspec-to-template sspec)]
-                  [nest-st (or maybe-nest-st-id #'#f)])
-      #`[pattern
-         (let*-values ([(in) (hash (~@ 'v (pattern-var-value v)) ...)]
-                       [(out nest-st^) (simple-expand bspec-e in nest-st)])
-           (rebind-pattern-vars
-            (v ...)
-            (values (hash-ref out 'v) ...)
-            #,(if maybe-nest-st-id
-                  #'(values #'template nest-st^)
-                  #'#'template)))])))
+       (with-syntax ([(v ...) sspec-pvars]
+                     [pattern (compile-sspec-to-pattern sspec)]
+                     [bspec-e (compile-bspec maybe-bspec bound-pvars variant)]
+                     [template (compile-sspec-to-template sspec)]
+                     [nest-st (or maybe-nest-st-id #'#f)])
+         #`[pattern
+            (let*-values ([(in) (hash (~@ 'v (pattern-var-value v)) ...)]
+                          [(out nest-st^) (simple-expand bspec-e in nest-st)])
+              (rebind-pattern-vars
+               (v ...)
+               (values (hash-ref out 'v) ...)
+               #,(if maybe-nest-st-id
+                     #'(values #'template nest-st^)
+                     #'#'template)))]))]))
 
 (define (generate-macro-clause extclass recur-id)
   (let ([ext-info (lookup extclass extclass-rep?)])

@@ -2,7 +2,16 @@
 
 (require "../../main.rkt"
          rackunit
-         (for-syntax racket/base syntax/parse racket/pretty))
+         (for-syntax
+          racket/base syntax/parse racket/pretty))
+
+(provide
+ #%rel-app
+ fresh
+ #%term-ref
+ mk
+ appendo
+ (for-syntax goal-macro))
 
 (define-hosted-syntaxes
   (binding-class term-variable #:description "miniKanren term variable")
@@ -21,9 +30,13 @@
   (nonterminal term
     #:description "miniKanren term"
     n:number
-    x:term-variable
+    (#%term-ref x:term-variable)
     (quote t:quoted)
-    (cons t1:term t2:term))
+    (cons t1:term t2:term)
+
+    (~> v:id
+        (with-syntax ([#%term-ref (datum->syntax this-syntax '#%term-ref)])
+          #'(#%term-ref v))))
 
   (nonterminal goal
     #:description "miniKanren goal"
@@ -41,8 +54,12 @@
   
     (fresh1 (x:term-variable ...) b:goal)
     #:binding {(! x) b}
-    
-    (r:relation-name t:term ...+)))
+
+    (#%rel-app r:relation-name t:term ...+)
+
+    (~> (name:id arg ...)
+        (with-syntax ([#%rel-app (datum->syntax this-syntax '#%rel-app)])
+          #'(#%rel-app name arg ...)))))
   
 ; Simulated interface macros
 (define-syntax mk
@@ -91,8 +108,32 @@
  expanded
  `(fresh1 (l1 l2 l3)
           (disj2
-           (conj2 (== l1 '()) (== l3 l2))
+           (conj2 (== (#%term-ref l1) '()) (== (#%term-ref l3) (#%term-ref l2)))
            (fresh1 (head rest result)
-                   (conj2 (conj2 (== (cons head rest) l1)
-                                 (== (cons head result) l3))
-                          (appendo rest l2 result))))))
+                   (conj2 (conj2 (== (cons (#%term-ref head) (#%term-ref rest)) (#%term-ref l1))
+                                 (== (cons (#%term-ref head) (#%term-ref result)) (#%term-ref l3)))
+                          (#%rel-app appendo (#%term-ref rest) (#%term-ref l2) (#%term-ref result)))))))
+
+; Test interposition point
+(module* test racket
+  (require (rename-in (submod "..") [#%rel-app core-#%rel-app])
+           (for-syntax syntax/parse)
+           rackunit)
+
+  (define-syntax #%rel-app
+    (goal-macro
+     (syntax-parser
+       [(_ name arg ...)
+        #'(fresh (foo)
+                 (core-#%rel-app name arg ...))])))
+
+  (check-equal?
+   (mk
+    (fresh (l1 l2 l3)
+           (appendo l1 l2 l3)))
+   '(fresh1 (l1 l2 l3)
+            (fresh1 (foo)
+                    (#%rel-app appendo (#%term-ref l1) (#%term-ref l2) (#%term-ref l3))))))
+
+  
+  

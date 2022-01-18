@@ -31,7 +31,9 @@
  ;;   bspec
  ;;   form-name - when sspec is an s-expression beginning with a nonref-id,
  ;;                 this attribute is bound to that id.
- production-spec
+ production
+ syntax-production
+ rewrite-production
 
  extclass-spec
 
@@ -81,16 +83,29 @@
 (define-syntax-class nonref-id
   (pattern name:id #:when (not (has:? #'name))))
 
+(define-splicing-syntax-class production
+  #:description "nonterminal production"
+  (pattern r:rewrite-production
+           #:attr form-name #f)
+  (pattern p:syntax-production
+           #:attr form-name (attribute p.form-name)))
 
-(define-splicing-syntax-class production-spec
+(define-splicing-syntax-class syntax-production
   #:description "production spec"
-  (pattern (~seq sspec:sspec (~optional (~seq #:binding bspec)))
+  (pattern (~seq sspec:syntax-spec (~optional (~seq #:binding bspec)))
            #:attr form-name (attribute sspec.form-name)))
 
-(define-syntax-class sspec
+(define-syntax-class syntax-spec
   #:description "syntax spec"
   (pattern (form-name:nonref-id . _))
   (pattern _:expr #:attr form-name #f))
+
+(define-syntax-class rewrite-production
+  #:description "rewrite spec"
+  #:datum-literals (~>)
+  (pattern (~> pat body ...)))
+
+
 
   
 (define (has:? id)

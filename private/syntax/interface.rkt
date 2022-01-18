@@ -89,7 +89,7 @@
       [(nonterminal
         name:id
         opts:nonterminal-options
-        prod:production-spec ...+)
+        prod:production ...+)
        (with-syntax ([expander-name (generate-temporary #'name)])
          (values
           (generate-nonterminal-declarations
@@ -102,7 +102,7 @@
       [(nesting-nonterminal
         name:id nested:nested-binding-syntax
         opts:nonterminal-options
-        prod:production-spec ...+)
+        prod:production ...+)
        (with-syntax ([expander-name (generate-temporary #'name)])
          (values
           (generate-nonterminal-declarations
@@ -115,7 +115,7 @@
       [(two-pass-nonterminal ~!
         name:id
         opts:nonterminal-options
-        prod:production-spec ...+)
+        prod:production ...+)
        (with-syntax ([(pass1-expander-name pass2-expander-name) (generate-temporaries #'(name name))])
          (values
           (generate-nonterminal-declarations
