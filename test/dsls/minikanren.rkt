@@ -3,15 +3,11 @@
 (require "../../main.rkt"
          rackunit
          (for-syntax
-          racket/base syntax/parse racket/pretty))
+          racket/base syntax/parse
+          syntax/id-table
+          ee-lib))
 
-(provide
- #%rel-app
- fresh
- #%term-ref
- mk
- appendo
- (for-syntax goal-macro))
+(provide (all-defined-out) (for-syntax term-variable (all-defined-out)))
 
 (define-hosted-syntaxes
   (binding-class term-variable #:description "miniKanren term variable")
@@ -29,10 +25,15 @@
 
   (nonterminal term
     #:description "miniKanren term"
+    #:allow-extension term-macro
+    
     n:number
     (#%term-ref x:term-variable)
     (quote t:quoted)
     (cons t1:term t2:term)
+    
+    (rkt e:expr)
+    #:binding (host e)
 
     (~> v:id
         (with-syntax ([#%term-ref (datum->syntax this-syntax '#%term-ref)])
@@ -114,7 +115,8 @@
                                  (== (cons (#%term-ref head) (#%term-ref result)) (#%term-ref l3)))
                           (#%rel-app appendo (#%term-ref rest) (#%term-ref l2) (#%term-ref result)))))))
 
-; Test interposition point
+
+; Test interposition point; separate submodule so we can rename-in the core #%rel-app.
 (module* test racket
   (require (rename-in (submod "..") [#%rel-app core-#%rel-app])
            (for-syntax syntax/parse)
@@ -131,7 +133,7 @@
    (mk
     (fresh (l1 l2 l3)
            (appendo l1 l2 l3)))
-   '(fresh1 (l1 l2 l3)
+   `(fresh1 (l1 l2 l3)
             (fresh1 (foo)
                     (#%rel-app appendo (#%term-ref l1) (#%term-ref l2) (#%term-ref l3))))))
 

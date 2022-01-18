@@ -53,6 +53,7 @@
 (struct export with-stx [pvar])
 (struct nest with-stx [pvar spec])
 (struct nest-one with-stx [pvar spec])
+(struct suspend with-stx [pvar])
 (struct scope with-stx [spec])
 (struct group [specs])
 
@@ -94,7 +95,7 @@
 
 (define elaborate-bspec
   (syntax-parser
-    #:datum-literals (! rec ^ nest nest-one)
+    #:datum-literals (! rec ^ nest nest-one host)
     [v:nonref-id
      (ref (pvar (attribute v) (lookup-pvar (attribute v))))]
     [(! v:nonref-id ...+)
@@ -134,6 +135,10 @@
                       (s* nonterm-rep [variant-info (s* nesting-nonterm-info)])
                       "nesting nonterminal")
       (elaborate-bspec (attribute spec)))]
+    [(host v:nonref-id)
+     (suspend
+      this-syntax
+      (pvar (attribute v) (lookup-pvar (attribute v))))]
     [(~braces spec ...)
      (scope
       this-syntax
@@ -188,7 +193,8 @@
               (s* bind [pvar (pvar v _)])
               (s* export [pvar (pvar v _)])
               (s* nest [pvar (pvar v _)])
-              (s* nest-one [pvar (pvar v _)]))
+              (s* nest-one [pvar (pvar v _)])
+              (s* suspend [pvar (pvar v _)]))
           (list v)]
          [(s* rec [pvars (list (pvar vs _) ...)])
           vs]
@@ -267,7 +273,7 @@
 (define (check-order/unscoped-expression spec)
   (define (refs+subexps spec)
     (match spec
-      [(s* ref) (void)]
+      [(or (s* ref) (s* suspend)) (void)]
       [(and (s* bind) (with-stx stx))
        (binding-scope-error stx)]
       [(and (s* rec) (with-stx stx))
@@ -300,7 +306,7 @@
        (export-context-error stx)]
       [(and (s* rec) (with-stx stx))
        (wrong-syntax/orig stx "only one recursive binding group may appear in a scope, and must occur before references and subexpressions")]
-      [(s* ref)
+      [(or (s* ref) (s* suspend))
        (check-sequence refs+subexps specs)]
       [(or (s* nest [spec s])
            (s* nest-one [spec s]))
@@ -334,7 +340,7 @@
        (wrong-syntax/orig stx "exports must appear first in a two-pass spec")]
       [(and (s* rec) (with-stx stx))
        (wrong-syntax/orig stx "recursively-bound subexpressions must occur before references and subexpressions")]
-      [(s* ref)
+      [(or (s* ref) (s* suspend))
        (check-sequence refs+subexps specs)]
       [(or (s* nest [spec s])
            (s* nest-one [spec s]))
@@ -363,6 +369,8 @@
         (wrong-syntax/orig v "two-pass nonterminals may only be used with `rec`")]
        [(or (? stxclass?) (? has-stxclass-prop?))
         #`(group (list))])]
+    [(suspend _ (pvar v info))
+     #`(suspend '#,v)]
     [(bind _ (pvar v (bindclass-rep _ constr _)))
      #`(bind '#,v #,constr)]
     [(rec _ pvars)
@@ -405,7 +413,8 @@
     [(or (ref _)
          (nest _ _ _)
          (nest-one _ _ _)
-         (scope _ _))
+         (scope _ _)
+         (suspend _ _))
      no-op]
     
     [(export _ (pvar v (bindclass-rep _ constr _)))
@@ -427,7 +436,8 @@
     [(or (ref _)
          (nest _ _ _)
          (nest-one _ _ _)
-         (scope _ _))
+         (scope _ _)
+         (suspend _ _))
      (compile-bspec-term/single-pass spec)]
     
     [(export _ _) no-op]

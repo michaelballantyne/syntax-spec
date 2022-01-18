@@ -9,6 +9,7 @@
  (struct-out nest)
  (struct-out nest-one)
  (struct-out nested)
+ (struct-out suspend)
 
  qualifier?
  svar?
@@ -24,7 +25,9 @@
   racket/set
   racket/syntax
   racket/pretty
-  ee-lib)
+  ee-lib
+  (for-template
+   "compile.rkt"))
 
 ;;
 ;; Representation
@@ -40,6 +43,7 @@
 (struct nest [svar nonterm spec] #:transparent)
 (struct nest-one [svar nonterm spec] #:transparent)
 (struct nested [] #:transparent)
+(struct suspend [svar] #:transparent)
 
 ;; `bvalc` is (-> any/c)
 
@@ -83,7 +87,9 @@
       (set-member? svars pv)
       (binding-spec-well-formed? spec svars))]
     [(nested)
-     #t]))
+     #t]
+    [(suspend (? svar? pv))
+     (set-member? svars pv)]))
 
 ;;
 ;; Expansion
@@ -185,7 +191,12 @@
      (update-nest-state
       st
       (lambda (nest-st)
-        (simple-expand-nest nest-st local-scopes)))]))
+        (simple-expand-nest nest-st local-scopes)))]
+
+    [(suspend pv)
+     (for/pv-state-tree ([stx pv])
+       (suspension stx
+                   (current-def-ctx)))]))
 
 ; f is nonterm-transformer
 ; seq is (listof (treeof syntax?))

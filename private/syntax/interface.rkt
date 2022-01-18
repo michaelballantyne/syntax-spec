@@ -3,10 +3,15 @@
 (provide define-hosted-syntaxes
          (for-syntax binding-class-predicate
                      binding-class-constructor
-                     nonterminal-expander))
+                     nonterminal-expander
+                     with-binding-compilers
+                     resume-host-expansion
+                     compile-reference
+                     compile-binder!))
   
 (require
   "../runtime/errors.rkt"
+  "../runtime/compile.rkt"
   (for-syntax
    racket/base
    racket/list
@@ -16,6 +21,7 @@
    syntax/parse
    ee-lib
    "syntax-classes.rkt"
+   "../runtime/binding-spec.rkt"
    "../runtime/errors.rkt")
   ee-lib/define
   (for-meta 2
@@ -63,7 +69,7 @@
           #'(begin-for-syntax
               (struct sname []
                 #:property prop:procedure
-                (dsl-error-as-expression (#%datum . descr.str)))
+                (binding-as-rkt (quote-syntax name) (#%datum . descr.str)))
               (define-syntax name
                 (bindclass-rep
                  (#%datum . descr.str)
@@ -87,9 +93,9 @@
           #f))]
       
       [(nonterminal
-        name:id
-        opts:nonterminal-options
-        prod:production ...+)
+         name:id
+         opts:nonterminal-options
+         prod:production ...+)
        (with-syntax ([expander-name (generate-temporary #'name)])
          (values
           (generate-nonterminal-declarations
@@ -100,9 +106,9 @@
                #,this-syntax
                #:simple name opts prod ...))))]
       [(nesting-nonterminal
-        name:id nested:nested-binding-syntax
-        opts:nonterminal-options
-        prod:production ...+)
+         name:id nested:nested-binding-syntax
+         opts:nonterminal-options
+         prod:production ...+)
        (with-syntax ([expander-name (generate-temporary #'name)])
          (values
           (generate-nonterminal-declarations
@@ -113,9 +119,9 @@
                #,this-syntax
                (#:nesting nested.id) name opts prod ...))))]
       [(two-pass-nonterminal ~!
-        name:id
-        opts:nonterminal-options
-        prod:production ...+)
+         name:id
+         opts:nonterminal-options
+         prod:production ...+)
        (with-syntax ([(pass1-expander-name pass2-expander-name) (generate-temporaries #'(name name))])
          (values
           (generate-nonterminal-declarations
