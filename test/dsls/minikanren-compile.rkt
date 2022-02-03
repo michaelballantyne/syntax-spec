@@ -28,13 +28,13 @@
       [n:number
        #'n]
       [(rkt e)
-       
        (resume-host-expansion #'e)])))
 
 (define-syntax mk-compile
   (syntax-parser
     [(_ e)
      (define expanded ((nonterminal-expander goal) #'e))
+     
      (with-binding-compilers ([term-variable
                                (lambda (id) (compile-reference compiled-var id))])
        (compile-goal expanded))]))
@@ -44,6 +44,6 @@
    (fresh (x)
           (== 1 (rkt x)))))
 
-#;(mk-compile
+(mk-compile
    (fresh (x)
-          (== 1 (rkt (+ 1 x)))))
+          (== 1 (rkt x))))

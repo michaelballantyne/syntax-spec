@@ -76,31 +76,3 @@
                      'expression
                      '()
                      ctx))]))
-
-(begin-for-syntax
-  (define (compile-binder! table id)
-    (unless (mutable-free-id-table? table)
-      (raise-argument-error
-       'add-fresh-name!
-       "mutable-free-id-table?"
-       table))
-    (unless (identifier? id)
-      (raise-argument-error
-       'add-fresh-name!
-       "identifier?"
-       id))
-    
-    (define result (generate-temporary id))
-
-    (free-id-table-set! table
-                        (flip-intro-scope id)
-                        result)
-  
-    (flip-intro-scope
-     result))
-
-  (define (compile-reference table id)
-    (syntax-local-get-shadower
-     (flip-intro-scope
-      (free-id-table-ref table
-                         (flip-intro-scope id))))))
