@@ -1,10 +1,8 @@
 #lang racket/base
 
-(require "../../main.rkt"
+(require "../../testing.rkt"
          racket/list
-         (only-in racket/cmdline parse-command-line)
-         rackunit
-         (for-syntax racket/base syntax/parse))
+         (only-in racket/cmdline parse-command-line))
 
 (begin-for-syntax
   (define-syntax-class flag-name

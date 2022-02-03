@@ -1,8 +1,6 @@
 #lang racket/base
 
-(require "../../main.rkt"
-         rackunit
-         (for-syntax racket/base syntax/parse racket/pretty))
+(require "../../testing.rkt")
 
 (define-hosted-syntaxes
   (binding-class var #:description "while-language variable")
@@ -38,11 +36,6 @@
    
     (stmts s:stmt ...)))
 
-;; simulated interface macro
-(define-syntax while-expr
-  (syntax-parser
-    [(_ e) #`'#,((nonterminal-expander expr) #'e)]))
-
 ;; sugar
 (define-syntax for
   (stmt-macro
@@ -57,14 +50,14 @@
 ;; tests
 
 (check-equal?
- (while-expr
-  (vars (i x)
-        (do
-            (set x 5)
-          (for [(set i 0) (< i x) (set i (+ i 1))]
-            (print i))
-          i)))
- (while-expr
+ (expand-nonterminal/datum expr
+   (vars (i x)
+         (do
+             (set x 5)
+           (for [(set i 0) (< i x) (set i (+ i 1))]
+             (print i))
+           i)))
+ (expand-nonterminal/datum expr
   (vars (i x)
         (do
             (set x 5)

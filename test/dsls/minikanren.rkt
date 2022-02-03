@@ -1,11 +1,6 @@
 #lang racket/base
 
-(require "../../main.rkt"
-         rackunit
-         (for-syntax
-          racket/base syntax/parse
-          syntax/id-table
-          ee-lib))
+(require "../../testing.rkt")
 
 (provide (all-defined-out) (for-syntax term-variable (all-defined-out)))
 
@@ -61,11 +56,6 @@
     (~> (name:id arg ...)
         (with-syntax ([#%rel-app (datum->syntax this-syntax '#%rel-app)])
           #'(#%rel-app name arg ...)))))
-  
-; Simulated interface macros
-(define-syntax mk
-  (syntax-parser
-    [(_ e) #``#,((nonterminal-expander goal) #'e)]))
 
 ; Surface syntax
 (define-syntax conj
@@ -97,13 +87,14 @@
 (define-syntax appendo ((binding-class-constructor relation-name)))
 
 (define expanded
-  (mk (fresh (l1 l2 l3)
-             (conde
-              [(== l1 '()) (== l3 l2)]  ; base case
-              [(fresh (head rest result) ; recursive case
-                      (== (cons head rest) l1)
-                      (== (cons head result) l3)
-                      (appendo rest l2 result))]))))
+  (expand-nonterminal/datum goal
+    (fresh (l1 l2 l3)
+           (conde
+            [(== l1 '()) (== l3 l2)]  ; base case
+            [(fresh (head rest result) ; recursive case
+                    (== (cons head rest) l1)
+                    (== (cons head result) l3)
+                    (appendo rest l2 result))]))))
 
 (check-equal?
  expanded
@@ -118,9 +109,9 @@
 
 ; Test interposition point; separate submodule so we can rename-in the core #%rel-app.
 (module* test racket
-  (require (rename-in (submod "..") [#%rel-app core-#%rel-app])
-           (for-syntax syntax/parse)
-           rackunit)
+  (require "../../testing.rkt"
+           (rename-in (submod "..") [#%rel-app core-#%rel-app])
+           )
 
   (define-syntax #%rel-app
     (goal-macro
@@ -130,9 +121,9 @@
                  (core-#%rel-app name arg ...))])))
 
   (check-equal?
-   (mk
-    (fresh (l1 l2 l3)
-           (appendo l1 l2 l3)))
+   (expand-nonterminal/datum goal
+     (fresh (l1 l2 l3)
+            (appendo l1 l2 l3)))
    `(fresh1 (l1 l2 l3)
             (fresh1 (foo)
                     (#%rel-app appendo (#%term-ref l1) (#%term-ref l2) (#%term-ref l3))))))

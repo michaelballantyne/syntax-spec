@@ -1,8 +1,6 @@
 #lang racket/base
 
-(require "../../main.rkt"
-         rackunit
-         (for-syntax racket/base syntax/parse racket/pretty))
+(require "../../testing.rkt")
 
 (define-hosted-syntaxes
   (binding-class var #:description "mylang variable")
@@ -42,11 +40,6 @@
     (pcons p1:pat p2:pat)
     #:binding (nest-one p1 (nest-one p2 nested))))
 
-;; simulated interface macro
-(define-syntax mylang-expr
-  (syntax-parser
-    [(_ e) #`'#,((nonterminal-expander expr) #'e)]))
-
 (define-syntax define*
   (mylang-macro
    (syntax-parser
@@ -55,10 +48,10 @@
 
 ;; tests
 (check-equal?
- (mylang-expr
-  (match (cons 1 (cons 2 (empty)))
-    [(pcons a (pcons b (pempty)))
-     (+ a b)]))
+ (expand-nonterminal/datum expr
+   (match (cons 1 (cons 2 (empty)))
+     [(pcons a (pcons b (pempty)))
+      (+ a b)]))
  '(match (cons 1 (cons 2 (empty)))
     [(pcons a (pcons b (pempty)))
      (+ a b)]))

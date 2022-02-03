@@ -1,9 +1,6 @@
 #lang racket/base
 
-(require "../../main.rkt"
-         rackunit
-         syntax/macro-testing
-         (for-syntax racket/base syntax/parse racket/pretty))
+(require "../../testing.rkt")
 
 (define-hosted-syntaxes
   (binding-class var #:description "dsl variable")
@@ -35,11 +32,6 @@
     
     e:expr))
 
-;; simulated interface macro
-(define-syntax mylang-expr
-  (syntax-parser
-    [(_ e) #`'#,((nonterminal-expander expr) #'e)]))
-
 (define-syntax dsl-define
   (dsl-macro
    (syntax-parser
@@ -49,12 +41,12 @@
 ;; tests
 
 (check-equal?
- (mylang-expr
-  (dsl-lambda ()
-              (dsl-define f (dsl-lambda (f) (f (g))))
-              (dsl-begin
-               (dsl-define g (dsl-lambda () (f))))
-              (f)))
+ (expand-nonterminal/datum expr
+   (dsl-lambda ()
+               (dsl-define f (dsl-lambda (f) (f (g))))
+               (dsl-begin
+                (dsl-define g (dsl-lambda () (f))))
+               (f)))
  '(dsl-lambda ()
               (dsl-define-values (f) (dsl-lambda (f) (f (g))))
               (dsl-begin
@@ -65,9 +57,8 @@
 (check-exn
  #rx"dsl-define-values: identifier already defined"
  (lambda ()
-   (convert-compile-time-error
-    (mylang-expr
+   (expand-nonterminal/datum expr
      (dsl-lambda ()
                  (dsl-define x 5)
-                 (dsl-define x 5))))))
+                 (dsl-define x 5)))))
 

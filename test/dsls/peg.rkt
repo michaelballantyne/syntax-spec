@@ -1,8 +1,6 @@
 #lang racket/base
 
-(require "../../main.rkt"
-         rackunit
-         (for-syntax racket/base syntax/parse racket/pretty))
+(require "../../testing.rkt")
 
 (begin-for-syntax
   (define-syntax-class string
@@ -14,10 +12,10 @@
   (extension-class peg-macro #:description "PEG macro")
 
   (nonterminal expr
-               #:description "PEG action expression"
-               v:var
-               s:string
-               (list e:expr ...))
+    #:description "PEG action expression"
+    v:var
+    s:string
+    (list e:expr ...))
 
   (nonterminal peg-top
     n:peg #:binding (nest-one n []))
@@ -58,16 +56,11 @@
     
     ))
 
-;; simulated interface macro
-(define-syntax peg-expr
-  (syntax-parser
-    [(_ e) #`'#,((nonterminal-expander peg-top) #'e)]))
-
 (check-equal?
- (peg-expr
-  (=> (seq (bind a (text "a")) (bind b (=> (bind c (text "b"))
-                                           (list a c))))
-      (list a b)))
+ (expand-nonterminal/datum peg-top
+   (=> (seq (bind a (text "a")) (bind b (=> (bind c (text "b"))
+                                            (list a c))))
+       (list a b)))
  '(=> (seq (bind a (text "a")) (bind b (=> (bind c (text "b"))
                                            (list a c))))
       (list a b)))

@@ -1,12 +1,8 @@
 #lang racket
 
-(require "../../main.rkt"
+(require "../../testing.rkt"
          "minikanren.rkt"
-         rackunit
-         (for-syntax
-          racket/base syntax/parse
-          syntax/id-table
-          ee-lib))
+         (for-syntax syntax/id-table))
 
 (begin-for-syntax
   (define compiled-var (make-free-id-table))
