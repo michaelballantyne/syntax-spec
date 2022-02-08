@@ -52,13 +52,11 @@
 
 (require racket/match)
 
-(define v (expand-nonterminal/datum peg
-            (=> (seq (bind a (text "a")) (bind b (=> (bind c (text "b"))
-                                                     (list a c))))
-                (list a b))))
-
 (check-true
- (match v
+ (match (expand-nonterminal/datum peg
+          (=> (seq (bind a (text "a")) (bind b (=> (bind c (text "b"))
+                                                   (list a c))))
+              (list a b)))
    [`(=> (seq (bind a (text ,_)) (bind b (=> (bind c (text ,_))
                                              ,_)))
          ,_)

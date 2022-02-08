@@ -14,4 +14,6 @@
 (define-syntax expand-nonterminal/datum
   (syntax-parser
     [(_ nonterm:id form)
-     #'(phase1-eval ((nonterminal-expander nonterm) #'form))]))
+     #'(phase1-eval
+        ((nonterminal-expander nonterm) #'form)
+        #:catch? #t)]))

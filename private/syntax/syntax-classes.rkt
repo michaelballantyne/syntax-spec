@@ -4,7 +4,8 @@
  current-orig-stx
  wrong-syntax/orig
 
- description
+ maybe-description
+ maybe-binding-space
 
  nested-binding-syntax
  sspec-term
@@ -47,12 +48,14 @@
   syntax/srcloc
   racket/syntax)
 
-(define-splicing-syntax-class (description name)
-  #:description "description keyword"
-  (pattern (~seq #:description string-stx:string)
-           #:attr str #`#,(syntax-e (attribute string-stx)))
-  (pattern (~seq)
-           #:attr str #`#,(symbol->string (syntax-e name))))
+(define-splicing-syntax-class (maybe-description name)
+  (pattern (~optional (~seq #:description string-stx:string))
+           #:attr str (or (attribute string-stx)
+                          #`#,(symbol->string (syntax-e name)))))
+
+(define-splicing-syntax-class maybe-binding-space
+  (pattern (~optional (~seq #:binding-space stx:id) #:defaults ([stx #'#f]))
+           #:attr sym (syntax-e (attribute stx))))
 
 (define current-orig-stx (make-parameter #f))
 
@@ -145,5 +148,8 @@
 (define-splicing-syntax-class nonterminal-options
   (pattern (~seq (~optional (~seq #:description description:string))
                  (~optional (~seq #:bind-literal-set litset-binder:id))
-                 (~optional (~seq #:allow-extension extensions:extclass-spec)))
+                 (~optional (~seq #:allow-extension extensions:extclass-spec))
+                 (~var maybe-space maybe-binding-space))
+           #:attr space-stx (attribute maybe-space.stx)
+           #:attr space-sym (attribute maybe-space.sym)
            #:attr ext-classes (if (attribute extensions) (attribute extensions.classes) '())))

@@ -30,7 +30,7 @@
      (define (generate-loop prods-stx maybe-nested-id init-stx-id maybe-nest-st-id)
        (define/syntax-parse ((prod:production) ...) prods-stx)
        (with-syntax ([prod-clauses (map (lambda (prod)
-                                          (generate-prod-clause prod maybe-nested-id maybe-nest-st-id (attribute variant) #'recur))
+                                          (generate-prod-clause prod maybe-nested-id maybe-nest-st-id (attribute variant) #'recur (attribute opts.space-stx)))
                                         (attribute prod))]
                      [macro-clauses (for/list ([extclass (attribute opts.ext-classes)])
                                       (generate-macro-clause extclass #'recur))]
@@ -60,7 +60,7 @@
      
      (generate-header)]))
 
-(define (generate-prod-clause prod-stx maybe-nested-id maybe-nest-st-id variant recur-id)
+(define (generate-prod-clause prod-stx maybe-nested-id maybe-nest-st-id variant recur-id binding-space-stx)
   (syntax-parse prod-stx
     [(p:rewrite-production)
      (with-syntax ([recur recur-id])
@@ -77,7 +77,7 @@
                                sspec-pvars))
     
        (with-syntax ([(v ...) sspec-pvars]
-                     [pattern (compile-sspec-to-pattern sspec)]
+                     [pattern (compile-sspec-to-pattern sspec binding-space-stx)]
                      [bspec-e (compile-bspec maybe-bspec bound-pvars variant)]
                      [template (compile-sspec-to-template sspec)]
                      [nest-st (or maybe-nest-st-id #'#f)])
@@ -98,11 +98,12 @@
         
     (with-syntax ([m-pred (extclass-rep-pred ext-info)]
                   [m-acc (extclass-rep-acc ext-info)]
+                  [m-space (extclass-rep-binding-space ext-info)]
                   [recur recur-id])
       #'[(~or m:id (m:id . _))
-         #:do [(define binding (lookup #'m m-pred))]
+         #:do [(define binding (lookup #'m m-pred #:space 'm-space))]
          #:when binding
          (recur (apply-as-transformer (m-acc binding)
-                                      #'m
+                                      ((in-space 'm-space) #'m)
                                       'definition
                                       this-syntax))])))

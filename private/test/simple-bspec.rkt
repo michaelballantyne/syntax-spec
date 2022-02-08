@@ -24,7 +24,7 @@
       [v:id
        (define-values (res _)
          (simple-expand
-          (ref 'v mylang-binding? "unbound mylang var reference")
+          (ref 'v #f mylang-binding? "unbound mylang var reference")
           (hash
            'v #'v)
           #f))
@@ -40,7 +40,7 @@
             (scope
              (group
               (list
-               (bind 'v mylang-binding)
+               (bind 'v #f mylang-binding)
                (subexp 'b mylang-expand-expr))))))
           (hash
            'v #'v

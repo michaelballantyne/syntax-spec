@@ -13,15 +13,17 @@
          syntax/id-set
          (only-in syntax/parse/private/residual-ct stxclass? has-stxclass-prop?)
          (for-template racket/base
-                       syntax/parse))
+                       syntax/parse
+                       "../../runtime/syntax-classes.rkt"))
 
-(define (compile-sspec-to-pattern stx)
+(define (compile-sspec-to-pattern stx binding-space-stx)
   (define generate-pattern-form
     (syntax-parser
       #:context 'generate-pattern-form
       [(name:nonref-id . term)
+       #:with binding-space binding-space-stx
        (with-syntax ([term-c (generate-pattern-term #'term)])
-         #'((~literal name) ~! . term-c))]
+         #'((~var _ (literal-in-space (quote-syntax name) (quote binding-space))) ~! . term-c))]
       [_ (generate-pattern-term this-syntax)]))
   
   (define generate-pattern-term

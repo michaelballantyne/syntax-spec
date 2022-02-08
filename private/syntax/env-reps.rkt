@@ -32,11 +32,11 @@
     [_
      (wrong-syntax stx "expected expression producing a macro transformer")]))
 
-(struct bindclass-rep (description constr pred)
+(struct bindclass-rep (description constr pred binding-space)
   #:property prop:procedure
   (nonterm-lang-error-as-expression "binding classes"))
 
-(struct extclass-rep (constr pred acc)
+(struct extclass-rep (constr pred acc binding-space)
   #:property prop:procedure
   expand-as-constructor)
 

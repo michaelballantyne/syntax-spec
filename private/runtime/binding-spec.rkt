@@ -35,9 +35,9 @@
 
 ;; Binding `spec`
 ;; is one of:
-(struct ref [svar pred msg] #:transparent)
+(struct ref [svar space pred msg] #:transparent)
 (struct subexp [svar nonterm] #:transparent)
-(struct bind [svar bvalc] #:transparent)
+(struct bind [svar space bvalc] #:transparent)
 (struct scope [spec] #:transparent)
 (struct group [specs] #:transparent)
 (struct nest [svar nonterm spec] #:transparent)
@@ -70,11 +70,11 @@
 ;; spec, (setof svars) -> (or/c #f any/c)
 (define (binding-spec-well-formed? spec svars)
   (match spec
-    [(ref (? svar? pv) (? procedure?) (? string?))
+    [(ref (? svar? pv) (or #f (? symbol?)) (? procedure?) (? string?))
      (set-member? svars pv)]
     [(subexp (? svar? pv) (? nonterm?))
      (set-member? svars pv)]
-    [(bind (? svar? pv) (? procedure?))
+    [(bind (? svar? pv) (or #f (? symbol?)) (? procedure?))
      (set-member? svars pv)]
     [(scope spec)
      (binding-spec-well-formed? spec svars)]
@@ -142,10 +142,10 @@
                   
   (match spec
     
-    [(ref pv pred msg)
+    [(ref pv space pred msg)
      (for/pv-state-tree ([id pv])
        (define id^ (add-scopes id local-scopes))
-       (when (not (lookup id^ pred))
+       (when (not (lookup id^ pred #:space space))
          ;(pretty-write (syntax-debug-info (flip-intro-scope id^) 0 #t))
          (wrong-syntax id^ msg))
        id^)]
@@ -154,9 +154,9 @@
      (for/pv-state-tree ([stx pv])
        (f (add-scopes stx local-scopes)))]
     
-    [(bind pv valc)
+    [(bind pv space valc)
      (for/pv-state-tree ([stx pv])
-       (bind! (add-scopes stx local-scopes) (valc)))]
+       (bind! (add-scopes stx local-scopes) (valc) #:space space))]
     
     [(scope spec)
      (with-scope sc
