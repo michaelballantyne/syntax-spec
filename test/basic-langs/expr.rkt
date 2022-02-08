@@ -13,7 +13,7 @@
     (+ e1:expr e2:expr)
       
     (let ([v:var e:expr] ...) b:expr)
-    #:binding [e {(! v) b}]
+    #:binding [e {(bind v) b}]
       
     (let* (b:binding ...) e:expr)
     #:binding (nest b e))
@@ -22,7 +22,7 @@
     #:description "let* binding group"
     
     [v:var e:expr]
-    #:binding [e {(! v) nested}]))
+    #:binding [e {(bind v) nested}]))
 
 (check-equal?
  (expand-nonterminal/datum expr

@@ -50,6 +50,7 @@
 (struct ref [pvar])
 (struct bind with-stx [pvar])
 (struct rec with-stx [pvars])
+(struct re-export with-stx [pvars])
 (struct export with-stx [pvar])
 (struct nest with-stx [pvar spec])
 (struct nest-one with-stx [pvar spec])
@@ -95,10 +96,10 @@
 
 (define elaborate-bspec
   (syntax-parser
-    #:datum-literals (! rec ^ nest nest-one host)
+    #:datum-literals (bind recursive export re-export nest nest-one host)
     [v:nonref-id
      (ref (pvar (attribute v) (lookup-pvar (attribute v))))]
-    [(! v:nonref-id ...+)
+    [(bind v:nonref-id ...+)
      (group
       (for/list ([v (attribute v)])
         (bind
@@ -106,14 +107,21 @@
          (elaborate-pvar v
                          (s* bindclass-rep)
                          "binding class"))))]
-    [(rec v:nonref-id ...+)
+    [(recursive v:nonref-id ...+)
      (rec
          this-syntax
-         (for/list ([v (attribute v)])
-           (elaborate-pvar v
-                           (s* nonterm-rep [variant-info (s* two-pass-nonterm-info)])
-                           "two-pass nonterminal")))]
-    [(^ v:nonref-id ...+)
+       (for/list ([v (attribute v)])
+         (elaborate-pvar v
+                         (s* nonterm-rep [variant-info (s* two-pass-nonterm-info)])
+                         "two-pass nonterminal")))]
+    [(re-export v:nonref-id ...+)
+     (re-export
+      this-syntax
+      (for/list ([v (attribute v)])
+        (elaborate-pvar v
+                        (s* nonterm-rep [variant-info (s* two-pass-nonterm-info)])
+                        "two-pass nonterminal")))]
+    [(export v:nonref-id ...+)
      (group
       (for/list ([v (attribute v)])
         (export
@@ -196,7 +204,8 @@
               (s* nest-one [pvar (pvar v _)])
               (s* suspend [pvar (pvar v _)]))
           (list v)]
-         [(s* rec [pvars (list (pvar vs _) ...)])
+         [(or (s* rec [pvars (list (pvar vs _) ...)])
+              (s* re-export [pvars (list (pvar vs _) ...)]))
           vs]
          [_ '()]))
      (append* node-vars children))
@@ -220,28 +229,28 @@
 ;; Static checks
 
 ; Concerns:
-;   - (! x) must occur within a scope.
-;       - (nest a [(! x) x]) shouldn't be legal as we have
+;   - (bind x) must occur within a scope.
+;       - (nest a [(bind x) x]) shouldn't be legal as we have
 ;         no static guarantee about the length of a or whether its
 ;         associated non-terminal installs any scopes.
-;       - {(nest a [(! x) x)])} shouldn't be legal as it would imply binding
+;       - {(nest a [(bind x) x)])} shouldn't be legal as it would imply binding
 ;         in a scope created by the nesting non-terminal, and the binding might
 ;         come after a reference created in the nesting non-terminal.
 ;   - Bindings should come before rec and references within a scope
 ;   - Exports may only occur at the top-level of a two-pass non-terminal,
 ;     and appear before rec and references
-;   - Only one `rec` group should appear in a scope, after bindings and before
+;   - Only one `recursive` group should appear in a scope, after bindings and before
 ;     references.
 ;
 ; Resulting contexts:
 ;   - Unscoped expression context; references only.
 ;   - Scoped expression context
 ;       - Bindings
-;       - Then rec
+;       - Then one recursive
 ;       - Then references
 ;   - Exporting context
 ;       - Exports
-;       - Then rec
+;       - Then re-exports
 ;       - Then references
 ; The body of a nest is an unscoped expression context, but ideally should have
 ; special error messages related to nest.
@@ -269,6 +278,9 @@
 (define (export-context-error stx)
   (wrong-syntax/orig stx "exports may only occur at the top-level of a two-pass binding spec"))
 
+(define (re-export-context-error stx)
+  (wrong-syntax/orig stx "re-exports may only occur at the top-level of a two-pass binding spec"))
+
 ; spec -> (void) or raised syntax error
 (define (check-order/unscoped-expression spec)
   (define (refs+subexps spec)
@@ -277,9 +289,11 @@
       [(and (s* bind) (with-stx stx))
        (binding-scope-error stx)]
       [(and (s* rec) (with-stx stx))
-       (wrong-syntax/orig stx "recursive binding groups must occur within a scope or at the top-level of a two-pass binding spec")]
+       (wrong-syntax/orig stx "recursive binding groups must occur within a scope")]
       [(and (s* export) (with-stx stx))
        (export-context-error stx)]
+      [(and (s* re-export) (with-stx stx))
+       (re-export-context-error stx)]
       [(or (s* nest [spec s])
            (s* nest-one [spec s]))
        (check-order/unscoped-expression s)]
@@ -294,8 +308,16 @@
        (check-sequence bindings specs)]
       [(and (s* export) (with-stx stx))
        (export-context-error stx)]
+      [(and (s* re-export) (with-stx stx))
+       (re-export-context-error stx)]
       [(s* rec)
-       (check-sequence refs+subexps specs)]
+       (check-sequence no-more-recs specs)]
+      [_ (check-sequence refs+subexps (cons spec specs))]))
+
+  (define (no-more-recs spec specs)
+    (match spec
+      [(and (s* rec) (with-stx stx))
+       (wrong-syntax/orig stx "only one recursive binding group may appear in a scope")]
       [_ (check-sequence refs+subexps (cons spec specs))]))
 
   (define (refs+subexps spec specs)
@@ -304,8 +326,10 @@
        (wrong-syntax/orig stx "bindings must appear first within a scope")]
       [(and (s* export) (with-stx stx))
        (export-context-error stx)]
+      [(and (s* re-export) (with-stx stx))
+       (re-export-context-error stx)]
       [(and (s* rec) (with-stx stx))
-       (wrong-syntax/orig stx "only one recursive binding group may appear in a scope, and must occur before references and subexpressions")]
+       (wrong-syntax/orig stx "a recursive binding group must appear before references and subexpressions")]
       [(or (s* ref) (s* suspend))
        (check-sequence refs+subexps specs)]
       [(or (s* nest [spec s])
@@ -323,12 +347,12 @@
     (match spec
       [(and (s* export) (with-stx stx))
        (check-sequence exports specs)]
-      [_ (check-sequence recs (cons spec specs))]))
+      [_ (check-sequence re-exports (cons spec specs))]))
 
-  (define (recs spec specs)
+  (define (re-exports spec specs)
     (match spec
-      [(s* rec)
-       (check-sequence recs specs)]
+      [(s* re-export)
+       (check-sequence re-exports specs)]
       [_
        (check-sequence refs+subexps (cons spec specs))]))
   
@@ -338,8 +362,10 @@
        (binding-scope-error stx)]
       [(and (s* export) (with-stx stx))
        (wrong-syntax/orig stx "exports must appear first in a two-pass spec")]
+      [(and (s* re-export) (with-stx stx))
+       (wrong-syntax/orig stx "re-exports must occur before references and subexpressions")]
       [(and (s* rec) (with-stx stx))
-       (wrong-syntax/orig stx "recursively-bound subexpressions must occur before references and subexpressions")]
+       (wrong-syntax/orig stx "recursively-bound subexpressions must occur within a scope")]
       [(or (s* ref) (s* suspend))
        (check-sequence refs+subexps specs)]
       [(or (s* nest [spec s])
@@ -352,6 +378,8 @@
 
   (check-sequence exports (flat-bspec-top-elements spec)))
 
+(define (invariant-error who)
+  (error who "should be caught by check-order functions"))
 
 (define (compile-bspec-term/single-pass spec)
   (match spec
@@ -366,7 +394,7 @@
        [(nonterm-rep (nesting-nonterm-info _))
         (wrong-syntax/orig v "nesting nonterminals may only be used with `nest`")]
        [(nonterm-rep (two-pass-nonterm-info _ _))
-        (wrong-syntax/orig v "two-pass nonterminals may only be used with `rec`")]
+        (wrong-syntax/orig v "two-pass nonterminals may only be used with `recursive` and `re-export`")]
        [(or (? stxclass?) (? has-stxclass-prop?))
         #`(group (list))])]
     [(suspend _ (pvar v info))
@@ -382,7 +410,9 @@
                                   #`(subexp '#,v #,pass2-expander))])
        #`(group (list s-cp1 ... s-cp2 ...)))]
     [(export _ (pvar v _))
-     (error 'compile-bspec-term/single-pass "should be caught by check-order functions")]
+     (invariant-error 'compile-bspec-term/single-pass)]
+    [(re-export _ (pvar v _))
+     (invariant-error 'compile-bspec-term/single-pass)]
     [(nest _ (pvar v info) spec)
      (match info
        [(nonterm-rep (nesting-nonterm-info expander))
@@ -405,7 +435,7 @@
 (define (compile-bspec-term/pass1 spec)
   (match spec
     [(bind _ (pvar v _))
-     (error 'compile-bspec-term/pass1 "should be caught by check-order functions")]
+     (invariant-error 'compile-bspec-term/pass1)]
     [(group specs)
      (with-syntax ([(spec-c ...) (map compile-bspec-term/pass1 specs)])
        #'(group (list spec-c ...)))]
@@ -419,7 +449,7 @@
     
     [(export _ (pvar v (bindclass-rep _ constr _)))
      #`(bind '#,v #,constr)]
-    [(rec _ pvars)
+    [(re-export _ pvars)
      (with-syntax ([(s-c ...) (for/list ([pv pvars])
                                 (match-define (pvar v (nonterm-rep (two-pass-nonterm-info pass1-expander _))) pv)
                                 #`(subexp '#,v #,pass1-expander))])
@@ -428,7 +458,7 @@
 (define (compile-bspec-term/pass2 spec)
   (match spec
     [(bind _ (pvar v _))
-     (error 'compile-bspec-term/pass2 "should be caught by check-order functions")]
+     (invariant-error 'compile-bspec-term/pass2)]
     [(group specs)
      (with-syntax ([(spec-c ...) (map compile-bspec-term/pass2 specs)])
        #'(group (list spec-c ...)))]
@@ -441,7 +471,7 @@
      (compile-bspec-term/single-pass spec)]
     
     [(export _ _) no-op]
-    [(rec _ pvars)
+    [(re-export _ pvars)
      (with-syntax ([(s-c ...) (for/list ([pv pvars])
                                 (match-define (pvar v (nonterm-rep (two-pass-nonterm-info _ pass2-expander))) pv)
                                 #`(subexp '#,v #,pass2-expander))])

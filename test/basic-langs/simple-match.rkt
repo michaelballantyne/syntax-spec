@@ -33,7 +33,7 @@
     #:description "mylang match pattern"
                
     v:var
-    #:binding {(! v) nested}
+    #:binding {(bind v) nested}
     
     (pempty)
                

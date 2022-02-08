@@ -40,7 +40,7 @@
     #:binding (nest-one e [])
     
     (bind x:var e:peg)  ; :
-    #:binding {(! x) (nest-one e []) tail}
+    #:binding {(bind x) (nest-one e []) tail}
     
     (=> pe:peg e:expr)
     #:binding (nest-one pe e)

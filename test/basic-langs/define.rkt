@@ -16,19 +16,31 @@
     (dsl-+ e1:expr e2:expr)
                
     (dsl-lambda (v:var ...) d:def-or-expr ...)
-    #:binding {(! v) {(rec d)}}
+    #:binding {(bind v) {(recursive d)}}
+
+    (dsl-letrec-values ([(v:var ...) rhs:expr] ...) d:def-or-expr)
+    #:binding {(bind v) rhs {(recursive d)}}
+
+    (dsl-let* (b:binding ...) e:expr)
+    #:binding (nest b e)
 
     (v:var e:expr ...))
 
+  (nesting-nonterminal binding (nested)
+    #:description "dsl-let* binding group"
+    
+    [v:var e:expr]
+    #:binding [e {(bind v) nested}])
+  
   (two-pass-nonterminal def-or-expr
-    #:description "mylang definition context"
+    #:description "dsl definition context"
     #:allow-extension dsl-macro
 
     (dsl-begin d:def-or-expr ...)
-    #:binding (rec d)
+    #:binding (re-export d)
     
     (dsl-define-values (v:var ...) e:expr)
-    #:binding [(^ v) e]
+    #:binding [(export v) e]
     
     e:expr))
 

@@ -26,7 +26,7 @@
     #:binding (nest d tail)
     
     (define*-values (v:var ...) e:expr)
-    #:binding [e {(! v) tail}]
+    #:binding [e {(bind v) tail}]
     
     e:expr))
 

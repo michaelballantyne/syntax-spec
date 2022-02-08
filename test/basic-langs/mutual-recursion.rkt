@@ -19,7 +19,7 @@
     (< e1:expr e2:expr)
 
     (vars (v:var ...) e:expr)
-    #:binding {(! v) e}
+    #:binding {(bind v) e}
    
     (do s:stmt ... e:expr))
 
