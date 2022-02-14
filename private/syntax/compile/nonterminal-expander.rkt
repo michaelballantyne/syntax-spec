@@ -1,6 +1,6 @@
 #lang racket/base
 
-(provide compile-nonterminal-expander)
+(provide compile-nonterminal-expander generate-prod-expansion)
   
 (require racket/base
          syntax/parse
@@ -70,26 +70,34 @@
      (with-scope sc
        (define sspec (add-scope (attribute p.sspec) sc))
        (define maybe-bspec (and (attribute p.bspec) (add-scope (attribute p.bspec) sc)))
+
+       (generate-prod-expansion
+        sspec maybe-bspec (and maybe-nested-id (add-scope maybe-nested-id sc)) maybe-nest-st-id variant binding-space-stx
+        (lambda (nest-st^-id)
+          (with-syntax ([template (compile-sspec-to-template sspec)]
+                        [nest-st^ nest-st^-id])
+            (if maybe-nest-st-id
+                #'(values #'template nest-st^)
+                #'#'template)))))]))
+
+; TODO: lacking hygiene b/t introduced vars and generate-body
+(define (generate-prod-expansion sspec maybe-bspec maybe-nested-id maybe-nest-st-id variant binding-space-stx generate-body)
+  (define sspec-pvars (sspec-bind-pvars! sspec))
+  (define bound-pvars (if maybe-nested-id
+                          (append sspec-pvars (list maybe-nested-id))
+                          sspec-pvars))
     
-       (define sspec-pvars (sspec-bind-pvars! sspec))
-       (define bound-pvars (if maybe-nested-id
-                               (append sspec-pvars (list (add-scope maybe-nested-id sc)))
-                               sspec-pvars))
-    
-       (with-syntax ([(v ...) sspec-pvars]
-                     [pattern (compile-sspec-to-pattern sspec binding-space-stx)]
-                     [bspec-e (compile-bspec maybe-bspec bound-pvars variant)]
-                     [template (compile-sspec-to-template sspec)]
-                     [nest-st (or maybe-nest-st-id #'#f)])
-         #`[pattern
-            (let*-values ([(in) (hash (~@ 'v (pattern-var-value v)) ...)]
-                          [(out nest-st^) (simple-expand bspec-e in nest-st)])
-              (rebind-pattern-vars
-               (v ...)
-               (values (hash-ref out 'v) ...)
-               #,(if maybe-nest-st-id
-                     #'(values #'template nest-st^)
-                     #'#'template)))]))]))
+  (with-syntax ([(v ...) sspec-pvars]
+                [pattern (compile-sspec-to-pattern sspec binding-space-stx)]
+                [bspec-e (compile-bspec maybe-bspec bound-pvars variant)]
+                [nest-st (or maybe-nest-st-id #'#f)])
+    #`[pattern
+       (let*-values ([(in) (hash (~@ 'v (pattern-var-value v)) ...)]
+                     [(out nest-st^) (simple-expand bspec-e in nest-st)])
+         (rebind-pattern-vars
+          (v ...)
+          (values (hash-ref out 'v) ...)
+          #,(generate-body #'nest-st^)))]))
 
 (define (generate-macro-clause extclass recur-id)
   (let ([ext-info (lookup extclass extclass-rep?)])

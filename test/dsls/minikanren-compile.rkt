@@ -26,14 +26,22 @@
       [(rkt e)
        (resume-host-expansion #'e)])))
 
-(define-syntax mk-compile
-  (syntax-parser
-    [(_ e)
-     (define expanded ((nonterminal-expander goal) #'e))
+(define-host-interface/expression
+  (mk-compile g:goal)
+
+  (with-binding-compilers ([term-variable
+                            (lambda (id) (compile-reference compiled-var id))])
+    (displayln #'g)
+    (compile-goal #'g)))
+
+#;(define-syntax mk-compile
+    (syntax-parser
+      [(_ e)
+       (define expanded ((nonterminal-expander goal) #'e))
      
-     (with-binding-compilers ([term-variable
-                               (lambda (id) (compile-reference compiled-var id))])
-       (compile-goal expanded))]))
+       (with-binding-compilers ([term-variable
+                                 (lambda (id) (compile-reference compiled-var id))])
+         (compile-goal expanded))]))
 
 (let ()
   (mk-compile
@@ -41,5 +49,5 @@
           (== 1 (rkt x)))))
 
 (mk-compile
-   (fresh (x)
-          (== 1 (rkt x))))
+ (fresh (x)
+        (== 1 (rkt x))))

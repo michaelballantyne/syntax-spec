@@ -1,6 +1,7 @@
 #lang racket/base
 
 (provide define-hosted-syntaxes
+         define-host-interface/expression
          (for-syntax binding-class-predicate
                      binding-class-constructor
                      nonterminal-expander
@@ -32,6 +33,10 @@
             "env-reps.rkt"
             "syntax-classes.rkt"
             "compile/nonterminal-expander.rkt"))
+
+;;
+;; define-hosted-syntaxes
+;;
 
 (define-syntax define-hosted-syntaxes
   (syntax-parser
@@ -175,22 +180,48 @@
          (compile-nonterminal-expander #'decls))]))  
   )
 
-(define-syntax define-nonterminal
+;;
+;; interface macro definition forms
+;;
+
+
+(define-syntax define-host-interface/expression
   (syntax-parser
-    [(_ . spec)
-     #'(define-nonterminals
-         spec)]))
+    [(_ (name:id . sspec)
+        (~optional (~seq #:binding bspec))
+        parse-body ...)
+     #'(define-syntax name
+         (generate-host-interface/expression-transformer
+          sspec (~? (bspec) ()) parse-body ...))]))
 
 (begin-for-syntax
-  (begin-for-syntax
-    (define (accessor-macro predicate error-message accessor)
-      (syntax-parser
-        [(_ ref:id)
-         (define binding (lookup #'ref predicate))
-         (when (not binding)
-           (wrong-syntax #'ref error-message))
-         (accessor binding)])))
+  (define-syntax generate-host-interface/expression-transformer
+    (syntax-parser
+      [(_ sspec ((~optional (~seq #:binding bspec))) parse-body ...)
+       (with-scope sc
+         (define (generate-body _)
+           (add-scope
+            #'(syntax-parse #f
+                [_
+                 parse-body ...])
+            sc))
+         
+         (define/syntax-parse clause
+           (generate-prod-expansion
+            (add-scope (attribute sspec) sc)
+            (and (attribute bspec) (add-scope (attribute bspec) sc))
+            #f #f #'#:simple #f generate-body))
+         
+         #'(syntax-parser
+             [(_ . rest)
+              (syntax-parse (attribute rest)
+                clause)]))])))
 
+;;
+;; phase 1 accessors
+;;
+
+(begin-for-syntax
   (define-syntax nonterminal-expander
     (syntax-parser
       [(_ ref:id)
@@ -201,6 +232,15 @@
        (when (not (simple-nonterm-info? variant-info))
          (wrong-syntax #'ref "only simple non-terminals may be used as entry points"))
        (simple-nonterm-info-expander variant-info)]))
+  
+  (begin-for-syntax
+    (define (accessor-macro predicate error-message accessor)
+      (syntax-parser
+        [(_ ref:id)
+         (define binding (lookup #'ref predicate))
+         (when (not binding)
+           (wrong-syntax #'ref error-message))
+         (accessor binding)])))
       
   (define-syntax binding-class-constructor
     (accessor-macro bindclass-rep? "expected a binding class name" bindclass-rep-constr))
