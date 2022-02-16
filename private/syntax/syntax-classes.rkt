@@ -106,7 +106,7 @@
 (define-syntax-class rewrite-production
   #:description "rewrite spec"
   #:datum-literals (~>)
-  (pattern (~> pat body ...)))
+  (pattern (~> pat parse-body ... final-body)))
 
 
 

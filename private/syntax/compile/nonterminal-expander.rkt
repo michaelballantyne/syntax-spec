@@ -65,7 +65,8 @@
     [(p:rewrite-production)
      (with-syntax ([recur recur-id])
        #`[p.pat
-          (recur (let () p.body ...))])]
+          p.parse-body ...
+          (recur p.final-body)])]
     [(p:syntax-production)
      (with-scope sc
        (define sspec (add-scope (attribute p.sspec) sc))
