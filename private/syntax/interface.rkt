@@ -197,7 +197,7 @@
 (begin-for-syntax
   (define-syntax generate-host-interface/expression-transformer
     (syntax-parser
-      [(_ sspec ((~optional (~seq #:binding bspec))) parse-body ...)
+      [(_ sspec ((~optional (~seq bspec))) parse-body ...)
        (with-scope sc
          (define (generate-body _)
            (add-scope

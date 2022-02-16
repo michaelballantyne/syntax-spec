@@ -27,6 +27,23 @@
        (resume-host-expansion #'e)])))
 
 (define-host-interface/expression
+  (run n:expr (qvar:term-variable ...)
+       g:goal ...)
+  #:binding {(bind qvar) g}
+  
+  ;#:with (qvar-c ...) (map compile-binder! (attribute qvar))
+  ;#:with (g-c ...) (map compile-goal (attribute g))
+  #;(with-binding-compilers ([term-variable
+                              (lambda (id) (compile-reference compiled-var id))])
+      #'(let ([qvar-c (fresh-var)])
+          (bind* g-c ... (reify qvar-c ...))))
+  (displayln #'(g ...))
+  #'(void))
+
+
+
+
+(define-host-interface/expression
   (mk-compile g:goal)
 
   (with-binding-compilers ([term-variable
@@ -43,11 +60,13 @@
                                  (lambda (id) (compile-reference compiled-var id))])
          (compile-goal expanded))]))
 
-(let ()
-  (mk-compile
-   (fresh (x)
-          (== 1 (rkt x)))))
 
 (mk-compile
  (fresh (x)
         (== 1 (rkt x))))
+
+(run 3 (q)
+     (fresh (x)
+            (== q x)))
+
+
