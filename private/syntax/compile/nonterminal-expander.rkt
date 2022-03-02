@@ -64,9 +64,11 @@
   (syntax-parse prod-stx
     [(p:rewrite-production)
      (with-syntax ([recur recur-id])
-       #`[p.pat
+       #`[form
+          #:do [(define intro-scope (make-syntax-introducer))]
+          #:with p.pat (intro-scope #'form)
           p.parse-body ...
-          (recur p.final-body)])]
+          (recur (intro-scope p.final-body))])]
     [(p:syntax-production)
      (with-scope sc
        (define sspec (add-scope (attribute p.sspec) sc))
