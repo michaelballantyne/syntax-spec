@@ -2,29 +2,7 @@
 
 (require "../../testing.rkt")
 
-(provide (for-space mk
-                    #%term-ref
-                    quote
-                    cons
-                    rkt
-                    
-                    ==
-                    =/=
-                    absento
-                    symbolo
-                    numbero
-                    stringo
-                    disj2
-                    conj2
-                    fresh1
-                    #%rel-app
-
-                    conj
-                    disj
-                    fresh
-                    conde
-
-                    appendo)
+(provide (for-space mk (all-defined-out))
          (for-syntax (all-defined-out)))
 
 
@@ -125,49 +103,45 @@
 
 (define-mk-syntax appendo ((binding-class-constructor relation-name)))
 
-(module* test racket/base
-  (require "../../testing.rkt" (submod ".."))
+(define expanded
+  (expand-nonterminal/datum goal
+    (fresh (l1 l2 l3)
+      (conde
+       [(== l1 '()) (== l3 l2)]  ; base case
+       [(fresh (head rest result) ; recursive case
+          (== (cons head rest) l1)
+          (== (cons head result) l3)
+          (appendo rest l2 result))]))))
 
-  (define expanded
-    (expand-nonterminal/datum goal
-      (fresh (l1 l2 l3)
-             (conde
-              [(== l1 '()) (== l3 l2)]  ; base case
-              [(fresh (head rest result) ; recursive case
-                      (== (cons head rest) l1)
-                      (== (cons head result) l3)
-                      (appendo rest l2 result))]))))
+(check-equal?
+ expanded
+ '(fresh1 (l1 l2 l3)
+          (disj2
+           (conj2 (== (#%term-ref l1) '()) (== (#%term-ref l3) (#%term-ref l2)))
+           (fresh1 (head rest result)
+                   (conj2 (conj2 (== (cons (#%term-ref head) (#%term-ref rest)) (#%term-ref l1))
+                                 (== (cons (#%term-ref head) (#%term-ref result)) (#%term-ref l3)))
+                          (#%rel-app appendo (#%term-ref rest) (#%term-ref l2) (#%term-ref result)))))))
+
+; Test interposition point; separate submodule so we can rename-in the core #%rel-app.
+(module* test racket
+  (require "../../testing.rkt"
+           (rename-in (submod "..") [#%rel-app core-#%rel-app]))
+
+  (define-syntax #%rel-app
+    (goal-macro
+     (syntax-parser
+       [(_ name arg ...)
+        #'(fresh (foo)
+            (core-#%rel-app name arg ...))])))
 
   (check-equal?
-   expanded
+   (expand-nonterminal/datum goal
+     (fresh (l1 l2 l3)
+       (appendo l1 l2 l3)))
    '(fresh1 (l1 l2 l3)
-            (disj2
-             (conj2 (== (#%term-ref l1) '()) (== (#%term-ref l3) (#%term-ref l2)))
-             (fresh1 (head rest result)
-                     (conj2 (conj2 (== (cons (#%term-ref head) (#%term-ref rest)) (#%term-ref l1))
-                                   (== (cons (#%term-ref head) (#%term-ref result)) (#%term-ref l3)))
-                            (#%rel-app appendo (#%term-ref rest) (#%term-ref l2) (#%term-ref result))))))))
-
-; TODO: don't know how to do with binding spaces because rename-in doesn't work well.
-; Test interposition point; separate submodule so we can rename-in the core #%rel-app.
-#;(module* test racket
-    (require "../../testing.rkt"
-             (rename-in (submod "..") [#%rel-app core-#%rel-app]))
-
-    (define-syntax #%rel-app
-      (goal-macro
-       (syntax-parser
-         [(_ name arg ...)
-          #'(fresh (foo)
-                   (core-#%rel-app name arg ...))])))
-
-    (check-equal?
-     (expand-nonterminal/datum goal
-       (fresh (l1 l2 l3)
-              (appendo l1 l2 l3)))
-     `(fresh1 (l1 l2 l3)
-              (fresh1 (foo)
-                      (#%rel-app appendo (#%term-ref l1) (#%term-ref l2) (#%term-ref l3))))))
+            (fresh1 (foo)
+                    (#%rel-app appendo (#%term-ref l1) (#%term-ref l2) (#%term-ref l3))))))
 
   
   
