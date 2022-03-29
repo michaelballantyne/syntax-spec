@@ -63,6 +63,8 @@
 (define (generate-prod-clause prod-stx maybe-nested-id maybe-nest-st-id variant recur-id binding-space-stx)
   (syntax-parse prod-stx
     [(p:rewrite-production)
+     ;; Hygiene for rewrite productions only uses a macro introduction
+     ;; scope applied to the input and flipped on the output. 
      (with-syntax ([recur recur-id])
        #`[form
           #:do [(define intro-scope (make-syntax-introducer))]
