@@ -21,7 +21,7 @@
            sb:state-body ...)
     #:binding [(export n) {(recursive sb)}]
 
-    (use scn:statechart-name #;#:as sn:state-name
+    (use scn:statechart-name #:as sn:state-name
          e:event ...))
 
   (nonterminal event

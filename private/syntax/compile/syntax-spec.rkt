@@ -31,6 +31,8 @@
       #:context 'generate-pattern-term
       [()
        #'()]
+      [k:keyword
+       this-syntax]
       [(~literal ...)
        #'(... ...)]
       [(~literal ...+)
@@ -70,6 +72,8 @@
       #:context 'generate-template-term
       [()
        #'()]
+      [k:keyword
+       this-syntax]
       [(~literal ...)
        #'(... ...)]
       [(~literal ...+)
