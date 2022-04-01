@@ -72,7 +72,7 @@
     [(_ s)
      (match-define (closed-suspension stx ctx compile) (syntax-e #'s))
      (parameterize ([binding-compilers compile])
-       (local-expand stx
+       (local-expand (flip-intro-scope stx)
                      'expression
                      '()
                      ctx))]))

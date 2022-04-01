@@ -52,11 +52,15 @@
          [(#:nesting nested-id:id)
           (with-scope sc
             (define id^ (bind! (add-scope (attribute nested-id) sc) (pvar-rep (nested-binding))))
-            #`(lambda (stx-a nest-st)
-                #,(generate-loop (add-scope #'(prod-arg ...) sc) id^ #'stx-a #'nest-st)))]
+            #`(wrap-hygiene
+               (lambda (stx-a nest-st)
+                #,(generate-loop (add-scope #'(prod-arg ...) sc) id^ #'stx-a #'nest-st))
+               'definition))]
          [_
-          #`(lambda (stx-a)
-              #,(generate-loop #'(prod-arg ...) #f #'stx-a #f))]))
+          #`(wrap-hygiene
+             (lambda (stx-a)
+              #,(generate-loop #'(prod-arg ...) #f #'stx-a #f))
+             'definition)]))
      
      (generate-header)]))
 
@@ -66,11 +70,9 @@
      ;; Hygiene for rewrite productions only uses a macro introduction
      ;; scope applied to the input and flipped on the output. 
      (with-syntax ([recur recur-id])
-       #`[form
-          #:do [(define intro-scope (make-syntax-introducer))]
-          #:with p.pat (intro-scope #'form)
+       #`[p.pat
           p.parse-body ...
-          (recur (intro-scope p.final-body))])]
+          (recur p.final-body)])]
     [(p:syntax-production)
      (with-scope sc
        (define sspec (add-scope (attribute p.sspec) sc))
@@ -97,12 +99,12 @@
                 [bspec-e (compile-bspec maybe-bspec bound-pvars variant)]
                 [nest-st (or maybe-nest-st-id #'#f)])
     #`[pattern
-       (let*-values ([(in) (hash (~@ 'v (pattern-var-value v)) ...)]
-                     [(out nest-st^) (simple-expand bspec-e in nest-st)])
-         (rebind-pattern-vars
-          (v ...)
-          (values (hash-ref out 'v) ...)
-          #,(generate-body #'nest-st^)))]))
+        (let*-values ([(in) (hash (~@ 'v (pattern-var-value v)) ...)]
+                      [(out nest-st^) (simple-expand bspec-e in nest-st)])
+          (rebind-pattern-vars
+           (v ...)
+           (values (hash-ref out 'v) ...)
+           #,(generate-body #'nest-st^)))]))
 
 (define (generate-macro-clause extclass recur-id)
   (let ([ext-info (lookup extclass extclass-rep?)])

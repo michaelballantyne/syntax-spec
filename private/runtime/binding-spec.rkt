@@ -120,12 +120,18 @@
    exp-state st
    [nest-state (f (exp-state-nest-state st))]))
 
+(define (flip-intro-scope/env env)
+  (for/hash ([(k v) env])
+    (values k
+            (for/tree ([el v])
+              (flip-intro-scope el)))))
 
 ;; spec, env, (or/c #f nest-call?) -> env, (or/c #f nest-ret?)
 (define (simple-expand spec pvar-vals nest-st)
-  (define res (simple-expand-internal spec (exp-state pvar-vals nest-st) '()))
+  (define posspace-env (flip-intro-scope/env pvar-vals))
+  (define res (simple-expand-internal spec (exp-state posspace-env nest-st) '()))
   (values
-   (exp-state-pvar-vals res)
+   (flip-intro-scope/env (exp-state-pvar-vals res))
    (exp-state-nest-state res)))
 
 ;; spec, exp-state, (listof scope-tagger) -> exp-state
@@ -145,18 +151,19 @@
     [(ref pv space pred msg)
      (for/pv-state-tree ([id pv])
        (define id^ (add-scopes id local-scopes))
-       (when (not (lookup id^ pred #:space space))
+       (when (not (lookup (flip-intro-scope id^) pred #:space space))
          ;(pretty-write (syntax-debug-info (flip-intro-scope id^) 0 #t))
-         (wrong-syntax id^ msg))
+         (wrong-syntax (flip-intro-scope id^) msg))
        id^)]
     
     [(subexp pv f)
      (for/pv-state-tree ([stx pv])
-       (f (add-scopes stx local-scopes)))]
+       (flip-intro-scope (f (add-scopes (flip-intro-scope stx) local-scopes))))]
     
     [(bind pv space valc)
      (for/pv-state-tree ([stx pv])
-       (bind! (add-scopes stx local-scopes) (valc) #:space space))]
+       (flip-intro-scope
+        (bind! (add-scopes (flip-intro-scope stx) local-scopes) (valc) #:space space)))]
     
     [(scope spec)
      (with-scope sc
@@ -195,8 +202,9 @@
 
     [(suspend pv)
      (for/pv-state-tree ([stx pv])
-       (suspension stx
-                   (current-def-ctx)))]))
+       (datum->syntax #f
+                      (suspension stx
+                                  (current-def-ctx))))]))
 
 ; f is nonterm-transformer
 ; seq is (listof (treeof syntax?))
@@ -208,7 +216,7 @@
 (struct nest-ret [done-seq inner-spec-st^] #:transparent)
 
 (define (display-scopes l)
-  (pretty-write (syntax-debug-info (flip-intro-scope (add-scopes (datum->syntax #f '||) l)))))
+  (pretty-write (syntax-debug-info (add-scopes (datum->syntax #f '||) l))))
 
 ; nest-call? -> nest-ret?
 (define (simple-expand-nest nest-st new-local-scopes)
@@ -220,11 +228,11 @@
     [(cons stx rest)
      (define-values
        (stx^ nest-st^)
-       (f (add-scopes stx acc-scopes^)
+       (f (flip-intro-scope (add-scopes stx acc-scopes^))
           (nest-call f rest acc-scopes^ inner-spec-st inner-spec)))
 
      (match-define (nest-ret done-seq inner-spec-st^) nest-st^)
-     (nest-ret (cons stx^ done-seq) inner-spec-st^)]
+     (nest-ret (cons (flip-intro-scope stx^) done-seq) inner-spec-st^)]
     ['()
      (nest-ret '() (simple-expand-internal inner-spec inner-spec-st acc-scopes^))]))
 
