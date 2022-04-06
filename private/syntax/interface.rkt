@@ -214,7 +214,9 @@
          
          #'(syntax-parser
              [(_ . rest)
+              (define ctx this-syntax)
               (syntax-parse (attribute rest)
+                #:context ctx
                 clause)]))])))
 
 ;;

@@ -3,7 +3,7 @@
 (require "main.rkt"
          syntax/macro-testing
          rackunit
-         (for-syntax racket/base syntax/parse))
+         (for-syntax racket/base syntax/parse racket/syntax))
 
 (provide expand-nonterminal/datum
          (all-from-out "main.rkt"
@@ -14,6 +14,8 @@
 (define-syntax expand-nonterminal/datum
   (syntax-parser
     [(_ nonterm:id form)
+     (define/syntax-parse ctx this-syntax)
      #'(phase1-eval
-        ((nonterminal-expander nonterm) #'form)
+        (parameterize ([current-syntax-context #'ctx])
+          ((nonterminal-expander nonterm) #'form))
         #:catch? #t)]))

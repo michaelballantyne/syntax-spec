@@ -4,7 +4,8 @@
          (for-syntax racket/base syntax/parse)
          syntax/macro-testing
          racket/exn
-         rackunit)
+         rackunit
+         (only-in "../testing.rkt" expand-nonterminal/datum))
 
 ;;
 ;; Helpers
@@ -331,6 +332,19 @@
  #rx"dsl-expr1: expected expr1"
  (dsl-expr1 [x]))
 
+; expand-nonterminal/datum should be named as raising syntax
+(check-syntax-error
+ #rx"expand-nonterminal/datum: expected expr1"
+ (expand-nonterminal/datum expr1 [x]))
+
+(define-host-interface/expression
+  (dsl-expr1-interface e:expr1)
+  #`#,'#'e)
+
+; interface macro should be named as raising syntax
+(check-syntax-error
+ #rx"dsl-expr1-interface: expected expr1"
+ (dsl-expr1-interface [x]))
 
 ;; Use of DSL macro outside of DSL
 
