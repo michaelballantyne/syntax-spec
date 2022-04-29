@@ -1,6 +1,6 @@
 #lang racket/base
 
-(provide compile-nonterminal-expander generate-prod-expansion)
+(provide compile-nonterminal-expander generate-interface-expansion)
   
 (require racket/base
          syntax/parse
@@ -27,25 +27,22 @@
       name
       (opts:nonterminal-options)
       prod-arg ...)
-     (define (generate-loop prods-stx maybe-nested-id init-stx-id maybe-nest-st-id)
+     (define (generate-loop prods-stx maybe-nested-id init-stx-id)
        (define/syntax-parse ((prod:production) ...) prods-stx)
        (with-syntax ([prod-clauses (map (lambda (prod)
-                                          (generate-prod-clause prod maybe-nested-id maybe-nest-st-id (attribute variant) #'recur (attribute opts.space-stx)))
+                                          (generate-prod-clause prod maybe-nested-id (attribute variant) #'recur (attribute opts.space-stx)))
                                         (attribute prod))]
                      [macro-clauses (for/list ([extclass (attribute opts.ext-classes)])
                                       (generate-macro-clause extclass #'recur))]
                      [description (or (attribute opts.description) (symbol->string (syntax-e (attribute name))))]
                      [stx-a init-stx-id])
-         #'(parameterize
-               ;; TODO: find a cleaner way to name the interface macro for syntax production errors.
-               ([current-orig-stx (or (current-orig-stx) (current-syntax-context))])
-             (let recur ([stx stx-a])
-               (syntax-parse stx
-                 (~@ . macro-clauses)
-                 (~@ . prod-clauses)
-                 [_ (wrong-syntax/orig
-                     this-syntax
-                     (string-append "expected " (#%datum . description)))])))))
+         #'(let recur ([stx stx-a])
+             (syntax-parse stx
+               (~@ . macro-clauses)
+               (~@ . prod-clauses)
+               [_ (wrong-syntax/orig
+                   this-syntax
+                   (string-append "expected " (#%datum . description)))]))))
 
      (define (generate-header)
        (syntax-parse (attribute variant)
@@ -53,18 +50,18 @@
           (with-scope sc
             (define id^ (bind! (add-scope (attribute nested-id) sc) (pvar-rep (nested-binding))))
             #`(wrap-hygiene
-               (lambda (stx-a nest-st)
-                #,(generate-loop (add-scope #'(prod-arg ...) sc) id^ #'stx-a #'nest-st))
+               (lambda (stx-a)
+                 #,(generate-loop (add-scope #'(prod-arg ...) sc) id^ #'stx-a))
                'definition))]
          [_
           #`(wrap-hygiene
              (lambda (stx-a)
-              #,(generate-loop #'(prod-arg ...) #f #'stx-a #f))
+               #,(generate-loop #'(prod-arg ...) #f #'stx-a))
              'definition)]))
      
      (generate-header)]))
 
-(define (generate-prod-clause prod-stx maybe-nested-id maybe-nest-st-id variant recur-id binding-space-stx)
+(define (generate-prod-clause prod-stx maybe-nested-id variant recur-id binding-space-stx)
   (syntax-parse prod-stx
     [(p:rewrite-production)
      ;; Hygiene for rewrite productions only uses a macro introduction
@@ -79,16 +76,29 @@
        (define maybe-bspec (and (attribute p.bspec) (add-scope (attribute p.bspec) sc)))
 
        (generate-prod-expansion
-        sspec maybe-bspec (and maybe-nested-id (add-scope maybe-nested-id sc)) maybe-nest-st-id variant binding-space-stx
-        (lambda (nest-st^-id)
-          (with-syntax ([template (compile-sspec-to-template sspec)]
-                        [nest-st^ nest-st^-id])
-            (if maybe-nest-st-id
-                #'(values #'template nest-st^)
-                #'#'template)))))]))
+        sspec maybe-bspec (and maybe-nested-id (add-scope maybe-nested-id sc)) variant binding-space-stx
+        (lambda ()
+          #`#'#,(compile-sspec-to-template sspec))))]))
+
+(define (generate-interface-expansion sspec maybe-bspec variant binding-space-stx generate-body)
+  (define sspec-pvars (sspec-bind-pvars! sspec))
+  (define bound-pvars sspec-pvars)
+    
+  (with-syntax ([(v ...) sspec-pvars]
+                [pattern (compile-sspec-to-pattern sspec binding-space-stx)]
+                [bspec-e (compile-bspec maybe-bspec bound-pvars variant)])
+    #`[pattern
+        (define env^
+          (simple-expand
+           bspec-e
+           (hash (~@ 'v (pattern-var-value v)) ...)))
+        (rebind-pattern-vars
+         (v ...)
+         (values (hash-ref env^ 'v) ...)
+         #,(generate-body))]))
 
 ; TODO: lacking hygiene b/t introduced vars and generate-body
-(define (generate-prod-expansion sspec maybe-bspec maybe-nested-id maybe-nest-st-id variant binding-space-stx generate-body)
+(define (generate-prod-expansion sspec maybe-bspec maybe-nested-id variant binding-space-stx generate-body)
   (define sspec-pvars (sspec-bind-pvars! sspec))
   (define bound-pvars (if maybe-nested-id
                           (append sspec-pvars (list maybe-nested-id))
@@ -96,15 +106,16 @@
     
   (with-syntax ([(v ...) sspec-pvars]
                 [pattern (compile-sspec-to-pattern sspec binding-space-stx)]
-                [bspec-e (compile-bspec maybe-bspec bound-pvars variant)]
-                [nest-st (or maybe-nest-st-id #'#f)])
+                [bspec-e (compile-bspec maybe-bspec bound-pvars variant)])
     #`[pattern
-        (let*-values ([(in) (hash (~@ 'v (pattern-var-value v)) ...)]
-                      [(out nest-st^) (simple-expand bspec-e in nest-st)])
-          (rebind-pattern-vars
-           (v ...)
-           (values (hash-ref out 'v) ...)
-           #,(generate-body #'nest-st^)))]))
+        (expand-function-return
+         bspec-e
+         (hash (~@ 'v (pattern-var-value v)) ...)
+         (lambda (env^)
+           (rebind-pattern-vars
+            (v ...)
+            (values (hash-ref env^ 'v) ...)
+            #,(generate-body))))]))
 
 (define (generate-macro-clause extclass recur-id)
   (let ([ext-info (lookup extclass extclass-rep?)])

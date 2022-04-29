@@ -198,20 +198,44 @@
   (define-syntax generate-host-interface/expression-transformer
     (syntax-parser
       [(_ sspec ((~optional (~seq bspec))) parse-body ...)
+
+       #;(with-scope sc
+           (define (generate-body _)
+             (add-scope
+              #'(syntax-parse #f
+                  [_
+                   parse-body ...])
+              sc))
+         
+           (define/syntax-parse clause
+             (generate-prod-expansion
+              (add-scope (attribute sspec) sc)
+              (and (attribute bspec) (add-scope (attribute bspec) sc))
+              #f #'#:simple #f generate-body))
+         
+           #'(syntax-parser
+               [(_ . rest)
+                (define ctx this-syntax)
+                (syntax-parse (attribute rest)
+                  #:context ctx
+                  clause)]))
+       
        (with-scope sc
-         (define (generate-body _)
+         (define (generate-body)
            (add-scope
             #'(syntax-parse #f
                 [_
                  parse-body ...])
             sc))
-         
+
          (define/syntax-parse clause
-           (generate-prod-expansion
+           (generate-interface-expansion
             (add-scope (attribute sspec) sc)
             (and (attribute bspec) (add-scope (attribute bspec) sc))
-            #f #f #'#:simple #f generate-body))
-         
+            #'#:simple
+            #f
+            generate-body))
+
          #'(syntax-parser
              [(_ . rest)
               (define ctx this-syntax)
@@ -233,7 +257,10 @@
        (define variant-info (nonterm-rep-variant-info binding))
        (when (not (simple-nonterm-info? variant-info))
          (wrong-syntax #'ref "only simple non-terminals may be used as entry points"))
-       (simple-nonterm-info-expander variant-info)]))
+       #`(lambda (stx)
+           (simple-expand-single-exp
+            #,(simple-nonterm-info-expander variant-info)
+            stx))]))
   
   (begin-for-syntax
     (define (accessor-macro predicate error-message accessor)

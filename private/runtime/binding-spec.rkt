@@ -17,7 +17,9 @@
 
  binding-spec-well-formed?
 
- simple-expand)
+ simple-expand
+ expand-function-return
+ simple-expand-single-exp)
 
 (require
   racket/match
@@ -27,7 +29,8 @@
   racket/pretty
   ee-lib
   (for-template
-   "compile.rkt"))
+   "compile.rkt")
+  "../syntax/syntax-classes.rkt")
 
 ;;
 ;; Representation
@@ -126,13 +129,39 @@
             (for/tree ([el v])
               (flip-intro-scope el)))))
 
-;; spec, env, (or/c #f nest-call?) -> env, (or/c #f nest-ret?)
-(define (simple-expand spec pvar-vals nest-st)
-  (define posspace-env (flip-intro-scope/env pvar-vals))
-  (define res (simple-expand-internal spec (exp-state posspace-env nest-st) '()))
-  (values
-   (flip-intro-scope/env (exp-state-pvar-vals res))
-   (exp-state-nest-state res)))
+(struct exp-f-ret (spec pvar-vals reconstruct-f stx-ctx))
+
+(define (call-expand-function f stx)
+  ;; Original equivalent
+  ;(flip-intro-scope (f (flip-intro-scope stx)))
+
+  (match (f (flip-intro-scope stx))
+    [(? syntax? stx^)
+     (flip-intro-scope stx^)]
+    [(exp-f-ret spec pvar-vals/pos reconstruct-f stx-ctx)
+     (define st^
+       (parameterize ([current-syntax-context stx-ctx])
+         (simple-expand-internal spec (exp-state pvar-vals/pos #f) '())))
+     (call-reconstruct-function (exp-state-pvar-vals st^) reconstruct-f)]))
+
+(define (call-reconstruct-function pvar-vals reconstruct-f)
+  (flip-intro-scope (reconstruct-f (flip-intro-scope/env pvar-vals))))
+
+(define (expand-function-return spec pvar-vals reconstruct-f)
+  (exp-f-ret spec (flip-intro-scope/env pvar-vals) reconstruct-f (current-syntax-context)))
+
+
+;; Use only for the initial call at an interface macro.
+;; spec, env -> env
+(define (simple-expand spec pvar-vals)
+  (parameterize ([current-orig-stx (current-syntax-context)])
+    (define posspace-env (flip-intro-scope/env pvar-vals))
+    (define res (simple-expand-internal spec (exp-state posspace-env #f) '()))
+    (flip-intro-scope/env (exp-state-pvar-vals res))))
+
+(define (simple-expand-single-exp f stx)
+  (hash-ref (simple-expand (subexp 'inject f) (hash 'inject stx))
+            'inject))
 
 ;; spec, exp-state, (listof scope-tagger) -> exp-state
 (define (simple-expand-internal spec st local-scopes)
@@ -158,12 +187,12 @@
     
     [(subexp pv f)
      (for/pv-state-tree ([stx pv])
-       (flip-intro-scope (f (add-scopes (flip-intro-scope stx) local-scopes))))]
+       (call-expand-function f (add-scopes stx local-scopes)))]
     
     [(bind pv space valc)
      (for/pv-state-tree ([stx pv])
        (flip-intro-scope
-        (bind! (add-scopes (flip-intro-scope stx) local-scopes) (valc) #:space space)))]
+        (bind! (flip-intro-scope (add-scopes stx local-scopes)) (valc) #:space space)))]
     
     [(scope spec)
      (with-scope sc
@@ -218,6 +247,18 @@
 (define (display-scopes l)
   (pretty-write (syntax-debug-info (add-scopes (datum->syntax #f '||) l))))
 
+(define (call-expand-function/nest f stx nest-st)
+  (match (f (flip-intro-scope stx))
+    [(? syntax? stx^)
+     (values (flip-intro-scope stx^) nest-st)]
+    [(exp-f-ret spec pvar-vals/pos reconstruct-f stx-ctx)
+     (define st^
+       (parameterize ([current-syntax-context stx-ctx])
+         (simple-expand-internal spec (exp-state pvar-vals/pos nest-st) '())))
+     (values
+      (call-reconstruct-function (exp-state-pvar-vals st^) reconstruct-f)
+      (exp-state-nest-state st^))]))
+
 ; nest-call? -> nest-ret?
 (define (simple-expand-nest nest-st new-local-scopes)
   (match-define (nest-call f seq acc-scopes inner-spec-st inner-spec) nest-st)
@@ -228,11 +269,14 @@
     [(cons stx rest)
      (define-values
        (stx^ nest-st^)
-       (f (flip-intro-scope (add-scopes stx acc-scopes^))
-          (nest-call f rest acc-scopes^ inner-spec-st inner-spec)))
+       ;; Original:
+       (call-expand-function/nest
+        f
+        (add-scopes stx acc-scopes^)
+        (nest-call f rest acc-scopes^ inner-spec-st inner-spec)))
 
      (match-define (nest-ret done-seq inner-spec-st^) nest-st^)
-     (nest-ret (cons (flip-intro-scope stx^) done-seq) inner-spec-st^)]
+     (nest-ret (cons stx^ done-seq) inner-spec-st^)]
     ['()
      (nest-ret '() (simple-expand-internal inner-spec inner-spec-st acc-scopes^))]))
 

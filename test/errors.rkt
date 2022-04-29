@@ -240,6 +240,8 @@
      [(_ v e)
       #'[v e]])))
 
+(require (for-syntax racket/syntax))
+
 (define-syntax (dsl-expr1 stx)
   (syntax-parse stx
     [(_ e)

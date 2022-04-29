@@ -17,7 +17,7 @@
 (begin-for-syntax
   (struct mylang-binding ())
 
-  (define (mylang-expand-binding-group stx nest-st)
+  (define (mylang-expand-binding-group stx)
     (syntax-parse stx
       [[v:id e]
        (define bspec
@@ -27,14 +27,13 @@
                         (list
                          (bind 'v #f mylang-binding)
                          (nested)))))))
-       (define-values (res nest-st^)
-         (simple-expand
-          bspec
-          (hash
-           'v (pattern-var-value v)
-           'e (pattern-var-value e))
-          nest-st))
-       (values #`[#,(hash-ref res 'v) #,(hash-ref res 'e)] nest-st^)]))
+       (expand-function-return
+        bspec
+        (hash
+         'v (pattern-var-value v)
+         'e (pattern-var-value e))
+        (lambda (env)
+          #`[#,(hash-ref env 'v) #,(hash-ref env 'e)]))]))
   
   (define (mylang-expand-expr stx)
     (syntax-parse stx
@@ -42,35 +41,30 @@
       [n:number
        #'n]
       [v:id
-       (define-values (res _)
-         (simple-expand
-          (ref 'v #f mylang-binding? "unbound mylang var reference")
-          (hash
-           'v #'v)
-          #f))
-       (hash-ref
-        res
-        'v)]
+       (expand-function-return
+        (ref 'v #f mylang-binding? "unbound mylang var reference")
+        (hash
+         'v #'v)
+        (lambda (env) (hash-ref env 'v)))]
       [(mylang-let* (b ...) e)
        ; #:binding (fold b e)
        (define bspec
          (nest 'b mylang-expand-binding-group
                (subexp 'e mylang-expand-expr)))
 
-       (define-values (res _)
-         (simple-expand
-          bspec
-          (hash
-           'b (pattern-var-value b)
-           'e (pattern-var-value e))
-          #f))
-       #`(mylang-let* (#,@(hash-ref res 'b))
-                      #,(hash-ref res 'e))])))
+       (expand-function-return
+        bspec
+        (hash
+         'b (pattern-var-value b)
+         'e (pattern-var-value e))
+        (lambda (env)
+          #`(mylang-let* (#,@(hash-ref env 'b))
+                         #,(hash-ref env 'e))))])))
 
 (define-syntax (mylang stx)
   (syntax-parse stx
     [(_ e)
-     #`#'#,(mylang-expand-expr #'e)]))
+     #`#'#,(simple-expand-single-exp mylang-expand-expr #'e)]))
 
 (require rackunit syntax/macro-testing)
 

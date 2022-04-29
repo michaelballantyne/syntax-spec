@@ -22,40 +22,35 @@
       [n:number
        #'n]
       [v:id
-       (define-values (res _)
-         (simple-expand
-          (ref 'v #f mylang-binding? "unbound mylang var reference")
-          (hash
-           'v #'v)
-          #f))
-       (hash-ref
-        res
-        'v)]
+       (expand-function-return
+        (ref 'v #f mylang-binding? "unbound mylang var reference")
+        (hash
+         'v #'v)
+        (lambda (env)
+          (hash-ref env 'v)))]
       [(mylang-let ([v e]) b)
-       (define-values (res _)
-         (simple-expand
-          (group
-           (list
-            (subexp 'e mylang-expand-expr)
-            (scope
-             (group
-              (list
-               (bind 'v #f mylang-binding)
-               (subexp 'b mylang-expand-expr))))))
-          (hash
-           'v #'v
-           'e #'e
-           'b #'b)
-          #f))
-       
-       #`(mylang-let ([#,(hash-ref res 'v)
-                       #,(hash-ref res 'e)])
-                     #,(hash-ref res 'b))])))
+       (expand-function-return
+        (group
+         (list
+          (subexp 'e mylang-expand-expr)
+          (scope
+           (group
+            (list
+             (bind 'v #f mylang-binding)
+             (subexp 'b mylang-expand-expr))))))
+        (hash
+         'v #'v
+         'e #'e
+         'b #'b)
+        (lambda (env)
+          #`(mylang-let ([#,(hash-ref env 'v)
+                          #,(hash-ref env 'e)])
+                        #,(hash-ref env 'b))))])))
 
 (define-syntax (mylang stx)
   (syntax-parse stx
     [(_ e)
-     #`#'#,(mylang-expand-expr #'e)]))
+     #`#'#,(simple-expand-single-exp mylang-expand-expr #'e)]))
 
 (require rackunit syntax/macro-testing)
 
