@@ -8,8 +8,7 @@
 
 (define-hosted-syntaxes
   (binding-class term-variable
-                 #:description "miniKanren term variable"
-                 #:binding-space mk)
+                 #:description "miniKanren term variable")
   (binding-class relation-name
                  #:description "miniKanren relation name"
                  #:binding-space mk)
