@@ -400,7 +400,7 @@
     [(suspend _ (pvar v info))
      #`(suspend '#,v)]
     [(bind _ (pvar v (bindclass-rep _ constr _ space)))
-     #`(bind '#,v '#,space #,constr)]
+     #`(bind '#,v '#,space #'#,constr)]
     [(rec _ pvars)
      (with-syntax ([(s-cp1 ...) (for/list ([pv pvars])
                                   (match-define (pvar v (nonterm-rep (two-pass-nonterm-info pass1-expander _))) pv)
@@ -448,7 +448,7 @@
      no-op]
     
     [(export _ (pvar v (bindclass-rep _ constr _ space)))
-     #`(bind '#,v '#,space #,constr)]
+     #`(bind '#,v '#,space #'#,constr)]
     [(re-export _ pvars)
      (with-syntax ([(s-c ...) (for/list ([pv pvars])
                                 (match-define (pvar v (nonterm-rep (two-pass-nonterm-info pass1-expander _))) pv)

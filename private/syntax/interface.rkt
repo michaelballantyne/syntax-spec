@@ -2,6 +2,7 @@
 
 (provide define-hosted-syntaxes
          define-host-interface/expression
+         define-host-interface/definitions
          (for-syntax binding-class-predicate
                      binding-class-constructor
                      nonterminal-expander
@@ -13,6 +14,7 @@
 (require
   "../runtime/errors.rkt"
   "../runtime/compile.rkt"
+  "../runtime/trampoline.rkt"
   (for-syntax
    racket/base
    racket/list
@@ -198,28 +200,6 @@
   (define-syntax generate-host-interface/expression-transformer
     (syntax-parser
       [(_ sspec ((~optional (~seq bspec))) parse-body ...)
-
-       #;(with-scope sc
-           (define (generate-body _)
-             (add-scope
-              #'(syntax-parse #f
-                  [_
-                   parse-body ...])
-              sc))
-         
-           (define/syntax-parse clause
-             (generate-prod-expansion
-              (add-scope (attribute sspec) sc)
-              (and (attribute bspec) (add-scope (attribute bspec) sc))
-              #f #'#:simple #f generate-body))
-         
-           #'(syntax-parser
-               [(_ . rest)
-                (define ctx this-syntax)
-                (syntax-parse (attribute rest)
-                  #:context ctx
-                  clause)]))
-       
        (with-scope sc
          (define (generate-body)
            (add-scope
@@ -230,6 +210,44 @@
 
          (define/syntax-parse clause
            (generate-interface-expansion
+            (add-scope (attribute sspec) sc)
+            (and (attribute bspec) (add-scope (attribute bspec) sc))
+            #'#:simple
+            #f
+            generate-body))
+
+         #'(syntax-parser
+             [(_ . rest)
+              (define ctx this-syntax)
+              (syntax-parse (attribute rest)
+                #:context ctx
+                clause)]))])))
+
+
+(define-syntax define-host-interface/definitions
+  (syntax-parser
+    [(_ (name:id . sspec)
+        (~optional (~seq #:binding bspec))
+        parse-body ...)
+     #'(define-syntax name
+         (wrap-bind-trampoline
+          (generate-host-interface/definitions-transformer
+           sspec (~? (bspec) ()) parse-body ...)))]))
+
+(begin-for-syntax
+  (define-syntax generate-host-interface/definitions-transformer
+    (syntax-parser
+      [(_ sspec ((~optional (~seq bspec))) parse-body ...)
+       (with-scope sc
+         (define (generate-body)
+           (add-scope
+            #'(syntax-parse #f
+                [_
+                 parse-body ...])
+            sc))
+
+         (define/syntax-parse clause
+           (generate-definitions-interface-expansion
             (add-scope (attribute sspec) sc)
             (and (attribute bspec) (add-scope (attribute bspec) sc))
             #'#:simple

@@ -1,6 +1,6 @@
 #lang racket/base
 
-(provide compile-nonterminal-expander generate-interface-expansion)
+(provide compile-nonterminal-expander generate-interface-expansion generate-definitions-interface-expansion)
   
 (require racket/base
          syntax/parse
@@ -92,6 +92,26 @@
           (simple-expand
            bspec-e
            (hash (~@ 'v (pattern-var-value v)) ...)))
+        (rebind-pattern-vars
+         (v ...)
+         (values (hash-ref env^ 'v) ...)
+         #,(generate-body))]))
+
+(define (generate-definitions-interface-expansion sspec maybe-bspec variant binding-space-stx generate-body)
+  (define sspec-pvars (sspec-bind-pvars! sspec))
+  (define bound-pvars sspec-pvars)
+    
+  (with-syntax ([(v ...) sspec-pvars]
+                [pattern (compile-sspec-to-pattern sspec binding-space-stx)]
+                [pass1-bspec-e (compile-bspec maybe-bspec bound-pvars #'#:pass1)]
+                [pass2-bspec-e (compile-bspec maybe-bspec bound-pvars #'#:pass2)])
+    #`[pattern
+        (define env^
+          (simple-expand
+           pass2-bspec-e
+           (simple-expand
+            pass1-bspec-e
+            (hash (~@ 'v (pattern-var-value v)) ...))))
         (rebind-pattern-vars
          (v ...)
          (values (hash-ref env^ 'v) ...)

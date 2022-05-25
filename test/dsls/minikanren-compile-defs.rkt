@@ -1,0 +1,103 @@
+#lang racket
+
+(provide run (all-from-out "minikanren.rkt") mk-defs define-relation define-relation2)
+
+(require "../../testing.rkt"
+         "minikanren.rkt"
+         (for-syntax syntax/id-table))
+
+(begin-for-syntax
+  (define compiled-var (make-free-id-table))
+  
+  (define compile-goal
+    (syntax-parser
+      #:literals (== fresh)
+      [(fresh1 (v ...) b)
+       #:with (v-c ...) (for/list ([v (attribute v)])
+                          (compile-binder! compiled-var v))
+       #`(let ([v-c (gensym)] ...)
+           #,(compile-goal #'b))]
+      [(== t1 t2)
+       #`(displayln (list #,(compile-term #'t1) #,(compile-term #'t2)))]))
+  
+  (define compile-term
+    (syntax-parser
+      #:literals (rkt)
+      [n:number
+       #'n]
+      [(rkt e)
+       (resume-host-expansion #'e)])))
+
+(define-host-interface/expression
+  (run n:expr (qvar:term-variable ...)
+       g:goal ...)
+  #:binding {(bind qvar) g}
+  
+  ;#:with (qvar-c ...) (map compile-binder! (attribute qvar))
+  ;#:with (g-c ...) (map compile-goal (attribute g))
+  #;(with-binding-compilers ([term-variable
+                              (lambda (id) (compile-reference compiled-var id))])
+      #'(let ([qvar-c (fresh-var)])
+          (bind* g-c ... (reify qvar-c ...))))
+  (displayln #'(g ...))
+  #'(void))
+
+
+
+
+(define-host-interface/expression
+  (mk-compile g:goal)
+
+  (with-binding-compilers ([term-variable
+                            (lambda (id) (compile-reference compiled-var id))])
+    (displayln #'g)
+    (compile-goal #'g)))
+
+(define-host-interface/definitions
+  (define-relation (name:relation-name arg:term-variable ...) body:goal)
+  #:binding [(export name) {(bind arg) body}]
+  #'(define tmp 5))
+
+(define-hosted-syntaxes
+  (two-pass-nonterminal mk-def
+    (define-relation2 (name:relation-name arg:term-variable ...) body:goal)
+    #:binding [(export name) {(bind arg) body}]))
+
+(define-host-interface/definitions
+  (mk-defs d:mk-def ...)
+  #:binding (re-export d)
+  #'(define tmp 5))
+
+#;(define-syntax mk-compile
+    (syntax-parser
+      [(_ e)
+       (define expanded ((nonterminal-expander goal) #'e))
+     
+       (with-binding-compilers ([term-variable
+                                 (lambda (id) (compile-reference compiled-var id))])
+         (compile-goal expanded))]))
+
+(define-relation (appendo2 l1 l2 l3)
+  (== l1 '()))
+
+(run 1 (q) (appendo2 '() '() '()))
+
+(#%expression (run 1 (q) (oddo 5) (eveno 4)))
+
+(mk-defs
+ (define-relation2 (eveno n)
+   (oddo n))
+ (define-relation2 (oddo n)
+   (eveno n)))
+
+
+
+(mk-compile
+ (fresh (x)
+        (== 1 (rkt x))))
+
+(run 3 (q)
+     (fresh (x)
+            (== q x)))
+
+

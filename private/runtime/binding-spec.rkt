@@ -19,7 +19,9 @@
 
  simple-expand
  expand-function-return
- simple-expand-single-exp)
+ simple-expand-single-exp
+
+ do-bind!)
 
 (require
   racket/match
@@ -163,6 +165,12 @@
   (hash-ref (simple-expand (subexp 'inject f) (hash 'inject stx))
             'inject))
 
+; Note: expects negative-space id, just like ee-lib `bind!`
+(define do-bind!
+  (make-parameter
+   (lambda (id val #:space [space #f])
+     (error 'do-bind! "internal error: not in a context where do-bind! is defined"))))
+
 ;; spec, exp-state, (listof scope-tagger) -> exp-state
 (define (simple-expand-internal spec st local-scopes)
   
@@ -189,14 +197,15 @@
      (for/pv-state-tree ([stx pv])
        (call-expand-function f (add-scopes stx local-scopes)))]
     
-    [(bind pv space valc)
+    [(bind pv space constr-id)
      (for/pv-state-tree ([stx pv])
        (flip-intro-scope
-        (bind! (flip-intro-scope (add-scopes stx local-scopes)) (valc) #:space space)))]
+        ((do-bind!) (flip-intro-scope (add-scopes stx local-scopes)) #`(#,constr-id) #:space space)))]
     
     [(scope spec)
      (with-scope sc
-       (simple-expand-internal spec st (cons sc local-scopes)))]
+       (parameterize ([do-bind! bind!])
+         (simple-expand-internal spec st (cons sc local-scopes))))]
     
     [(group specs)     
      (for/fold ([st st])
