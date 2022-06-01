@@ -21,7 +21,7 @@
  expand-function-return
  simple-expand-single-exp
 
- do-bind!)
+ wrap-bind-trampoline)
 
 (require
   racket/match
@@ -30,7 +30,9 @@
   racket/syntax
   racket/pretty
   ee-lib
+  ee-lib/private/lift-trampoline
   (for-template
+   racket/base
    "compile.rkt")
   "../syntax/syntax-classes.rkt")
 
@@ -302,3 +304,13 @@
             (for-nested nested))
           (let () body ...)))))
 
+
+(define (trampoline-bind! id rhs-e #:space [space #f])
+  (trampoline-lift! #`(define-syntax #,((in-space space) id) #,rhs-e))
+  id)
+
+(define (wrap-bind-trampoline transformer)
+  (wrap-lift-trampoline
+   (lambda (stx)
+     (parameterize ([do-bind! trampoline-bind!])
+       (transformer stx)))))

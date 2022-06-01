@@ -9,12 +9,12 @@
                      with-binding-compilers
                      resume-host-expansion
                      compile-reference
-                     compile-binder!))
+                     compile-binder!
+                     compile-binders!))
   
 (require
   "../runtime/errors.rkt"
   "../runtime/compile.rkt"
-  "../runtime/trampoline.rkt"
   (for-syntax
    racket/base
    racket/list
@@ -230,9 +230,8 @@
         (~optional (~seq #:binding bspec))
         parse-body ...)
      #'(define-syntax name
-         (wrap-bind-trampoline
-          (generate-host-interface/definitions-transformer
-           sspec (~? (bspec) ()) parse-body ...)))]))
+         (generate-host-interface/definitions-transformer
+           sspec (~? (bspec) ()) parse-body ...))]))
 
 (begin-for-syntax
   (define-syntax generate-host-interface/definitions-transformer
@@ -254,12 +253,13 @@
             #f
             generate-body))
 
-         #'(syntax-parser
-             [(_ . rest)
-              (define ctx this-syntax)
-              (syntax-parse (attribute rest)
-                #:context ctx
-                clause)]))])))
+         #'(wrap-bind-trampoline
+            (syntax-parser
+              [(_ . rest)
+               (define ctx this-syntax)
+               (syntax-parse (attribute rest)
+                 #:context ctx
+                 clause)])))])))
 
 ;;
 ;; phase 1 accessors
