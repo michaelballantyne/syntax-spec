@@ -37,12 +37,21 @@
                      #:phase (+ 1 (syntax-local-phase-level)))))
 
   (define (resume-host-expansion s)
+    (when (not (and (syntax? s) (suspension? (syntax-e s))))
+      (raise-argument-error 'resume-host-expansion "host-expand-suspension?" s))
     (match-define (suspension stx ctx) (syntax-e s))
     #`(expand-suspension #,(closed-suspension stx ctx (binding-compilers))))
 
   (define (binding-as-rkt bclass-id description)
     (lambda (s stx)
-      (let ([compile (free-id-table-ref (binding-compilers) bclass-id)])
+      (let ([compile (free-id-table-ref
+                      (binding-compilers) bclass-id
+                      (lambda ()
+                        (raise-syntax-error
+                         #f
+                         (format "binding compiler not defined for binding class ~a"
+                                 bclass-id)
+                         stx)))])
         (if compile
             (compile stx)
             (raise-syntax-error

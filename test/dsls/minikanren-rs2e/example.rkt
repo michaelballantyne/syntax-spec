@@ -16,6 +16,14 @@
   (require "mk.rkt" (submod ".." a))
 
   (run* (l1 l2)
-    (appendo l1 l2 '(1 2 3 4))))
+    (appendo l1 l2 '(1 2 3 4)))
+
+  (run 1 (q)
+    (fresh (x)
+      (== q `(,x . 5))
+      (project (q)
+               (begin
+                 (displayln q)
+                 (goal-expression (== x 1)))))))
 
 (require 'b)

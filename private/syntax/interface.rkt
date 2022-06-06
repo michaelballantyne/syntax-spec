@@ -231,7 +231,7 @@
         parse-body ...)
      #'(define-syntax name
          (generate-host-interface/definitions-transformer
-           sspec (~? (bspec) ()) parse-body ...))]))
+          sspec (~? (bspec) ()) parse-body ...))]))
 
 (begin-for-syntax
   (define-syntax generate-host-interface/definitions-transformer
@@ -254,12 +254,13 @@
             generate-body))
 
          #'(wrap-bind-trampoline
-            (syntax-parser
-              [(_ . rest)
-               (define ctx this-syntax)
-               (syntax-parse (attribute rest)
-                 #:context ctx
-                 clause)])))])))
+            (wrap-persist
+             (syntax-parser
+               [(_ . rest)
+                (define ctx this-syntax)
+                (syntax-parse (attribute rest)
+                  #:context ctx
+                  clause)]))))])))
 
 ;;
 ;; phase 1 accessors

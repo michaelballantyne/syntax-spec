@@ -4,10 +4,12 @@
          (for-space mk quasiquote))
 
 (require "../../../main.rkt"
+         ee-lib/errors
          (for-syntax
           racket/base
           syntax/parse
-          syntax/id-table))
+          syntax/id-set
+          ee-lib))
 
 ;;
 ;; Core syntax
@@ -145,7 +147,12 @@
   
   #:with compiled-name (compile-binder! compiled-names #'name)
   #:with (compiled-x ...) (compile-binders! compiled-names #'(x ...))
-  
+
+  (persistent-free-id-table-set!
+   relation-arity
+   #'name
+   #`#,(length (syntax->list #'(x ...))))
+
   #`(define (compiled-name compiled-x ...)
       (lambda (s)
         (lambda ()
@@ -160,6 +167,10 @@
   #`(let ([compiled-q (var 'q)])
       (map (reify compiled-q)
            (run-goal n #,(compile-goal #'g)))))
+
+(define-host-interface/expression
+  (goal-expression g:goal)
+  #`(goal-value #,(compile-goal #'g)))
 
 ;;
 ;; Surface syntax for interface macros
@@ -187,7 +198,8 @@
 ;;
 
 (begin-for-syntax
-  (define compiled-names (make-free-id-table))
+  (define-persistent-free-id-table compiled-names)
+  (define-persistent-free-id-table relation-arity)
   
   (define (compile-goal g)
     (syntax-parse g
@@ -207,10 +219,21 @@
        #`(call/fresh 'x (lambda (compiled-x) #,(compile-goal #'b)))]
       
       ; TODO: use `host`, allow goal-expression inside, check contract via wrapper.
-      #;[(project (x ...) e:expr ...)
+      [(project (x ...) e:expr ...)
+       #:with (compiled-x ...) (for/list ([x (attribute x)])
+                                 (compile-reference compiled-names x))
+       #:with (e-src ...) (for/list ([e (attribute e)])
+                            (datum->syntax #f #f e e))
+       (define projected-ids (immutable-free-id-set (attribute x)))
+       (with-binding-compilers
+           ([term-variable (lambda (id)
+                             (when (not (free-id-set-member? projected-ids id))
+                               (raise-syntax-error #f "only projected logic variables may be used from Racket code" id))
+                             (compile-reference compiled-names id))])
+         (define/syntax-parse (e-resume ...) (map resume-host-expansion (attribute e)))
          #'(lambda (s)
-             (let ([x (walk* x s)])
-               ))]
+             (let ([compiled-x (walk* compiled-x s)] ...)
+               ((conj-gen (check-goal e-resume #'e-src) ...) s))))]
 
       [(ifte g1 g2 g3)
        #`(ifte-rt #,(compile-goal #'g1) #,(compile-goal #'g2) #,(compile-goal #'g3))]
@@ -219,6 +242,15 @@
       [(relname t ...)
        #:with compiled-relation (compile-reference compiled-names #'relname)
        #:with (compiled-term ...) (map compile-term (attribute t))
+
+       (let ([actual (length (attribute t))]
+             [expected (syntax->datum (persistent-free-id-table-ref relation-arity #'relname))])
+         (when (not (= actual expected ))
+           (raise-syntax-error
+            #f
+            (format "wrong number of arguments; actual ~a, expected ~a" actual expected)
+            #'relname)))
+       
        #'(compiled-relation compiled-term ...)]))
   
   (define (compile-term t)
@@ -236,6 +268,13 @@
 ;;
 ;; Runtime
 ;;
+
+(struct goal-value [fn])
+
+(define (check-goal val stx)
+  (if (goal-value? val)
+      (goal-value-fn val)
+      (raise-argument-error/stx "project" "goal-value?" val stx)))
 
 (define var (lambda (x) (vector x)))
 (define var? (lambda (x) (vector? x)))
@@ -313,6 +352,12 @@
 (define (conj2-rt g1 g2)
   (lambda (s)
     (append-map-inf g2 (g1 s))))
+
+(define-syntax conj-gen
+  (syntax-rules ()
+    ((conj-gen) succeed-rt)
+    ((conj-gen g) g)
+    ((conj-gen g0 g ...) (conj2-rt g0 (conj-gen g ...)))))
 
 (define (append-map-inf g s-inf)
   (cond
