@@ -242,9 +242,7 @@
 
     [(suspend pv)
      (for/pv-state-tree ([stx pv])
-       (datum->syntax #f
-                      (suspension stx
-                                  (current-def-ctx))))]))
+       (make-suspension stx (current-def-ctx)))]))
 
 ; f is nonterm-transformer
 ; seq is (listof (treeof syntax?))

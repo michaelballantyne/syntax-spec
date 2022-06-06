@@ -1,17 +1,16 @@
 #lang racket/base
 
-(provide
- (for-syntax
-  suspension
-  resume-host-expansion
-  with-binding-compilers
-  binding-as-rkt
-  compile-reference
-  compile-binder!))
+(provide (for-syntax binding-as-rkt
+                     make-suspension
+  
+                     resume-host-expansion
+                     with-binding-compilers
+                     ))
 
 (require
   (for-syntax
    racket/base
+   racket/private/check
    racket/match
    syntax/parse
    "../syntax/env-reps.rkt"
@@ -25,10 +24,17 @@
             ee-lib))
 
 (begin-for-syntax
-  (struct suspension [stx ctx]
-    #:property prop:procedure
-    (lambda (s stx)
-      (raise-syntax-error #f "use resume-host-expansion")))
+  (define suspension-property-key (gensym))
+
+  (define/who (make-suspension stx ctx)
+    (check who syntax? stx)
+    (check who internal-definition-context? ctx)
+    
+    (syntax-property stx suspension-property-key ctx))
+
+  (define (suspension? stx)
+    (not (not (and (syntax? stx)
+                   (syntax-property stx suspension-property-key)))))
   
   (struct closed-suspension [stx ctx compile])
 
@@ -36,10 +42,10 @@
     (make-parameter (make-immutable-free-id-table
                      #:phase (+ 1 (syntax-local-phase-level)))))
 
-  (define (resume-host-expansion s)
-    (when (not (and (syntax? s) (suspension? (syntax-e s))))
-      (raise-argument-error 'resume-host-expansion "host-expand-suspension?" s))
-    (match-define (suspension stx ctx) (syntax-e s))
+  (define/who (resume-host-expansion stx)
+    (check who suspension? stx)
+
+    (define ctx (syntax-property stx suspension-property-key))
     #`(expand-suspension #,(closed-suspension stx ctx (binding-compilers))))
 
   (define (binding-as-rkt bclass-id description)
@@ -66,12 +72,13 @@
                     (for/fold ([env (binding-compilers)])
                               ([k ks]
                                [v vs])
+                      (check 'with-binding-compilers procedure? v)
                       (free-id-table-set env k v))])
       (f)))
 
   (define-syntax with-binding-compilers
     (syntax-parser
-      [(_ ([bclass e] ...) body ...)
+      [(_ ([bclass:id e] ...) body ...+)
        #'(extend-binding-compilers
           (list (quote-syntax bclass) ...) (list e ...)
           (lambda () body ...))])))

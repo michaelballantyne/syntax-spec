@@ -218,12 +218,9 @@
        #:with compiled-x (compile-binder! compiled-names #'x)
        #`(call/fresh 'x (lambda (compiled-x) #,(compile-goal #'b)))]
       
-      ; TODO: use `host`, allow goal-expression inside, check contract via wrapper.
       [(project (x ...) e:expr ...)
        #:with (compiled-x ...) (for/list ([x (attribute x)])
                                  (compile-reference compiled-names x))
-       #:with (e-src ...) (for/list ([e (attribute e)])
-                            (datum->syntax #f #f e e))
        (define projected-ids (immutable-free-id-set (attribute x)))
        (with-binding-compilers
            ([term-variable (lambda (id)
@@ -231,9 +228,9 @@
                                (raise-syntax-error #f "only projected logic variables may be used from Racket code" id))
                              (compile-reference compiled-names id))])
          (define/syntax-parse (e-resume ...) (map resume-host-expansion (attribute e)))
-         #'(lambda (s)
+         #`(lambda (s)
              (let ([compiled-x (walk* compiled-x s)] ...)
-               ((conj-gen (check-goal e-resume #'e-src) ...) s))))]
+               ((conj-gen (check-goal e-resume #'e) ...) s))))]
 
       [(ifte g1 g2 g3)
        #`(ifte-rt #,(compile-goal #'g1) #,(compile-goal #'g2) #,(compile-goal #'g3))]
