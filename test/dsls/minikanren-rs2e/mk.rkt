@@ -221,12 +221,16 @@
       [(project (x ...) e:expr ...)
        #:with (compiled-x ...) (for/list ([x (attribute x)])
                                  (compile-reference compiled-names x))
+       
        (define projected-ids (immutable-free-id-set (attribute x)))
+       
+       (define (compile-term-reference id)
+         (when (not (free-id-set-member? projected-ids id))
+           (raise-syntax-error #f "only projected logic variables may be used from Racket code" id))
+         (compile-reference compiled-names id))
+
        (with-binding-compilers
-           ([term-variable (lambda (id)
-                             (when (not (free-id-set-member? projected-ids id))
-                               (raise-syntax-error #f "only projected logic variables may be used from Racket code" id))
-                             (compile-reference compiled-names id))])
+           ([term-variable compile-term-reference])
          (define/syntax-parse (e-resume ...) (map resume-host-expansion (attribute e)))
          #`(lambda (s)
              (let ([compiled-x (walk* compiled-x s)] ...)
