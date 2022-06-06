@@ -78,7 +78,7 @@
        (generate-prod-expansion
         sspec maybe-bspec (and maybe-nested-id (add-scope maybe-nested-id sc)) variant binding-space-stx
         (lambda ()
-          #`#'#,(compile-sspec-to-template sspec))))]))
+          #`(syntax/loc this-syntax #,(compile-sspec-to-template sspec)))))]))
 
 (define (generate-interface-expansion sspec maybe-bspec variant binding-space-stx generate-body)
   (define sspec-pvars (sspec-bind-pvars! sspec))

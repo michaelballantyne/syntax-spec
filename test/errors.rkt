@@ -359,3 +359,21 @@
 (check-syntax-error
  #rx"m2: DSL macro may not be used as a racket expression"
  (m2))
+
+;; Ensure expansion preserves source locations on the parens
+;; of each form. (Note that it does not preserve source locations
+;; of the parens within forms)
+(require (for-syntax racket/syntax-srcloc))
+
+(check-true
+ (phase1-eval
+  (let ([stx #'(dsl-begin 5)])
+    (equal? (syntax-srcloc stx)
+            (syntax-srcloc ((nonterminal-expander expr1) stx))))))
+
+(check-true
+ (phase1-eval
+  (let* ([stx #'(dsl-begin (dsl-begin 5))]
+        [expanded ((nonterminal-expander expr1) stx)])
+    (equal? (syntax-srcloc (syntax-case stx () [(_ e) #'e]))
+            (syntax-srcloc (syntax-case expanded () [(_ e) #'e]))))))
