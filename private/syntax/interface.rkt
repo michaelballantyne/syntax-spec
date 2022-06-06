@@ -3,18 +3,16 @@
 (provide define-hosted-syntaxes
          define-host-interface/expression
          define-host-interface/definitions
+         
          (for-syntax binding-class-predicate
                      binding-class-constructor
-                     nonterminal-expander
-                     with-binding-compilers
-                     resume-host-expansion
-                     compile-reference
-                     compile-binder!
-                     compile-binders!))
+                     nonterminal-expander))
   
 (require
   "../runtime/errors.rkt"
   "../runtime/compile.rkt"
+  ee-lib/define
+  
   (for-syntax
    racket/base
    racket/list
@@ -23,10 +21,11 @@
    racket/syntax
    syntax/parse
    ee-lib
+   ee-lib/persistent-id-table
    "syntax-classes.rkt"
    "../runtime/binding-spec.rkt"
    "../runtime/errors.rkt")
-  ee-lib/define
+  
   (for-meta 2
             racket/base
             syntax/parse

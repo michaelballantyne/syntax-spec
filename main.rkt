@@ -1,9 +1,26 @@
 #lang racket/base
 
 (provide (all-from-out "private/syntax/interface.rkt")
-         (for-syntax number ~space-literal define-persistent-free-id-table))
+         (for-syntax
+          number
+
+          ~space-literal
+
+          with-binding-compilers
+          resume-host-expansion
+          
+          compile-reference
+          compile-binder!
+          compile-binders!
+
+          define-persistent-free-id-table
+          persistent-free-id-table?
+          persistent-free-id-table-set!
+          persistent-free-id-table-ref))
 
 (require "private/syntax/interface.rkt"
-         (for-syntax syntax/parse)
-         (for-syntax ee-lib)
-         (for-syntax "private/runtime/syntax-classes.rkt"))
+         "private/runtime/compile.rkt"
+         (for-syntax syntax/parse
+                     ee-lib
+                     ee-lib/persistent-id-table
+                     "private/runtime/syntax-classes.rkt"))
