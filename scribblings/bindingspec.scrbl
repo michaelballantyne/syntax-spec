@@ -116,9 +116,12 @@
 @require[(for-label syntax/id-table)]
 
 
-@defproc[(compile-reference [table free-id-table?] [id identifier?]) identifier?]
+@defproc[(compile-reference [table (or/c free-id-table? persistent-free-id-table?)] [id identifier?]) identifier?]
 
-@defproc[(compile-binder! [table mutable-free-id-table?] [id identifier?]) identifier?]
+@defproc[(compile-binder! [table (or/c mutable-free-id-table? persistent-free-id-table?)] [id identifier?]) identifier?]
+
+@defproc[(compile-binders! [table (or/c mutable-free-id-table? persistent-free-id-table?)] [ids (listof identifier?)]) (listof identifier?)]
+
 
 @defform[(with-reference-compilers ([binding-class-id transformer-e] ...)
            body ...+)]
@@ -126,3 +129,24 @@
 @defproc[(resume-host-expansion [stx syntax?]) syntax?]
 
 @defform[(~space-literal id space-symbol)]
+
+@subsubsection{Persistent free-identifier tables}
+
+@defform[(define-persistent-free-id-table id)]
+
+@defproc[(persistent-free-id-table? [v any/c]) boolean?]
+
+@defproc[(syntax-datum? [v any/c]) boolean?]
+
+@defproc[(identifier-with-binding? [v any/c]) boolean?]
+
+@defproc[(persistent-free-id-table-has-key? [table persistent-free-id-table?] [id identifier-with-binding?]) boolean?]
+
+@defproc[(persistent-free-id-table-set! [table persistent-free-id-table?]
+                                        [id identifier-with-binding?]
+                                        [v (or/c syntax? syntax-datum?)]) void?]
+
+@defproc[(persistent-free-id-table-ref [table persistent-free-id-table?] [id identifier-with-binding?] [failure any/c]) any/c]
+
+
+

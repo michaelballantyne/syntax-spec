@@ -6,6 +6,6 @@
                "paren-shape"
                "rackunit-lib"))
 (define build-deps '("racket-doc" "scribble-lib" "drracket"))
-(define scribblings '(("scribblings/binding-spec.scrbl" () (experimental))))
+(define scribblings '(("scribblings/bindingspec.scrbl" () (experimental))))
 (define compile-omit-paths '("design"))
 (define test-omit-paths '("design"))

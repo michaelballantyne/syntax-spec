@@ -15,6 +15,9 @@
 
           define-persistent-free-id-table
           persistent-free-id-table?
+          syntax-datum?
+          identifier-with-binding?
+          persistent-free-id-table-has-key?
           persistent-free-id-table-set!
           persistent-free-id-table-ref))
 
@@ -23,4 +26,5 @@
          (for-syntax syntax/parse
                      ee-lib
                      ee-lib/persistent-id-table
+                     ee-lib/private/binding
                      "private/runtime/syntax-classes.rkt"))
