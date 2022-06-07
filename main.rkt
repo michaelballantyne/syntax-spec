@@ -6,7 +6,7 @@
 
           ~space-literal
 
-          with-binding-compilers
+          with-reference-compilers
           resume-host-expansion
           
           compile-reference

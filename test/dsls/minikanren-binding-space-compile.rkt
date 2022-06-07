@@ -31,7 +31,7 @@
   
   ;#:with (qvar-c ...) (map compile-binder! (attribute qvar))
   ;#:with (g-c ...) (map compile-goal (attribute g))
-  #;(with-binding-compilers ([term-variable
+  #;(with-reference-compilers ([term-variable
                               (lambda (id) (compile-reference compiled-var id))])
       #'(let ([qvar-c (fresh-var)])
           (bind* g-c ... (reify qvar-c ...))))
@@ -44,7 +44,7 @@
 (define-host-interface/expression
   (mk-compile g:goal)
 
-  (with-binding-compilers ([term-variable
+  (with-reference-compilers ([term-variable
                             (lambda (id) (compile-reference compiled-var id))])
     (displayln #'g)
     (compile-goal #'g)))
@@ -54,7 +54,7 @@
       [(_ e)
        (define expanded ((nonterminal-expander goal) #'e))
      
-       (with-binding-compilers ([term-variable
+       (with-reference-compilers ([term-variable
                                  (lambda (id) (compile-reference compiled-var id))])
          (compile-goal expanded))]))
 

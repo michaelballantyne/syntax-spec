@@ -120,7 +120,7 @@
 
 @defproc[(compile-binder! [table mutable-free-id-table?] [id identifier?]) identifier?]
 
-@defform[(with-binding-compilers ([binding-class-id transformer-e] ...)
+@defform[(with-reference-compilers ([binding-class-id transformer-e] ...)
            body ...+)]
 
 @defproc[(resume-host-expansion [stx syntax?]) syntax?]

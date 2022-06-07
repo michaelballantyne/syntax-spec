@@ -4,7 +4,7 @@
                      make-suspension
   
                      resume-host-expansion
-                     with-binding-compilers
+                     with-reference-compilers
                      ))
 
 (require
@@ -72,11 +72,11 @@
                     (for/fold ([env (binding-compilers)])
                               ([k ks]
                                [v vs])
-                      (check 'with-binding-compilers procedure? v)
+                      (check 'with-reference-compilers procedure? v)
                       (free-id-table-set env k v))])
       (f)))
 
-  (define-syntax with-binding-compilers
+  (define-syntax with-reference-compilers
     (syntax-parser
       [(_ ([bclass:id e] ...) body ...+)
        #'(extend-binding-compilers

@@ -229,7 +229,7 @@
            (raise-syntax-error #f "only projected logic variables may be used from Racket code" id))
          (compile-reference compiled-names id))
 
-       (with-binding-compilers
+       (with-reference-compilers
            ([term-variable compile-term-reference])
          (define/syntax-parse (e-resume ...) (map resume-host-expansion (attribute e)))
          #`(lambda (s)
