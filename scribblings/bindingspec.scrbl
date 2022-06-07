@@ -119,26 +119,19 @@
 
 @subsection{Compilation}
 
-@require[(for-label syntax/id-table)]
 
-
-@defproc[(compile-reference [table (or/c free-id-table? persistent-free-id-table?)] [id identifier?]) identifier?]
-
-@defproc[(compile-binder! [table (or/c mutable-free-id-table? persistent-free-id-table?)] [id identifier?]) identifier?]
-
-@defproc[(compile-binders! [table (or/c mutable-free-id-table? persistent-free-id-table?)] [ids (listof identifier?)]) (listof identifier?)]
-
+@subsubsection{Compiling host sub-terms}
 
 @defform[(with-reference-compilers ([binding-class-id transformer-e] ...)
            body ...+)]
 
 @defproc[(resume-host-expansion [stx syntax?]) syntax?]
 
-@defproc[(in-space [space symbol?]) (-> syntax? syntax?)]
-
-@defform[(~space-literal id space-symbol)]
 
 @subsubsection{Persistent free-identifier tables}
+
+@require[(for-label syntax/id-table)]
+
 
 @defform[(define-persistent-free-id-table id)]
 
@@ -157,4 +150,17 @@
 @defproc[(persistent-free-id-table-ref [table persistent-free-id-table?] [id identifier-with-binding?] [failure any/c]) any/c]
 
 
+@subsubsection{Compiling bindings and references}
 
+@defproc[(compile-binder! [table (or/c mutable-free-id-table? persistent-free-id-table?)] [id identifier?]) identifier?]
+
+@defproc[(compile-binders! [table (or/c mutable-free-id-table? persistent-free-id-table?)] [ids (listof identifier?)]) (listof identifier?)]
+
+@defproc[(compile-reference [table (or/c free-id-table? persistent-free-id-table?)] [id identifier?]) identifier?]
+
+
+@subsubsection{Binding spaces}
+
+@defproc[(in-space [space symbol?]) (-> syntax? syntax?)]
+
+@defform[(~space-literal id space-symbol)]
