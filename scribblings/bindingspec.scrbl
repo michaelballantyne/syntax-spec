@@ -111,6 +111,12 @@
            pattern-directive ...
            body ...+)]
 
+@defform[(define-host-interface/definitions
+           (id . syntax-spec)
+           maybe-binding-spec
+           pattern-directive ...
+           body ...+)]
+
 @subsection{Compilation}
 
 @require[(for-label syntax/id-table)]
