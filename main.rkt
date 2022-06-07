@@ -4,6 +4,7 @@
          (for-syntax
           number
 
+          in-space
           ~space-literal
 
           with-reference-compilers

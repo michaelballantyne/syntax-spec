@@ -134,6 +134,8 @@
 
 @defproc[(resume-host-expansion [stx syntax?]) syntax?]
 
+@defproc[(in-space [space symbol?]) (-> syntax? syntax?)]
+
 @defform[(~space-literal id space-symbol)]
 
 @subsubsection{Persistent free-identifier tables}
