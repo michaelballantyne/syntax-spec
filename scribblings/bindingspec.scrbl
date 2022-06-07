@@ -71,21 +71,27 @@
                 (rewrite-production (~> syntax-pattern
                                         pattern-directive ...
                                         body ...+))
-                (form-production (code:line (form-id . syntax-spec) maybe-binding-spec))
+                (form-production (code:line (form-id . syntax-spec) maybe-binding-spec)
+                                 form-id)
                 (syntax-production (code:line syntax-spec maybe-binding-spec))
-                (maybe-binding-spec (code:line #:binding binding-spec))]
+                (maybe-binding-spec (code:line #:binding binding-spec)
+                                    (code:line))]
 
 @subsubsection{Syntax specs}
 
-@racketgrammar[syntax-spec
-               ()
-               keyword
-               ...
-               ...+
-               (syntax-spec . syntax-spec)
-               spec-variable-id:binding-class-id
-               spec-variable-id:nonterminal-id
-               spec-variable-id:syntax-class-id]
+@racketgrammar*[#:literals (~> ~literal ~datum ... ...+)
+                (syntax-spec ()
+                             keyword
+                             ...
+                             ...+
+                             (~literal id maybe-space)
+                             (~datum id)
+                             (syntax-spec . syntax-spec)
+                             spec-variable-id:binding-class-id
+                             spec-variable-id:nonterminal-id
+                             spec-variable-id:syntax-class-id)
+                (maybe-space (code:line #:space space-name)
+                             (code:line))]
 
 
 @subsection{Binding specs}

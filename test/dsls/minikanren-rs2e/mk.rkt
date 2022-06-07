@@ -1,6 +1,7 @@
 #lang racket/base
 
 (provide (all-defined-out)
+         quote cons
          (for-space mk quasiquote))
 
 (require "../../../main.rkt"
@@ -14,12 +15,6 @@
 ;;
 ;; Core syntax
 ;;
-
-(begin-for-syntax
-  (define-syntax-class quote-lit
-    (pattern (~literal quote)))
-  (define-syntax-class cons-lit
-    (pattern (~literal cons))))
 
 (define-hosted-syntaxes
   (binding-class term-variable #:description "miniKanren term variable")
@@ -42,16 +37,15 @@
     
     n:number
     x:term-variable
-    (q:quote-lit t:quoted)
-    (c:cons-lit t1:term t2:term))
+    ((~literal quote) t:quoted)
+    ((~literal cons) t1:term t2:term))
 
   (nonterminal goal
     #:description "miniKanren goal"
     #:allow-extension goal-macro
 
-    ;; TODO: unwrap, after adding core support.
-    (succeed)
-    (fail)
+    succeed
+    fail
     
     (== t1:term t2:term)
 
@@ -98,14 +92,14 @@
 (define-syntax disj
   (goal-macro
    (syntax-rules ()
-     ((disj) (fail))
+     ((disj) fail)
      ((disj g) g)
      ((disj g0 g ...) (disj2 g0 (disj g ...))))))
 
 (define-syntax conj
   (goal-macro
    (syntax-rules ()
-     ((conj) (succeed))
+     ((conj) succeed)
      ((conj g) g)
      ((conj g0 g ...) (conj2 g0 (conj g ...))))))
 
@@ -204,9 +198,9 @@
   (define (compile-goal g)
     (syntax-parse g
       #:literals (succeed fail == disj2 conj2 fresh1 project ifte once)
-      [(succeed)
+      [succeed
        #'succeed-rt]
-      [(fail)
+      [fail
        #'fail-rt]
       [(== t1 t2)
        #`(==-rt #,(compile-term #'t1) #,(compile-term #'t2))]

@@ -18,6 +18,10 @@
  ;;   ref - part after the `:`
  ref-id
 
+ ;; Syntax class matching identifiers that that do not have meaning
+ ;; in the metalanguage and are thus usable as form names.
+ form-id
+
  ;; Syntax class matching identifiers with no `:`
  nonref-id
 
@@ -50,12 +54,12 @@
 
 (define-splicing-syntax-class (maybe-description name)
   (pattern (~optional (~seq #:description string-stx:string))
-           #:attr str (or (attribute string-stx)
-                          #`#,(symbol->string (syntax-e name)))))
+    #:attr str (or (attribute string-stx)
+                   #`#,(symbol->string (syntax-e name)))))
 
 (define-splicing-syntax-class maybe-binding-space
   (pattern (~optional (~seq #:binding-space stx:id) #:defaults ([stx #'#f]))
-           #:attr sym (syntax-e (attribute stx))))
+    #:attr sym (syntax-e (attribute stx))))
 
 (define current-orig-stx (make-parameter #f))
 
@@ -79,28 +83,34 @@
 (define-syntax-class ref-id
   #:description "pattern variable with annotation"
   (pattern name:id #:when (has:? #'name)
-           #:do [(define-values (var ref) (split: #'name))]
-           #:attr var var
-           #:attr ref ref))
+    #:do [(define-values (var ref) (split: #'name))]
+    #:attr var var
+    #:attr ref ref))
   
 (define-syntax-class nonref-id
   (pattern name:id #:when (not (has:? #'name))))
 
+(define-syntax-class form-id
+  (pattern name:nonref-id
+    #:when (not (member (syntax-e #'name)
+                        '(~datum ~literal ~> ... ...+)))))
+
 (define-splicing-syntax-class production
   #:description "nonterminal production"
   (pattern r:rewrite-production
-           #:attr form-name #f)
+    #:attr form-name #f)
   (pattern p:syntax-production
-           #:attr form-name (attribute p.form-name)))
+    #:attr form-name (attribute p.form-name)))
 
 (define-splicing-syntax-class syntax-production
   #:description "production spec"
   (pattern (~seq sspec:syntax-spec (~optional (~seq #:binding bspec)))
-           #:attr form-name (attribute sspec.form-name)))
+    #:attr form-name (attribute sspec.form-name)))
 
 (define-syntax-class syntax-spec
   #:description "syntax spec"
-  (pattern (form-name:nonref-id . _))
+  (pattern (form-name:form-id . _))
+  (pattern form-name:form-id)
   (pattern _:expr #:attr form-name #f))
 
 (define-syntax-class rewrite-production
@@ -150,6 +160,6 @@
                  (~optional (~seq #:bind-literal-set litset-binder:id))
                  (~optional (~seq #:allow-extension extensions:extclass-spec))
                  (~var maybe-space maybe-binding-space))
-           #:attr space-stx (attribute maybe-space.stx)
-           #:attr space-sym (attribute maybe-space.sym)
-           #:attr ext-classes (if (attribute extensions) (attribute extensions.classes) '())))
+    #:attr space-stx (attribute maybe-space.stx)
+    #:attr space-sym (attribute maybe-space.sym)
+    #:attr ext-classes (if (attribute extensions) (attribute extensions.classes) '())))

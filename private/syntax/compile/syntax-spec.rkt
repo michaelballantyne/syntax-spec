@@ -16,14 +16,21 @@
                        syntax/parse
                        "../../runtime/syntax-classes.rkt"))
 
+(define (generate-pattern-literal name-stx binding-space-stx)
+  (with-syntax ([name name-stx]
+                [binding-space binding-space-stx])
+    #'(~var _ (literal-in-space (quote-syntax name) (quote binding-space)))))
+
 (define (compile-sspec-to-pattern stx binding-space-stx)
   (define generate-pattern-form
     (syntax-parser
       #:context 'generate-pattern-form
-      [(name:nonref-id . term)
-       #:with binding-space binding-space-stx
-       (with-syntax ([term-c (generate-pattern-term #'term)])
-         #'((~var _ (literal-in-space (quote-syntax name) (quote binding-space))) ~! . term-c))]
+      [(name:form-id . term)
+       (with-syntax ([literal-c (generate-pattern-literal #'name binding-space-stx)]
+                     [term-c (generate-pattern-term #'term)])
+         #'(literal-c ~! . term-c))]
+      [name:form-id
+       (generate-pattern-literal #'name binding-space-stx)]
       [_ (generate-pattern-term this-syntax)]))
   
   (define generate-pattern-term
@@ -33,10 +40,14 @@
        #'()]
       [k:keyword
        this-syntax]
-      [(~literal ...)
-       #'(... ...)]
-      [(~literal ...+)
-       #'(... ...+)]
+      [(~datum ...)
+       (syntax/loc this-syntax (... ...))]
+      [(~datum ...+)
+       (syntax/loc this-syntax (... ...+))]
+      [((~datum ~literal) lit:id (~optional (~seq #:space space:id) #:defaults ([space #'#f])))
+       (generate-pattern-literal #'lit #'space)]
+      [((~datum ~datum) datum)
+       #'(~datum datum)]
       [(t1 . t2)
        (with-syntax ([t1-c (generate-pattern-term #'t1)]
                      [t2-c (generate-pattern-term #'t2)])
@@ -62,9 +73,11 @@
   (define generate-template-form
     (syntax-parser
       #:context 'generate-pattern-form
-      [(name:nonref-id . term)
+      [(name:form-id . term)
        (with-syntax ([term-c (generate-template-term #'term)])
          #'(name . term-c))]
+      [name:form-id
+       #'name]
       [_ (generate-template-term this-syntax)]))
   
   (define generate-template-term
@@ -74,10 +87,14 @@
        #'()]
       [k:keyword
        this-syntax]
-      [(~literal ...)
+      [(~datum ...)
        #'(... ...)]
-      [(~literal ...+)
+      [(~datum ...+)
        #'(... ...)]
+      [((~datum ~literal) lit:id (~optional (~seq #:space space:id) #:defaults ([space #'#f])))
+       #'(... (... lit))]
+      [((~datum ~datum) datum)
+       #'(... (... datum))]
       [(t1 . t2)
        (with-syntax ([t1-c (generate-template-term #'t1)]
                      [t2-c (generate-template-term #'t2)])
