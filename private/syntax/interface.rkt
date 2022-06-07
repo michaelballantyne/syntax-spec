@@ -215,12 +215,13 @@
             #f
             generate-body))
 
-         #'(syntax-parser
-             [(_ . rest)
-              (define ctx this-syntax)
-              (syntax-parse (attribute rest)
-                #:context ctx
-                clause)]))])))
+         #'(expression-macro
+            (syntax-parser
+              [(_ . rest)
+               (define ctx this-syntax)
+               (syntax-parse (attribute rest)
+                 #:context ctx
+                 clause)])))])))
 
 
 (define-syntax define-host-interface/definitions
@@ -252,14 +253,15 @@
             #f
             generate-body))
 
-         #'(wrap-bind-trampoline
-            (wrap-persist
-             (syntax-parser
-               [(_ . rest)
-                (define ctx this-syntax)
-                (syntax-parse (attribute rest)
-                  #:context ctx
-                  clause)]))))])))
+         #'(definition-macro
+             (wrap-bind-trampoline
+              (wrap-persist
+               (syntax-parser
+                 [(_ . rest)
+                  (define ctx this-syntax)
+                  (syntax-parse (attribute rest)
+                    #:context ctx
+                    clause)])))))])))
 
 ;;
 ;; phase 1 accessors

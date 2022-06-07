@@ -18,6 +18,13 @@
   (run* (l1 l2)
     (appendo l1 l2 '(1 2 3 4)))
 
+  (let ()
+    (define (f) (run 1 (q) (is-five q)))
+    (defrel (is-five a)
+       (== a 5))
+    
+    (f))
+
   (run 1 (q)
     (fresh (x)
       (== q `(,x . 5))
