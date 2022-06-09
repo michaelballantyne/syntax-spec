@@ -71,7 +71,6 @@
           p.parse-body ...
           (recur p.final-body)])]
     [(p:syntax-production)
-     (displayln 'here)
      (with-scope sc
        (define sspec (add-scope (attribute p.sspec) sc))
        (define maybe-bspec (and (attribute p.bspec) (add-scope (attribute p.bspec) sc)))
