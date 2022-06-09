@@ -40,13 +40,13 @@
        #'()]
       [k:keyword
        this-syntax]
-      [(~datum ...)
+      [(~literal ...)
        (syntax/loc this-syntax (... ...))]
-      [(~datum ...+)
+      [(~literal ...+)
        (syntax/loc this-syntax (... ...+))]
-      [((~datum ~literal) lit:id (~optional (~seq #:space space:id) #:defaults ([space #'#f])))
+      [((~literal ~literal) lit:id (~optional (~seq #:space space:id) #:defaults ([space #'#f])))
        (generate-pattern-literal #'lit #'space)]
-      [((~datum ~datum) datum)
+      [((~literal ~datum) datum)
        #'(~datum datum)]
       [(t1 . t2)
        (with-syntax ([t1-c (generate-pattern-term #'t1)]
@@ -87,13 +87,13 @@
        #'()]
       [k:keyword
        this-syntax]
-      [(~datum ...)
+      [(~literal ...)
        #'(... ...)]
-      [(~datum ...+)
+      [(~literal ...+)
        #'(... ...)]
-      [((~datum ~literal) lit:id (~optional (~seq #:space space:id) #:defaults ([space #'#f])))
+      [((~literal ~literal) lit:id (~optional (~seq #:space space:id) #:defaults ([space #'#f])))
        #'(... (... lit))]
-      [((~datum ~datum) datum)
+      [((~literal ~datum) datum)
        #'(... (... datum))]
       [(t1 . t2)
        (with-syntax ([t1-c (generate-template-term #'t1)]

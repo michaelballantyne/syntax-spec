@@ -6,7 +6,13 @@
          
          (for-syntax binding-class-predicate
                      binding-class-constructor
-                     nonterminal-expander))
+                     nonterminal-expander
+
+                     ~>
+                     ~datum
+                     ~literal
+                     ...
+                     ...+))
   
 (require
   "../runtime/errors.rkt"
@@ -24,7 +30,8 @@
    ee-lib/persistent-id-table
    "syntax-classes.rkt"
    "../runtime/binding-spec.rkt"
-   "../runtime/errors.rkt")
+   "../runtime/errors.rkt"
+   "keywords.rkt")
   
   (for-meta 2
             racket/base
