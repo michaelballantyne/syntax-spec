@@ -28,9 +28,11 @@
 
   (define/who (make-suspension stx ctx)
     (check who syntax? stx)
-    (check who internal-definition-context? ctx)
-    
-    (syntax-property stx suspension-property-key ctx))
+    (check who internal-definition-context? #:or-false ctx)
+
+    ; wrap ctx in a pair because #f is valid as ctx but not as a syntax
+    ; property value.
+    (syntax-property stx suspension-property-key (list ctx)))
 
   (define (suspension? stx)
     (not (not (and (syntax? stx)
@@ -45,7 +47,7 @@
   (define/who (resume-host-expansion stx)
     (check who suspension? stx)
 
-    (define ctx (syntax-property stx suspension-property-key))
+    (define ctx (car (syntax-property stx suspension-property-key)))
     #`(expand-suspension #,(closed-suspension stx ctx (binding-compilers))))
 
   (define (binding-as-rkt bclass-id description)

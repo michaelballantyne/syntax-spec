@@ -9,7 +9,7 @@
          (for-syntax
           racket/base
           syntax/parse
-          syntax/id-set
+          syntax/id-table
           ee-lib))
 
 ;;
@@ -22,7 +22,8 @@
   
   (extension-class term-macro
                    #:binding-space mk)
-  (extension-class goal-macro)
+  (extension-class goal-macro
+                   #:binding-space mk)
   
   (nonterminal quoted
     #:description "quoted value"
@@ -145,7 +146,7 @@
   (persistent-free-id-table-set!
    relation-arity
    #'name
-   #`#,(length (syntax->list #'(x ...))))
+   (length (syntax->list #'(x ...))))
 
   #`(define (compiled-name compiled-x ...)
       (lambda (s)
@@ -213,21 +214,25 @@
        #`(call/fresh 'x (lambda (compiled-x) #,(compile-goal #'b)))]
       
       [(project (x ...) e:expr ...)
-       #:with (compiled-x ...) (for/list ([x (attribute x)])
-                                 (compile-reference compiled-names x))
-       
-       (define projected-ids (immutable-free-id-set (attribute x)))
+       (define/syntax-parse (compiled-x-ref ...)
+         (for/list ([x (attribute x)])
+           (compile-reference compiled-names x)))
+
+       (define compiled-projected (make-free-id-table))
+       (define/syntax-parse (compiled-x-projected ...)
+         (for/list ([x (attribute x)])
+           (compile-binder! compiled-projected x)))
        
        (define (compile-term-reference id)
-         (when (not (free-id-set-member? projected-ids id))
-           (raise-syntax-error #f "only projected logic variables may be used from Racket code" id))
-         (compile-reference compiled-names id))
+         (if (free-id-table-ref compiled-projected id #f)
+             (compile-reference compiled-projected id)
+             (raise-syntax-error #f "only projected logic variables may be used from Racket code" id)))
 
        (with-reference-compilers
            ([term-variable compile-term-reference])
          (define/syntax-parse (e-resume ...) (map resume-host-expansion (attribute e)))
          #`(lambda (s)
-             (let ([compiled-x (walk* compiled-x s)] ...)
+             (let ([compiled-x-projected (walk* compiled-x-ref s)] ...)
                ((conj-gen (check-goal e-resume #'e) ...) s))))]
 
       [(ifte g1 g2 g3)
@@ -239,7 +244,7 @@
        #:with (compiled-term ...) (map compile-term (attribute t))
 
        (let ([actual (length (attribute t))]
-             [expected (syntax->datum (persistent-free-id-table-ref relation-arity #'relname))])
+             [expected (persistent-free-id-table-ref relation-arity #'relname)])
          (when (not (= actual expected ))
            (raise-syntax-error
             #f

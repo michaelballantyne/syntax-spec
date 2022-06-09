@@ -21,7 +21,7 @@
   (let ()
     (define (f) (run 1 (q) (is-five q)))
     (defrel (is-five a)
-       (== a 5))
+      (== a 5))
     
     (f))
 
@@ -31,6 +31,10 @@
       (project (q)
                (begin
                  (displayln q)
-                 (goal-expression (== x 1)))))))
+                 (goal-expression (project (q)
+                                           (goal-expression
+                                            (== x 1)))))))))
 
 (require 'b)
+
+
