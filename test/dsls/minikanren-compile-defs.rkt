@@ -26,19 +26,16 @@
       [n:number
        #'n]
       [(rkt e)
-       (resume-host-expansion #'e)])))
+       (resume-host-expansion
+        #'e
+        #:reference-compilers ([term-variable
+                                (lambda (id) (compile-reference compiled-var id))]))])))
 
 (define-host-interface/expression
   (run n:expr (qvar:term-variable ...)
-       g:goal ...)
+    g:goal ...)
   #:binding {(bind qvar) g}
   
-  ;#:with (qvar-c ...) (map compile-binder! (attribute qvar))
-  ;#:with (g-c ...) (map compile-goal (attribute g))
-  #;(with-reference-compilers ([term-variable
-                              (lambda (id) (compile-reference compiled-var id))])
-      #'(let ([qvar-c (fresh-var)])
-          (bind* g-c ... (reify qvar-c ...))))
   (displayln #'(g ...))
   #'(void))
 
@@ -48,10 +45,7 @@
 (define-host-interface/expression
   (mk-compile g:goal)
 
-  (with-reference-compilers ([term-variable
-                            (lambda (id) (compile-reference compiled-var id))])
-    (displayln #'g)
-    (compile-goal #'g)))
+  (compile-goal #'g))
 
 (define-host-interface/definitions
   (define-relation (name:relation-name arg:term-variable ...) body:goal)
@@ -68,14 +62,6 @@
   #:binding (re-export d)
   #'(define tmp 5))
 
-#;(define-syntax mk-compile
-    (syntax-parser
-      [(_ e)
-       (define expanded ((nonterminal-expander goal) #'e))
-     
-       (with-reference-compilers ([term-variable
-                                 (lambda (id) (compile-reference compiled-var id))])
-         (compile-goal expanded))]))
 
 (define-relation (appendo2 l1 l2 l3)
   (== l1 '()))
@@ -94,10 +80,10 @@
 
 (mk-compile
  (fresh (x)
-        (== 1 (rkt x))))
+   (== 1 (rkt x))))
 
 (run 3 (q)
-     (fresh (x)
-            (== q x)))
+  (fresh (x)
+    (== q x)))
 
 

@@ -3,9 +3,7 @@
 (provide (for-syntax binding-as-rkt
                      make-suspension
   
-                     resume-host-expansion
-                     with-reference-compilers
-                     ))
+                     resume-host-expansion))
 
 (require
   (for-syntax
@@ -40,20 +38,38 @@
   
   (struct closed-suspension [stx ctx compile])
 
-  (define binding-compilers
-    (make-parameter (make-immutable-free-id-table
-                     #:phase (+ 1 (syntax-local-phase-level)))))
+  (define current-binding-compilers
+    (make-parameter #f))
 
-  (define/who (resume-host-expansion stx)
+
+  (define-syntax resume-host-expansion
+    (syntax-parser
+      [(_ stx-e:expr
+          (~optional (~seq #:reference-compilers
+                           ([bclass:id t-e:expr] ...))
+                     #:defaults ([(bclass 1) '()] [(t-e 1) '()])))
+       #'(resume-host-expansion-rt
+          stx-e
+          (list (quote-syntax bclass) ...) (list t-e ...))]))
+  
+  (define/who (resume-host-expansion-rt stx ks vs)
     (check who suspension? stx)
 
+    (define binding-compilers
+      (for/fold ([env (make-immutable-free-id-table)])
+                ([k ks]
+                 [v vs])
+        (check who procedure? v)
+        (free-id-table-set env k v)))
+    
     (define ctx (car (syntax-property stx suspension-property-key)))
-    #`(expand-suspension #,(closed-suspension stx ctx (binding-compilers))))
+    #`(expand-suspension #,(closed-suspension stx ctx binding-compilers)))
+
 
   (define (binding-as-rkt bclass-id description)
     (lambda (s stx)
       (let ([compile (free-id-table-ref
-                      (binding-compilers) bclass-id
+                      (current-binding-compilers) bclass-id
                       (lambda ()
                         (raise-syntax-error
                          #f
@@ -67,29 +83,15 @@
              (string-append
               description
               " may not be used as a racket expression")
-             stx)))))
+             stx))))))
 
-  (define (extend-binding-compilers ks vs f)
-    (parameterize ([binding-compilers
-                    (for/fold ([env (binding-compilers)])
-                              ([k ks]
-                               [v vs])
-                      (check 'with-reference-compilers procedure? v)
-                      (free-id-table-set env k v))])
-      (f)))
 
-  (define-syntax with-reference-compilers
-    (syntax-parser
-      [(_ ([bclass:id e] ...) body ...+)
-       #'(extend-binding-compilers
-          (list (quote-syntax bclass) ...) (list e ...)
-          (lambda () body ...))])))
 
 (define-syntax expand-suspension
   (syntax-parser
     [(_ s)
-     (match-define (closed-suspension stx ctx compile) (syntax-e #'s))
-     (parameterize ([binding-compilers compile])
+     (match-define (closed-suspension stx ctx binding-compilers) (syntax-e #'s))
+     (parameterize ([current-binding-compilers binding-compilers])
        (local-expand (flip-intro-scope stx)
                      'expression
                      '()

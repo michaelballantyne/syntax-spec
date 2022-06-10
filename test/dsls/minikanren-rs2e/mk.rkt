@@ -228,12 +228,14 @@
              (compile-reference compiled-projected id)
              (raise-syntax-error #f "only projected logic variables may be used from Racket code" id)))
 
-       (with-reference-compilers
-           ([term-variable compile-term-reference])
-         (define/syntax-parse (e-resume ...) (map resume-host-expansion (attribute e)))
-         #`(lambda (s)
-             (let ([compiled-x-projected (walk* compiled-x-ref s)] ...)
-               ((conj-gen (check-goal e-resume #'e) ...) s))))]
+       (define/syntax-parse (e-resume ...)
+         (for/list ([e (attribute e)])
+           (resume-host-expansion
+            e
+            #:reference-compilers ([term-variable compile-term-reference]))))
+       #`(lambda (s)
+           (let ([compiled-x-projected (walk* compiled-x-ref s)] ...)
+             ((conj-gen (check-goal e-resume #'e) ...) s)))]
 
       [(ifte g1 g2 g3)
        #`(ifte-rt #,(compile-goal #'g1) #,(compile-goal #'g2) #,(compile-goal #'g3))]

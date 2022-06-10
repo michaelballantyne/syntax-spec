@@ -7,7 +7,6 @@
           in-space
           ~space-literal
 
-          with-reference-compilers
           resume-host-expansion
           
           compile-reference

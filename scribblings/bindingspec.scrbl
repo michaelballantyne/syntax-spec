@@ -128,11 +128,11 @@
 
 @subsubsection{Compiling host sub-terms}
 
-@defform[(with-reference-compilers ([binding-class-id transformer-e] ...)
-           body ...+)]
-
-@defproc[(resume-host-expansion [stx syntax?]) syntax?]
-
+@defform[(resume-host-expansion stx maybe-reference-compilers)
+         #:grammar ([maybe-reference-compilers
+                     (code:line #:reference-compilers ([binding-class-id transformer] ...))
+                     (code:line)])
+         #:contracts ([stx syntax?] [transformer (-> identifier? syntax?)])]
 
 @subsubsection{Persistent free-identifier tables}
 
