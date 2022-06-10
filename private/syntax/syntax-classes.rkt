@@ -46,14 +46,11 @@
  )
 
 (require
-  (for-template syntax/parse "keywords.rkt") ;; for keywords checked in form-id
   racket/string
   racket/list
   syntax/parse
   syntax/srcloc
-  racket/syntax
-  syntax/id-set
-  )
+  racket/syntax)
 
 (define-splicing-syntax-class (maybe-description name)
   (pattern (~optional (~seq #:description string-stx:string))
@@ -95,12 +92,8 @@
 
 (define-syntax-class form-id
   (pattern name:nonref-id
-    #:when (not (free-id-set-member?
-                 (immutable-free-id-set (list (quote-syntax ~datum)
-                                              (quote-syntax ~literal)
-                                              (quote-syntax ~>)
-                                              (quote-syntax ...+)))
-                 #'name))))
+    #:when (not (member (syntax-e #'name)
+                        '(~datum ~literal ~> ... ...+)))))
 
 (define-splicing-syntax-class production
   #:description "nonterminal production"
@@ -122,9 +115,8 @@
 
 (define-syntax-class rewrite-production
   #:description "rewrite spec"
-  #:literals (~>)
-  #:no-delimit-cut
-  (pattern (~> ~! pat parse-body ... final-body)))
+  #:datum-literals (~>)
+  (pattern (~> pat parse-body ... final-body)))
 
 
 
