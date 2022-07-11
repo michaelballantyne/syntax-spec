@@ -9,6 +9,8 @@
 ;; Syntax
 
 (define-hosted-syntaxes
+  (binding-class data-var)
+  (binding-class event-arg)
   (binding-class machine-name)
   (binding-class state-name)
 
@@ -17,7 +19,8 @@
     #:binding {(recursive s) initial-state})
   
   (two-pass-nonterminal machine-element-spec
-    (data v:id e:expr)
+    (data v:data-var e:expr)
+    #:binding (export v)
 
     (state n:state-name
       e:event-spec ...)
@@ -32,13 +35,15 @@
     (~> ((~literal on) header body:expr ...)
         #'(on header #:when (lambda (v) #t) body ...))
     
-    (on (evt:id arg:id ...) #:when guard:expr
+    (on (evt:id arg:event-arg ...) #:when guard:expr
       a:action-spec ...
       t:transition-spec)
+    #:binding {(bind arg) (host guard) a t}
     )
 
   (nonterminal action-spec
-    (set v:id e:expr))
+    (set v:data-var e:expr)
+    #:binding (host e))
 
   (nonterminal transition-spec
     (-> s:state-name)))
@@ -149,6 +154,16 @@
         ...
         [_ (values #f #f)]))
 
+  (define (compile-host-expression stx)
+    (define (compile-simple-ref id)
+      (compile-reference compiled-ids id))
+    
+    (resume-host-expansion
+     stx
+     #:reference-compilers
+     ([data-var compile-simple-ref]
+      [event-arg compile-simple-ref])))
+
   (define (compile-dispatch-clause data-id event)
     (syntax-parse event
       #:literals (on ->)
@@ -157,11 +172,14 @@
          (set data-var:id rhs:expr)
          ...
          (-> next-state))
-       #`[(list 'event-name arg ...)
-          #:when guard
+       #:with (arg-c ...) (compile-binders! compiled-ids #'(arg ...))
+       #:with guard-c (compile-host-expression #'guard)
+       #:with (rhs-c ...) (map compile-host-expression (attribute rhs))
+       #`[(list 'event-name arg-c ...)
+          #:when guard-c
           (values (next-state)
                   (struct-copy machine-data #,data-id
-                               [data-var rhs]
+                               [data-var rhs-c]
                                ...))]]))
   
   (define (compile-machine machine-spec)
@@ -172,6 +190,7 @@
         ...
         (~var st (compile-state/cls #'state #'data #'event))
         ...]
+       #:with (compiled-data-var ...) (compile-binders! compiled-ids #'(data-var ...))
        #'(lambda ()
            (struct machine-data [data-var ...] #:prefab)
            
@@ -179,7 +198,7 @@
            ...
 
            (define (step-f state data event)
-             (match-define (machine-data data-var ...) data)
+             (match-define (machine-data compiled-data-var ...) data)
              (match (car state)
                ['st.state-name
                 st.step]
@@ -388,3 +407,4 @@
   )
 
 (require macro-debugger/stepper)
+
