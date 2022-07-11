@@ -242,7 +242,7 @@
 
     [(suspend pv)
      (for/pv-state-tree ([stx pv])
-       (make-suspension stx (current-def-ctx)))]))
+       (make-suspension (add-scopes stx local-scopes) (current-def-ctx)))]))
 
 ; f is nonterm-transformer
 ; seq is (listof (treeof syntax?))
