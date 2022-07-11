@@ -68,6 +68,12 @@
 
   (define (binding-as-rkt bclass-id description)
     (lambda (s stx)
+      (when (not (current-binding-compilers))
+        (raise-syntax-error
+         #f
+         (format "reference to binding of class ~a encountered in Racket expression outside of resume-host-expansion"
+                 bclass-id)
+         stx))
       (let ([compile (free-id-table-ref
                       (current-binding-compilers) bclass-id
                       (lambda ()
