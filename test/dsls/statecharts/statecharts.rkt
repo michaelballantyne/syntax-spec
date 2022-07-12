@@ -10,7 +10,7 @@
 
 (define-hosted-syntaxes
   (binding-class data-var)
-  (binding-class event-arg)
+  (binding-class local-var)
   (binding-class machine-name)
   (binding-class state-name)
 
@@ -35,12 +35,21 @@
     (~> ((~literal on) header body:expr ...)
         #'(on header #:when (lambda (v) #t) body ...))
     
-    (on (evt:id arg:event-arg ...) #:when guard:expr
-      a:action-spec ...
-      t:transition-spec)
-    #:binding {(bind arg) (host guard) a t}
-    )
+    (on (evt:id arg:local-var ...) #:when guard:expr
+      . b:event-body)
+    #:binding {(bind arg) (host guard) b})
 
+  (nonterminal event-body
+    [((~literal let*) (b:binding ...) . body:event-body)]
+    #:binding (nest b body)
+    
+    [a:action-spec ...
+     t:transition-spec])
+
+  (nesting-nonterminal binding (nested)    
+    [v:local-var e:expr]
+    #:binding [(host e) {(bind v) nested}])
+  
   (nonterminal action-spec
     (set v:data-var e:expr)
     #:binding (host e))
@@ -162,25 +171,36 @@
      stx
      #:reference-compilers
      ([data-var compile-simple-ref]
-      [event-arg compile-simple-ref])))
+      [local-var compile-simple-ref])))
 
+
+  (define (compile-event-body data-id event-body)
+    (syntax-parse event-body
+      [[(let* ([v:id e] ...) . body)]
+       #:with (v-c ...) (compile-binders! compiled-ids #'(v ...))
+       #:with (e-c ...) (map compile-host-expression (attribute e))
+       #`(let* ([v-c e-c] ...)
+           #,(compile-event-body data-id #'body))]
+      [[(set data-var:id rhs:expr)
+        ...
+        (-> next-state)]
+       #:with (rhs-c ...) (map compile-host-expression (attribute rhs))
+       #`(values (next-state)
+                 (struct-copy machine-data #,data-id
+                              [data-var rhs-c]
+                              ...))]))
+  
   (define (compile-dispatch-clause data-id event)
     (syntax-parse event
-      #:literals (on ->)
+      #:literals (let* on ->)
       [(on (event-name:id arg:id ...)
          #:when guard:expr
-         (set data-var:id rhs:expr)
-         ...
-         (-> next-state))
+         . event-body)
        #:with (arg-c ...) (compile-binders! compiled-ids #'(arg ...))
        #:with guard-c (compile-host-expression #'guard)
-       #:with (rhs-c ...) (map compile-host-expression (attribute rhs))
        #`[(list 'event-name arg-c ...)
           #:when guard-c
-          (values (next-state)
-                  (struct-copy machine-data #,data-id
-                               [data-var rhs-c]
-                               ...))]]))
+          #,(compile-event-body data-id #'event-body)]]))
   
   (define (compile-machine machine-spec)
     (syntax-parse machine-spec
@@ -397,8 +417,10 @@
            (set accumulated-value 0)
            (-> unlocked))
          (on (coin value)
-           (set accumulated-value (+ value accumulated-value))
-           (-> locked)))
+           (let* ([new-value accumulated-value]
+                  [new-value (+ value new-value)])
+             (set accumulated-value new-value)
+             (-> locked))))
      
        (state unlocked
          (on (pass) (-> locked)))))
