@@ -52,6 +52,9 @@
   
   (nonterminal action-spec
     (set v:data-var e:expr)
+    #:binding (host e)
+
+    (emit e:expr)
     #:binding (host e))
 
   (nonterminal transition-spec
@@ -84,10 +87,10 @@
   (define (machine-step m evt)
     (match-define (machine state data step-f) m)
     
-    (define-values (state^ data^) (step-f state data evt))
+    (define-values (state^ data^ reactions) (step-f state data evt))
     (when (not state^)
       (event-error m evt))
-    (machine state^ data^ step-f))
+    (values (machine state^ data^ step-f) reactions))
 
   (define (state-error state)
     (error 'machine "invalid state: ~a" state))
@@ -101,9 +104,9 @@
     (define outer-state (car state))
     (match-define (machine nested-state nested-data nested-step-f) (cadr state))
     
-    (let-values ([(nested-state^ nested-data^) (nested-step-f nested-state nested-data event)])
+    (let-values ([(nested-state^ nested-data^ reactions) (nested-step-f nested-state nested-data event)])
       (if nested-state^
-          (values (list outer-state (machine nested-state^ nested-data^ nested-step-f)) data)
+          (values (list outer-state (machine nested-state^ nested-data^ nested-step-f)) data reactions)
           (event-handler event))))
 
   (define (machine-state-list m)
@@ -161,7 +164,7 @@
     #`(match #,event-id
         compiled-clause
         ...
-        [_ (values #f #f)]))
+        [_ (values #f #f #f)]))
 
   (define (compile-host-expression stx)
     (define (compile-simple-ref id)
@@ -176,6 +179,7 @@
 
   (define (compile-event-body data-id event-body)
     (syntax-parse event-body
+      #:literals (let* set emit ->)
       [[(let* ([v:id e] ...) . body)]
        #:with (v-c ...) (compile-binders! compiled-ids #'(v ...))
        #:with (e-c ...) (map compile-host-expression (attribute e))
@@ -183,16 +187,20 @@
            #,(compile-event-body data-id #'body))]
       [[(set data-var:id rhs:expr)
         ...
+        (emit emit-e:expr)
+        ...
         (-> next-state)]
        #:with (rhs-c ...) (map compile-host-expression (attribute rhs))
+       #:with (emit-e-c ...) (map compile-host-expression (attribute emit-e))
        #`(values (next-state)
                  (struct-copy machine-data #,data-id
                               [data-var rhs-c]
-                              ...))]))
+                              ...)
+                 (list emit-e-c ...))]))
   
   (define (compile-dispatch-clause data-id event)
     (syntax-parse event
-      #:literals (let* on ->)
+      #:literals (on)
       [(on (event-name:id arg:id ...)
          #:when guard:expr
          . event-body)
@@ -247,15 +255,15 @@
         (match (car state)
           ['walk
            (match event
-             ['(ped-time) (values (caution) data)]
-             [_ (values #f #f)])]
+             ['(ped-time) (values (caution) data '())]
+             [_ (values #f #f #f)])]
           ['caution
            (match event
-             ['(ped-time) (values (stop) data)]
-             [_ (values #f #f)])]
+             ['(ped-time) (values (stop) data '())]
+             [_ (values #f #f #f)])]
           ['stop
            (match event
-             [_ (values #f #f)])]))
+             [_ (values #f #f #f)])]))
       (rt:machine
        (walk)
        (list)
@@ -271,40 +279,40 @@
          (match (car state)
            ['green
             (match event
-              ['(time) (values (yellow) data)]
-              [_ (values #f #f)])]
+              ['(time) (values (yellow) data '())]
+              [_ (values #f #f #f)])]
            ['yellow
             (match event
-              ['(time) (values (red) data)]
-              [_ (values #f #f)])]
+              ['(time) (values (red) data '())]
+              [_ (values #f #f #f)])]
            ['red
             (rt:try-nested state
                            data
                            event
                            (lambda (event)
                              (match event
-                               ['(time) (values (green) data)]
-                               [_ (values #f #f)])))]))
+                               ['(time) (values (green) data '())]
+                               [_ (values #f #f #f)])))]))
        (rt:machine
         (green)
         (list)
         step-f))))
 
   (define (test-traffic-light init-m)
-    (define yellow-m (machine-step init-m '(time)))
+    (define-values (yellow-m _1) (machine-step init-m '(time)))
     
     (check-equal?
      (machine-state yellow-m)
      '(yellow))
 
 
-    (define red-m (machine-step yellow-m '(time)))
+    (define-values (red-m _2) (machine-step yellow-m '(time)))
 
     (check-equal?
      (machine-state red-m)
      '(red walk))
 
-    (define red-caution-m (machine-step red-m '(ped-time)))
+    (define-values (red-caution-m _3) (machine-step red-m '(ped-time)))
 
     (check-equal?
      (machine-state red-caution-m)
@@ -364,16 +372,20 @@
             (match event
               [(list 'coin value)
                #:when (>= value (- fare accumulated-value))
-               (values (unlocked) (struct-copy machine-data data
-                                               [accumulated-value 0]))]
+               (values (unlocked)
+                       (struct-copy machine-data data
+                                    [accumulated-value 0])
+                       '(unlock))]
               [(list 'coin value)
-               (values (locked) (struct-copy machine-data data
-                                             [accumulated-value (+ value accumulated-value)]))]
-              [_ (values #f #f)])]
+               (values (locked)
+                       (struct-copy machine-data data
+                                    [accumulated-value (+ value accumulated-value)])
+                       '())]
+              [_ (values #f #f #f)])]
            ['unlocked
             (match event
-              ['(pass) (values (locked) data)]
-              [_ (values #f #f)])]))
+              ['(pass) (values (locked) data '(lock))]
+              [_ (values #f #f #f)])]))
        (rt:machine
         (locked)
         (machine-data 0)
@@ -386,21 +398,35 @@
      (machine-state locked-m)
      '(locked))
 
-    (define still-locked-m (machine-step locked-m '(coin 4)))
+    (define-values (still-locked-m still-locked-e*) (machine-step locked-m '(coin 4)))
     
     (check-equal?
      (machine-state still-locked-m)
      '(locked))
 
-    (define unlocked1 (machine-step locked-m '(coin 5)))
+    (define-values (unlocked1 unlocked1-e*) (machine-step locked-m '(coin 5)))
     (check-equal?
      (machine-state unlocked1)
      '(unlocked))
+    (check-equal?
+     unlocked1-e*
+     '(unlock))
     
-    (define unlocked2 (machine-step still-locked-m '(coin 1)))
+    (define-values (unlocked2 unlocked2-e*) (machine-step still-locked-m '(coin 1)))
     (check-equal?
      (machine-state unlocked2)
      '(unlocked))
+    (check-equal?
+     unlocked2-e*
+     '(unlock))
+
+    (define-values (locked-again-m locked-again-e*) (machine-step unlocked2 '(pass)))
+    (check-equal?
+     (machine-state locked-again-m)
+     '(locked))
+    (check-equal?
+     locked-again-e*
+     '(lock))  
     )
 
   (test-turnstile turnstile/manually-compiled)
@@ -415,6 +441,7 @@
        (state locked
          (on (coin value) #:when (>= value (- fare accumulated-value))
            (set accumulated-value 0)
+           (emit 'unlock)
            (-> unlocked))
          (on (coin value)
            (let* ([new-value accumulated-value]
@@ -423,7 +450,9 @@
              (-> locked))))
      
        (state unlocked
-         (on (pass) (-> locked)))))
+         (on (pass)
+           (emit 'lock)
+           (-> locked)))))
  
     (test-turnstile turnstile))
   )
