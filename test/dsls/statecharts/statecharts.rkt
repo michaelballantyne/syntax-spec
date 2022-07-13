@@ -92,6 +92,9 @@
       (event-error m evt))
     (values (machine state^ data^ step-f) reactions))
 
+  (define (no-transition)
+    (values #f #f #f))
+
   (define (state-error state)
     (error 'machine "invalid state: ~a" state))
 
@@ -164,7 +167,7 @@
     #`(match #,event-id
         compiled-clause
         ...
-        [_ (values #f #f #f)]))
+        [_ (rt:no-transition)]))
 
   (define (compile-host-expression stx)
     (define (compile-simple-ref id)
@@ -256,14 +259,14 @@
           ['walk
            (match event
              ['(ped-time) (values (caution) data '())]
-             [_ (values #f #f #f)])]
+             [_ (rt:no-transition)])]
           ['caution
            (match event
              ['(ped-time) (values (stop) data '())]
-             [_ (values #f #f #f)])]
+             [_ (rt:no-transition)])]
           ['stop
            (match event
-             [_ (values #f #f #f)])]))
+             [_ (rt:no-transition)])]))
       (rt:machine
        (walk)
        (list)
@@ -280,11 +283,11 @@
            ['green
             (match event
               ['(time) (values (yellow) data '())]
-              [_ (values #f #f #f)])]
+              [_ (rt:no-transition)])]
            ['yellow
             (match event
               ['(time) (values (red) data '())]
-              [_ (values #f #f #f)])]
+              [_ (rt:no-transition)])]
            ['red
             (rt:try-nested state
                            data
@@ -292,7 +295,7 @@
                            (lambda (event)
                              (match event
                                ['(time) (values (green) data '())]
-                               [_ (values #f #f #f)])))]))
+                               [_ (rt:no-transition)])))]))
        (rt:machine
         (green)
         (list)
@@ -381,11 +384,13 @@
                        (struct-copy machine-data data
                                     [accumulated-value (+ value accumulated-value)])
                        '())]
-              [_ (values #f #f #f)])]
+              [_ (rt:no-transition)])]
            ['unlocked
             (match event
-              ['(pass) (values (locked) data '(lock))]
-              [_ (values #f #f #f)])]))
+              ['(pass) (values (locked)
+                               data
+                               '(lock))]
+              [_ (rt:no-transition)])]))
        (rt:machine
         (locked)
         (machine-data 0)

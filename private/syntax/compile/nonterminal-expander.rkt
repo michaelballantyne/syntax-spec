@@ -90,7 +90,7 @@
         (define env^
           (simple-expand
            bspec-e
-           (hash (~@ 'v (pattern-var-value v)) ...)))
+           (hash (~@ 'v (attribute v)) ...)))
         (rebind-pattern-vars
          (v ...)
          (values (hash-ref env^ 'v) ...)
@@ -110,7 +110,7 @@
            pass2-bspec-e
            (simple-expand
             pass1-bspec-e
-            (hash (~@ 'v (pattern-var-value v)) ...))))
+            (hash (~@ 'v (attribute v)) ...))))
         (rebind-pattern-vars
          (v ...)
          (values (hash-ref env^ 'v) ...)
@@ -129,7 +129,7 @@
     #`[pattern
         (expand-function-return
          bspec-e
-         (hash (~@ 'v (pattern-var-value v)) ...)
+         (hash (~@ 'v (attribute v)) ...)
          (lambda (env^)
            (rebind-pattern-vars
             (v ...)

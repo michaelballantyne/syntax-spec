@@ -30,8 +30,8 @@
        (expand-function-return
         bspec
         (hash
-         'v (pattern-var-value v)
-         'e (pattern-var-value e))
+         'v (attribute v)
+         'e (attribute e))
         (lambda (env)
           #`[#,(hash-ref env 'v) #,(hash-ref env 'e)]))]))
   
@@ -55,8 +55,8 @@
        (expand-function-return
         bspec
         (hash
-         'b (pattern-var-value b)
-         'e (pattern-var-value e))
+         'b (attribute b)
+         'e (attribute e))
         (lambda (env)
           #`(mylang-let* (#,@(hash-ref env 'b))
                          #,(hash-ref env 'e))))])))
