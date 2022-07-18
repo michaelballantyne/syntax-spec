@@ -1,6 +1,6 @@
 #lang racket/base
 
-(provide compile-nonterminal-expander generate-interface-expansion generate-definitions-interface-expansion)
+(provide compile-nonterminal-expander generate-interface-expansion)
   
 (require racket/base
          syntax/parse
@@ -79,45 +79,15 @@
         sspec maybe-bspec (and maybe-nested-id (add-scope maybe-nested-id sc)) variant binding-space-stx
         (lambda () #`(syntax/loc this-syntax #,(compile-sspec-to-template sspec)))))]))
 
-(define (generate-interface-expansion sspec maybe-bspec variant binding-space-stx generate-body)
-  (define sspec-pvars (sspec-bind-pvars! sspec))
-  (define bound-pvars sspec-pvars)
-    
-  (with-syntax ([(v ...) sspec-pvars]
-                [pattern (compile-sspec-to-pattern sspec binding-space-stx)]
-                [bspec-e (compile-bspec maybe-bspec bound-pvars variant)])
-    #`[pattern
-        (define env^
-          (simple-expand
-           bspec-e
-           (hash (~@ 'v (attribute v)) ...)))
-        (rebind-pattern-vars
-         (v ...)
-         (values (hash-ref env^ 'v) ...)
-         #,(generate-body))]))
 
-(define (generate-definitions-interface-expansion sspec maybe-bspec variant binding-space-stx generate-body)
-  (define sspec-pvars (sspec-bind-pvars! sspec))
-  (define bound-pvars sspec-pvars)
-    
-  (with-syntax ([(v ...) sspec-pvars]
-                [pattern (compile-sspec-to-pattern sspec binding-space-stx)]
-                [pass1-bspec-e (compile-bspec maybe-bspec bound-pvars #'#:pass1)]
-                [pass2-bspec-e (compile-bspec maybe-bspec bound-pvars #'#:pass2)])
-    #`[pattern
-        (define env^
-          (simple-expand
-           pass2-bspec-e
-           (simple-expand
-            pass1-bspec-e
-            (hash (~@ 'v (attribute v)) ...))))
-        (rebind-pattern-vars
-         (v ...)
-         (values (hash-ref env^ 'v) ...)
-         #,(generate-body))]))
+(define (generate-prod-expansion sspec maybe-bspec maybe-nested-id variant binding-space-stx generate-body)
+  (generate-expansion sspec maybe-bspec maybe-nested-id (list variant) #'expand-function-return binding-space-stx generate-body))
+
+(define (generate-interface-expansion sspec maybe-bspec pass-variants generate-body)
+  (generate-expansion sspec maybe-bspec #f pass-variants #'expand-top #f generate-body))
 
 ; TODO: lacking hygiene b/t introduced vars and generate-body
-(define (generate-prod-expansion sspec maybe-bspec maybe-nested-id variant binding-space-stx generate-body)
+(define (generate-expansion sspec maybe-bspec maybe-nested-id pass-variants bspec-evaluator binding-space-stx generate-body)
   (define sspec-pvars (sspec-bind-pvars! sspec))
   (define bound-pvars (if maybe-nested-id
                           (append sspec-pvars (list maybe-nested-id))
@@ -125,16 +95,19 @@
     
   (with-syntax ([(v ...) sspec-pvars]
                 [pattern (compile-sspec-to-pattern sspec binding-space-stx)]
-                [bspec-e (compile-bspec maybe-bspec bound-pvars variant)])
+                [(bspec-e ...)
+                 (for/list ([variant pass-variants])
+                   (compile-bspec maybe-bspec bound-pvars variant))])
     #`[pattern
-        (expand-function-return
-         bspec-e
+        (#,bspec-evaluator
+         (list bspec-e ...)
          (hash (~@ 'v (attribute v)) ...)
          (lambda (env^)
            (rebind-pattern-vars
             (v ...)
             (values (hash-ref env^ 'v) ...)
             #,(generate-body))))]))
+
 
 (define (generate-macro-clause extclass recur-id)
   (let ([ext-info (lookup extclass extclass-rep?)])

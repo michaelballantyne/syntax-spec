@@ -28,7 +28,7 @@
                          (bind 'v #f mylang-binding)
                          (nested)))))))
        (expand-function-return
-        bspec
+        (list bspec)
         (hash
          'v (attribute v)
          'e (attribute e))
@@ -42,7 +42,7 @@
        #'n]
       [v:id
        (expand-function-return
-        (ref 'v #f mylang-binding? "unbound mylang var reference")
+        (list (ref 'v #f mylang-binding? "unbound mylang var reference"))
         (hash
          'v #'v)
         (lambda (env) (hash-ref env 'v)))]
@@ -53,7 +53,7 @@
                (subexp 'e mylang-expand-expr)))
 
        (expand-function-return
-        bspec
+        (list bspec)
         (hash
          'b (attribute b)
          'e (attribute e))

@@ -192,13 +192,26 @@
         (~optional (~seq #:binding bspec))
         parse-body ...)
      #'(define-syntax name
-         (generate-host-interface/expression-transformer
-          sspec (~? (bspec) ()) parse-body ...))]))
+         (expression-macro
+          (generate-host-interface-transformer
+           sspec (~? (bspec) ()) (#:simple) parse-body ...)))]))
+
+(define-syntax define-host-interface/definitions
+  (syntax-parser
+    [(_ (name:id . sspec)
+        (~optional (~seq #:binding bspec))
+        parse-body ...)
+     #'(define-syntax name
+         (definition-macro
+           (wrap-bind-trampoline
+            (wrap-persist
+             (generate-host-interface-transformer
+              sspec (~? (bspec) ()) (#:pass1 #:pass2) parse-body ...)))))]))
 
 (begin-for-syntax
-  (define-syntax generate-host-interface/expression-transformer
+  (define-syntax generate-host-interface-transformer
     (syntax-parser
-      [(_ sspec ((~optional (~seq bspec))) parse-body ...)
+      [(_ sspec ((~optional (~seq bspec))) (variants ...) parse-body ...)
        (with-scope sc
          (define (generate-body)
            (add-scope
@@ -211,57 +224,26 @@
            (generate-interface-expansion
             (add-scope (attribute sspec) sc)
             (and (attribute bspec) (add-scope (attribute bspec) sc))
-            #'#:simple
-            #f
+            (syntax->list #'(variants ...))
             generate-body))
 
-         #'(expression-macro
-            (syntax-parser
+         #'(syntax-parser
               [(_ . rest)
                (define ctx this-syntax)
                (syntax-parse (attribute rest)
                  #:context ctx
-                 clause)])))])))
+                 clause)]))])))
 
-
-(define-syntax define-host-interface/definitions
+#;(define-syntax define-host-interface/definition
   (syntax-parser
+    #:datum-literals (define -> _)
     [(_ (name:id . sspec)
-        (~optional (~seq #:binding bspec))
+         (~optional (~seq #:binding bspec))
+        #:record idtable-ref:id
         parse-body ...)
      #'(define-syntax name
-         (generate-host-interface/definitions-transformer
-          sspec (~? (bspec) ()) parse-body ...))]))
-
-(begin-for-syntax
-  (define-syntax generate-host-interface/definitions-transformer
-    (syntax-parser
-      [(_ sspec ((~optional (~seq bspec))) parse-body ...)
-       (with-scope sc
-         (define (generate-body)
-           (add-scope
-            #'(syntax-parse #f
-                [_
-                 parse-body ...])
-            sc))
-
-         (define/syntax-parse clause
-           (generate-definitions-interface-expansion
-            (add-scope (attribute sspec) sc)
-            (and (attribute bspec) (add-scope (attribute bspec) sc))
-            #'#:simple
-            #f
-            generate-body))
-
-         #'(definition-macro
-             (wrap-bind-trampoline
-              (wrap-persist
-               (syntax-parser
-                 [(_ . rest)
-                  (define ctx this-syntax)
-                  (syntax-parse (attribute rest)
-                    #:context ctx
-                    clause)])))))])))
+         (generate-host-interface/definition-transformer
+          sspec (~? (bspec) ()) idtable-ref parse-body ...))]))
 
 ;;
 ;; phase 1 accessors

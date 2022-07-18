@@ -17,7 +17,7 @@
 
  binding-spec-well-formed?
 
- simple-expand
+ expand-top
  expand-function-return
  simple-expand-single-exp
 
@@ -151,21 +151,25 @@
 (define (call-reconstruct-function pvar-vals reconstruct-f)
   (flip-intro-scope (reconstruct-f (flip-intro-scope/env pvar-vals))))
 
-(define (expand-function-return spec pvar-vals reconstruct-f)
+(define (expand-function-return spec-list pvar-vals reconstruct-f)
+  ;; accepts a list for consistency with expand-top, but only a single spec is ever provided
+  (match-define (list spec) spec-list)
   (exp-f-ret spec (flip-intro-scope/env pvar-vals) reconstruct-f (current-syntax-context)))
 
 
 ;; Use only for the initial call at an interface macro.
 ;; spec, env -> env
-(define (simple-expand spec pvar-vals)
+(define (expand-top pass-specs pvar-vals k)
   (parameterize ([current-orig-stx (current-syntax-context)])
     (define posspace-env (flip-intro-scope/env pvar-vals))
-    (define res (simple-expand-internal spec (exp-state posspace-env #f) '()))
-    (flip-intro-scope/env (exp-state-pvar-vals res))))
+    (define res
+      (for/fold ([env posspace-env])
+                ([pass-spec pass-specs])
+        (exp-state-pvar-vals (simple-expand-internal pass-spec (exp-state posspace-env #f) '()))))
+    (k (flip-intro-scope/env res))))
 
 (define (simple-expand-single-exp f stx)
-  (hash-ref (simple-expand (subexp 'inject f) (hash 'inject stx))
-            'inject))
+  (expand-top (list (subexp 'inject f)) (hash 'inject stx) (lambda (env^) (hash-ref env^ 'inject))))
 
 ; Note: expects negative-space id, just like ee-lib `bind!`
 (define do-bind!

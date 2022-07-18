@@ -23,21 +23,22 @@
        #'n]
       [v:id
        (expand-function-return
-        (ref 'v #f mylang-binding? "unbound mylang var reference")
+        (list (ref 'v #f mylang-binding? "unbound mylang var reference"))
         (hash
          'v #'v)
         (lambda (env)
           (hash-ref env 'v)))]
       [(mylang-let ([v e]) b)
        (expand-function-return
-        (group
-         (list
-          (subexp 'e mylang-expand-expr)
-          (scope
-           (group
-            (list
-             (bind 'v #f mylang-binding)
-             (subexp 'b mylang-expand-expr))))))
+        (list
+         (group
+          (list
+           (subexp 'e mylang-expand-expr)
+           (scope
+            (group
+             (list
+              (bind 'v #f mylang-binding)
+              (subexp 'b mylang-expand-expr)))))))
         (hash
          'v #'v
          'e #'e
