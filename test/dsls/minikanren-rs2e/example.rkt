@@ -25,6 +25,22 @@
     
     (f))
 
+  (let ()
+    (defrel (eveno x)
+      (conde
+       [(== x 'z)]
+       [(fresh (x-1)
+          (== x `(s ,x-1))
+          (oddo x-1))]))
+    
+    (defrel (oddo x)
+      (fresh (x-1)
+        (== x `(s ,x-1))
+        (eveno x-1)))
+    
+    (run 4 (q)
+      (eveno q)))
+
   (run 1 (q)
     (fresh (x)
       (== q `(,x . 5))
