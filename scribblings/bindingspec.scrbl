@@ -117,6 +117,17 @@
            pattern-directive ...
            body ...+)]
 
+@defform[#:literals (-> define)
+         (define-host-interface/definition
+           (id . syntax-spec)
+           maybe-binding-spec
+           ->
+           (define
+             [pattern-directive ...
+              body ...+]
+             [pattern-directive ...
+              body ...+]))]
+
 @defform[(define-host-interface/definitions
            (id . syntax-spec)
            maybe-binding-spec
@@ -158,11 +169,13 @@
 
 @subsubsection{Compiling bindings and references}
 
-@defproc[(compile-binder! [table (or/c mutable-free-id-table? persistent-free-id-table?)] [id identifier?]) identifier?]
+@defthing[compiled-ids persistent-free-id-table?]
 
-@defproc[(compile-binders! [table (or/c mutable-free-id-table? persistent-free-id-table?)] [ids (listof identifier?)]) (listof identifier?)]
+@defproc[(compile-binder! [id identifier?] [#:table table (or/c mutable-free-id-table? persistent-free-id-table?) compiled-ids]) identifier?]
 
-@defproc[(compile-reference [table (or/c free-id-table? persistent-free-id-table?)] [id identifier?]) identifier?]
+@defproc[(compile-binders! [ids (listof identifier?)] [#:table table (or/c mutable-free-id-table? persistent-free-id-table?) compiled-ids]) (listof identifier?)]
+
+@defproc[(compile-reference [id identifier?] [#:table table (or/c free-id-table? persistent-free-id-table?) compiled-ids]) identifier?]
 
 
 @subsubsection{Binding spaces}

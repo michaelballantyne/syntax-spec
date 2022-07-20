@@ -9,6 +9,7 @@
 
           resume-host-expansion
           
+          compiled-ids
           compile-reference
           compile-binder!
           compile-binders!
