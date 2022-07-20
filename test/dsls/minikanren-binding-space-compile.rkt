@@ -11,7 +11,7 @@
     (syntax-parser
       [((~space-literal fresh1 mk) (v ...) b)
        #:with (v-c ...) (for/list ([v (attribute v)])
-                          (compile-binder! compiled-var v))
+                          (compile-binder! v))
        #`(let ([v-c (gensym)] ...)
            #,(compile-goal #'b))]
       [((~space-literal == mk) t1 t2)
@@ -25,7 +25,7 @@
        (resume-host-expansion
         #'e
         #:reference-compilers ([term-variable
-                                (lambda (id) (compile-reference compiled-var id))]))])))
+                                (lambda (id) (compile-reference id))]))])))
 
 (define-host-interface/expression
   (run n:expr (qvar:term-variable ...)

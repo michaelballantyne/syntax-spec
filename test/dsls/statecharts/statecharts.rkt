@@ -70,7 +70,7 @@
 (define-host-interface/definitions
   (define-machine n:machine-name . spec:machine-spec)
   #:binding (export n)
-  #:with compiled-n (compile-binder! compiled-ids #'n)
+  #:with compiled-n (compile-binder! #'n)
   #:with machine-constructor (compile-machine #'spec)
   #'(define compiled-n machine-constructor))
   
@@ -129,8 +129,6 @@
 ;; Compiler
 
 (begin-for-syntax
-  (define-persistent-free-id-table compiled-ids)
-
   (define-syntax-class (compile-state/cls state-id data-id event-id)
     #:literals (composite-state state)
     (pattern
@@ -149,7 +147,7 @@
         . events)
 
       #:attr constructor
-      (with-syntax ([compiled-nested (compile-reference compiled-ids #'nested)])
+      (with-syntax ([compiled-nested (compile-reference #'nested)])
         #'(define (state-name) (list 'state-name (compiled-nested))))
       
       #:attr step
@@ -170,21 +168,18 @@
         [_ (rt:no-transition)]))
 
   (define (compile-host-expression stx)
-    (define (compile-simple-ref id)
-      (compile-reference compiled-ids id))
-    
     (resume-host-expansion
      stx
      #:reference-compilers
-     ([data-var compile-simple-ref]
-      [local-var compile-simple-ref])))
+     ([data-var compile-reference]
+      [local-var compile-reference])))
 
 
   (define (compile-event-body data-id event-body)
     (syntax-parse event-body
       #:literals (let* set emit ->)
       [[(let* ([v:id e] ...) . body)]
-       #:with (v-c ...) (compile-binders! compiled-ids #'(v ...))
+       #:with (v-c ...) (compile-binders! #'(v ...))
        #:with (e-c ...) (map compile-host-expression (attribute e))
        #`(let* ([v-c e-c] ...)
            #,(compile-event-body data-id #'body))]
@@ -207,7 +202,7 @@
       [(on (event-name:id arg:id ...)
          #:when guard:expr
          . event-body)
-       #:with (arg-c ...) (compile-binders! compiled-ids #'(arg ...))
+       #:with (arg-c ...) (compile-binders! #'(arg ...))
        #:with guard-c (compile-host-expression #'guard)
        #`[(list 'event-name arg-c ...)
           #:when guard-c
@@ -221,7 +216,7 @@
         ...
         (~var st (compile-state/cls #'state #'data #'event))
         ...]
-       #:with (compiled-data-var ...) (compile-binders! compiled-ids #'(data-var ...))
+       #:with (compiled-data-var ...) (compile-binders! #'(data-var ...))
        #'(lambda ()
            (struct machine-data [data-var ...] #:prefab)
            

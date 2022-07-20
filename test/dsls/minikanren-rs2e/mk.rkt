@@ -145,9 +145,9 @@
       relation-arity
       #'name
       (length (syntax->list #'(x ...))))
-     (compile-binder! compiled-names #'name)]
+     (compile-binder! #'name)]
     
-    [#:with (compiled-x ...) (compile-binders! compiled-names #'(x ...))
+    [#:with (compiled-x ...) (compile-binders! #'(x ...))
      #`(lambda (compiled-x ...)
          (lambda (s)
            (lambda ()
@@ -157,7 +157,7 @@
   (core-run n:expr q:term-variable g:goal)
   #:binding {(bind q) g}
 
-  #:with compiled-q (compile-binder! compiled-names #'q)
+  #:with compiled-q (compile-binder! #'q)
   
   #`(let ([compiled-q (var 'q)])
       (map (reify compiled-q)
@@ -193,7 +193,6 @@
 ;;
 
 (begin-for-syntax
-  (define-persistent-free-id-table compiled-names)
   (define-persistent-free-id-table relation-arity)
   
   (define (compile-goal g)
@@ -210,22 +209,22 @@
       [(conj2 g1 g2)
        #`(conj2-rt #,(compile-goal #'g1) #,(compile-goal #'g2))]
       [(fresh1 (x) b)
-       #:with compiled-x (compile-binder! compiled-names #'x)
+       #:with compiled-x (compile-binder! #'x)
        #`(call/fresh 'x (lambda (compiled-x) #,(compile-goal #'b)))]
       
       [(project (x ...) e:expr ...)
        (define/syntax-parse (compiled-x-ref ...)
          (for/list ([x (attribute x)])
-           (compile-reference compiled-names x)))
+           (compile-reference x)))
 
        (define compiled-projected (make-free-id-table))
        (define/syntax-parse (compiled-x-projected ...)
          (for/list ([x (attribute x)])
-           (compile-binder! compiled-projected x)))
+           (compile-binder! x #:table compiled-projected)))
        
        (define (compile-term-reference id)
          (if (free-id-table-ref compiled-projected id #f)
-             (compile-reference compiled-projected id)
+             (compile-reference id #:table compiled-projected)
              (raise-syntax-error #f "only projected logic variables may be used from Racket code" id)))
 
        (define/syntax-parse (e-resume ...)
@@ -242,7 +241,7 @@
       [(once g)
        #`(once-rt #,(compile-goal #'g))]
       [(relname t ...)
-       #:with compiled-relation (compile-reference compiled-names #'relname)
+       #:with compiled-relation (compile-reference #'relname)
        #:with (compiled-term ...) (map compile-term (attribute t))
 
        (let ([actual (length (attribute t))]
@@ -261,7 +260,7 @@
       [n:number
        #''n]
       [x:id
-       (compile-reference compiled-names #'x)]
+       (compile-reference #'x)]
       [(quote t)
        #''t]
       [(cons t1 t2)

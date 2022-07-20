@@ -8,20 +8,17 @@
   (nonterminal dsl-e
     n:number))
 
-(begin-for-syntax
-  (define-persistent-free-id-table compiled-ids))
-
 (define-host-interface/definition
   (dsl-def x:dsl-var rhs:dsl-e)
   #:binding (export x)
   ->
   (define
-    [(compile-binder! compiled-ids #'x)]
+    [(compile-binder! #'x)]
     [#''rhs]))
 
 (define-host-interface/expression
   (dsl-ref v:dsl-var)
-  (compile-reference compiled-ids #'v))
+  (compile-reference #'v))
 
 
 (define f (lambda () (dsl-ref x)))

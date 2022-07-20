@@ -7,14 +7,12 @@
          (for-syntax syntax/id-table))
 
 (begin-for-syntax
-  (define compiled-var (make-free-id-table))
-  
   (define compile-goal
     (syntax-parser
       #:literals (== fresh)
       [(fresh1 (v ...) b)
        #:with (v-c ...) (for/list ([v (attribute v)])
-                          (compile-binder! compiled-var v))
+                          (compile-binder! v))
        #`(let ([v-c (gensym)] ...)
            #,(compile-goal #'b))]
       [(== t1 t2)
@@ -28,8 +26,7 @@
       [(rkt e)
        (resume-host-expansion
         #'e
-        #:reference-compilers ([term-variable
-                                (lambda (id) (compile-reference compiled-var id))]))])))
+        #:reference-compilers ([term-variable compile-reference]))])))
 
 (define-host-interface/expression
   (run n:expr (qvar:term-variable ...)
