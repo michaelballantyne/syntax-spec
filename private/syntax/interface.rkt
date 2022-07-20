@@ -2,6 +2,7 @@
 
 (provide define-hosted-syntaxes
          define-host-interface/expression
+         define-host-interface/definition
          define-host-interface/definitions
          
          (for-syntax binding-class-predicate
@@ -24,7 +25,8 @@
    ee-lib/persistent-id-table
    "syntax-classes.rkt"
    "../runtime/binding-spec.rkt"
-   "../runtime/errors.rkt")
+   "../runtime/errors.rkt"
+   ee-lib/private/lift-trampoline)
   
   (for-meta 2
             racket/base
@@ -33,6 +35,7 @@
             ee-lib
             "env-reps.rkt"
             "syntax-classes.rkt"
+            "compile/syntax-spec.rkt"
             "compile/nonterminal-expander.rkt"))
 
 ;;
@@ -228,22 +231,59 @@
             generate-body))
 
          #'(syntax-parser
-              [(_ . rest)
-               (define ctx this-syntax)
-               (syntax-parse (attribute rest)
-                 #:context ctx
-                 clause)]))])))
+             [(_ . rest)
+              (define ctx this-syntax)
+              (syntax-parse (attribute rest)
+                #:context ctx
+                clause)]))])))
 
-#;(define-syntax define-host-interface/definition
+
+(define-syntax define-host-interface/definition
   (syntax-parser
-    #:datum-literals (define -> _)
+    #:datum-literals (-> define)
     [(_ (name:id . sspec)
-         (~optional (~seq #:binding bspec))
-        #:record idtable-ref:id
-        parse-body ...)
-     #'(define-syntax name
-         (generate-host-interface/definition-transformer
-          sspec (~? (bspec) ()) idtable-ref parse-body ...))]))
+        (~optional (~seq #:binding bspec))
+        -> (define [name-parse-body ...] [rhs-parse-body ...]))
+     #'(begin
+         (define-syntax pass2-macro
+           (expression-macro
+            (generate-host-interface-transformer
+             sspec (~? (bspec) ()) (#:pass2) rhs-parse-body ...)))
+         (define-syntax name
+           (definition-macro
+             (wrap-bind-trampoline
+              (wrap-persist
+               (generate-host-interface-transformer/definition-pass1
+                sspec (~? (bspec) ()) [name-parse-body ...] pass2-macro))))))]))
+
+(begin-for-syntax
+  (define-syntax generate-host-interface-transformer/definition-pass1
+    (syntax-parser
+      [(_ sspec-arg ((~optional (~seq bspec-arg))) [name-parse-body ...] pass2-macro)
+       (with-scope sc
+         (define sspec (add-scope (attribute sspec-arg) sc))
+         (define bspec (and (attribute bspec-arg) (add-scope (attribute bspec-arg) sc)))
+         
+         (define (generate-body)
+           #`(with-syntax ([compiled-name (syntax-parse #f
+                                            [_
+                                             #,@(add-scope #'[name-parse-body ...] sc)])])
+               (trampoline-lift! #'(define compiled-name (pass2-macro . #,(compile-sspec-to-template sspec))))
+               #'(begin)))
+
+         (define/syntax-parse clause
+           (generate-interface-expansion
+            sspec
+            bspec
+            (list #'#:pass1)
+            generate-body))
+
+         #'(syntax-parser
+             [(_ . rest)
+              (define ctx this-syntax)
+              (syntax-parse (attribute rest)
+                #:context ctx
+                clause)]))])))
 
 ;;
 ;; phase 1 accessors

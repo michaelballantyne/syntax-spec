@@ -136,22 +136,22 @@
 ;; Interface macros
 ;;
 
-(define-host-interface/definitions
+(define-host-interface/definition
   (core-defrel (name:relation-name x:term-variable ...) g:goal)
   #:binding [(export name) {(bind x) g}]
-  
-  #:with compiled-name (compile-binder! compiled-names #'name)
-  #:with (compiled-x ...) (compile-binders! compiled-names #'(x ...))
-
-  (persistent-free-id-table-set!
-   relation-arity
-   #'name
-   (length (syntax->list #'(x ...))))
-
-  #`(define (compiled-name compiled-x ...)
-      (lambda (s)
-        (lambda ()
-          (#,(compile-goal #'g) s)))))
+  ->
+  (define
+    [(persistent-free-id-table-set!
+      relation-arity
+      #'name
+      (length (syntax->list #'(x ...))))
+     (compile-binder! compiled-names #'name)]
+    
+    [#:with (compiled-x ...) (compile-binders! compiled-names #'(x ...))
+     #`(lambda (compiled-x ...)
+         (lambda (s)
+           (lambda ()
+             (#,(compile-goal #'g) s))))]))
 
 (define-host-interface/expression
   (core-run n:expr q:term-variable g:goal)
