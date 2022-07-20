@@ -197,7 +197,7 @@
      #'(define-syntax name
          (expression-macro
           (generate-host-interface-transformer
-           sspec (~? (bspec) ()) (#:simple) parse-body ...)))]))
+           name sspec (~? (bspec) ()) (#:simple) parse-body ...)))]))
 
 (define-syntax define-host-interface/definitions
   (syntax-parser
@@ -209,12 +209,12 @@
            (wrap-bind-trampoline
             (wrap-persist
              (generate-host-interface-transformer
-              sspec (~? (bspec) ()) (#:pass1 #:pass2) parse-body ...)))))]))
+              name sspec (~? (bspec) ()) (#:pass1 #:pass2) parse-body ...)))))]))
 
 (begin-for-syntax
   (define-syntax generate-host-interface-transformer
     (syntax-parser
-      [(_ sspec ((~optional (~seq bspec))) (variants ...) parse-body ...)
+      [(_ ctx-id sspec ((~optional (~seq bspec))) (variants ...) parse-body ...)
        (with-scope sc
          (define (generate-body)
            (add-scope
@@ -234,7 +234,7 @@
              [(_ . rest)
               (define ctx this-syntax)
               (syntax-parse (attribute rest)
-                #:context ctx
+                #:context #'ctx-id
                 clause)]))])))
 
 
@@ -248,7 +248,7 @@
          (define-syntax pass2-macro
            (expression-macro
             (generate-host-interface-transformer
-             sspec (~? (bspec) ()) (#:pass2) rhs-parse-body ...)))
+             name sspec (~? (bspec) ()) (#:pass2) rhs-parse-body ...)))
          (define-syntax name
            (definition-macro
              (wrap-bind-trampoline
