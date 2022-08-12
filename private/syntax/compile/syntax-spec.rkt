@@ -28,7 +28,7 @@
       [(name:form-id . term)
        (with-syntax ([literal-c (generate-pattern-literal #'name binding-space-stx)]
                      [term-c (generate-pattern-term #'term)])
-         #'(literal-c ~! . term-c))]
+         #'(literal-c . term-c))]
       [name:form-id
        (generate-pattern-literal #'name binding-space-stx)]
       [_ (generate-pattern-term this-syntax)]))
