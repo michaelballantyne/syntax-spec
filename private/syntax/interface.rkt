@@ -21,6 +21,7 @@
    racket/function
    racket/syntax
    syntax/parse
+   syntax/id-set
    ee-lib
    ee-lib/persistent-id-table
    "syntax-classes.rkt"
@@ -158,19 +159,15 @@
     (with-syntax ([name name-stx]
                   [litset-name (or (attribute opts.litset-binder) (generate-temporary name-stx))]
                   [error-message (make-error-message name-stx (attribute opts.description))]
-                  [(form-name ...) (filter identity form-names)]
+                  [(form-name ...) (deduplicate-form-names (filter identity form-names))]
                   [variant-info variant-info-stx])
-      (check-duplicate-forms form-names)
       #'(begin
           (define-literal-forms litset-name #:binding-space opts.space-stx 'error-message (form-name ...))
           (begin-for-syntax
             (define-syntax name (nonterm-rep variant-info))))))
-  
-  (define (check-duplicate-forms form-names)
-    (let ([maybe-dup-id (check-duplicate-identifier
-                         (filter identity (flatten form-names)))])
-      (when maybe-dup-id
-        (wrong-syntax maybe-dup-id "duplicate form name"))))
+
+  (define (deduplicate-form-names form-names)
+    (bound-id-set->list (immutable-bound-id-set form-names)))
 
   (define (make-error-message name description)
     (string-append

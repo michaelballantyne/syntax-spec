@@ -5,8 +5,8 @@
 (define-hosted-syntaxes
   (nonterminal flow-expr 
     (fanout n:number)
-    (~literal fanout)
-    ((~literal fanout) n1:number n2:number)))
+    fanout
+    (fanout n1:number n2:number)))
 
 (define-host-interface/expression
   (flow f:flow-expr)
