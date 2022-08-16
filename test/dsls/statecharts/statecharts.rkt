@@ -22,22 +22,18 @@
     (data v:data-var e:expr)
     #:binding (export v)
 
-    (state n:state-name
-      e:event-spec ...)
+    (state n:state-name #:nested-machine nm:machine-name e:event-spec ...)
     #:binding (export n)
     
-    (composite-state n:state-name
-      #:machine nm:machine-name
-      e:event-spec ...)
+    (state n:state-name e:event-spec ...)
     #:binding (export n))
 
   (nonterminal event-spec
-    (~> ((~literal on) header body:expr ...)
-        #'(on header #:when (lambda (v) #t) body ...))
+    (on (evt:id arg:local-var ...) #:when guard:expr . b:event-body)
+    #:binding {(bind arg) (host guard) b}
     
-    (on (evt:id arg:local-var ...) #:when guard:expr
-      . b:event-body)
-    #:binding {(bind arg) (host guard) b})
+    (on (evt:id arg:local-var ...) . b:event-body)
+    #:binding {(bind arg) b})
 
   (nonterminal event-body
     [((~literal let*) (b:binding ...) . body:event-body)]
@@ -130,20 +126,10 @@
 
 (begin-for-syntax
   (define-syntax-class (compile-state/cls state-id data-id event-id)
-    #:literals (composite-state state)
+    #:literals (state)
     (pattern
       (state state-name:id
-        . events)
-      
-      #:attr constructor
-      #'(define (state-name) '(state-name))
-      
-      #:attr step
-      (compile-dispatch event-id data-id #'events))
-    
-    (pattern
-      (composite-state state-name:id
-        #:machine nested:id
+        #:nested-machine nested:id
         . events)
 
       #:attr constructor
@@ -155,7 +141,16 @@
                        #,data-id
                        #,event-id
                        (lambda (event)
-                         #,(compile-dispatch #'event data-id #'events)))))
+                         #,(compile-dispatch #'event data-id #'events))))
+    (pattern
+      (state state-name:id
+        . events)
+      
+      #:attr constructor
+      #'(define (state-name) '(state-name))
+      
+      #:attr step
+      (compile-dispatch event-id data-id #'events)))
       
 
   (define (compile-dispatch event-id data-id events)
@@ -200,12 +195,12 @@
     (syntax-parse event
       #:literals (on)
       [(on (event-name:id arg:id ...)
-         #:when guard:expr
+         (~optional (~seq #:when guard:expr))
          . event-body)
        #:with (arg-c ...) (compile-binders! #'(arg ...))
-       #:with guard-c (compile-host-expression #'guard)
+       #:attr guard-c (and (attribute guard) (compile-host-expression #'guard))
        #`[(list 'event-name arg-c ...)
-          #:when guard-c
+          (~@ . (~? (#:when guard-c) ()))
           #,(compile-event-body data-id #'event-body)]]))
   
   (define (compile-machine machine-spec)
@@ -345,8 +340,8 @@
          (on (time) (-> yellow)))
        (state yellow
          (on (time) (-> red)))
-       (composite-state red
-         #:machine walk-signal
+       (state red
+         #:nested-machine walk-signal
          (on (time) (-> green)))))
   
     (test-traffic-light traffic-light))
