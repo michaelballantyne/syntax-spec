@@ -29,24 +29,20 @@
     #:binding (export n))
 
   (nonterminal event-spec
-    (on (evt:id arg:local-var ...) #:when guard:expr . b:event-body)
+    (on (evt:id arg:local-var ...) #:when guard:expr b:action-spec ... t:transition-spec)
     #:binding {(bind arg) (host guard) b}
     
-    (on (evt:id arg:local-var ...) . b:event-body)
+    (on (evt:id arg:local-var ...) b:action-spec ... t:transition-spec)
     #:binding {(bind arg) b})
-
-  (nonterminal event-body
-    [((~literal let*) (b:binding ...) . body:event-body)]
-    #:binding (nest b body)
-    
-    [a:action-spec ...
-     t:transition-spec])
 
   (nesting-nonterminal binding (nested)    
     [v:local-var e:expr]
     #:binding [(host e) {(bind v) nested}])
   
   (nonterminal action-spec
+    ((~literal let*) (b:binding ...) a:action-spec ...)
+    #:binding (nest b a)
+    
     (set v:data-var e:expr)
     #:binding (host e)
 
@@ -169,27 +165,42 @@
      ([data-var compile-reference]
       [local-var compile-reference])))
 
+  (define (action-expr-bindings action-expr)
+    (syntax-parse action-expr
+      #:literals (let*)
+      [(let* (binding ...) body ...)
+       (apply append
+              (attribute binding)
+              (map action-expr-bindings (attribute body)))]
+      [_ '()]))
+
+  (define (action-expr-actions action-expr)
+    (syntax-parse action-expr
+      #:literals (let*)
+      [(let* (binding ...) body ...)
+       (apply append (map action-expr-actions (attribute body)))]
+      [_ (list this-syntax)]))
 
   (define (compile-event-body data-id event-body)
     (syntax-parse event-body
       #:literals (let* set emit ->)
-      [[(let* ([v:id e] ...) . body)]
+      [[action ... (-> next-state)]
+       #:with ([v e] ...) (apply append (map action-expr-bindings (attribute action)))
+       #:with ((~alt (set data-var:id rhs:expr)
+                     (emit emit-e:expr))
+               ...)
+       (apply append (map action-expr-actions (attribute action)))
+       
        #:with (v-c ...) (compile-binders! #'(v ...))
        #:with (e-c ...) (map compile-host-expression (attribute e))
-       #`(let* ([v-c e-c] ...)
-           #,(compile-event-body data-id #'body))]
-      [[(set data-var:id rhs:expr)
-        ...
-        (emit emit-e:expr)
-        ...
-        (-> next-state)]
        #:with (rhs-c ...) (map compile-host-expression (attribute rhs))
        #:with (emit-e-c ...) (map compile-host-expression (attribute emit-e))
-       #`(values (next-state)
-                 (struct-copy machine-data #,data-id
-                              [data-var rhs-c]
-                              ...)
-                 (list emit-e-c ...))]))
+       #`(let* ([v-c e-c] ...)
+           (values (next-state)
+                   (struct-copy machine-data #,data-id
+                                [data-var rhs-c]
+                                ...)
+                   (list emit-e-c ...)))]))
   
   (define (compile-dispatch-clause data-id event)
     (syntax-parse event
@@ -207,9 +218,8 @@
     (syntax-parse machine-spec
       #:literals (data state on ->)
       [[#:initial initial-state:id
-        (data data-var:id data-rhs:expr)
-        ...
-        (~var st (compile-state/cls #'state #'data #'event))
+        (~alt (data data-var:id data-rhs:expr)
+              (~var st (compile-state/cls #'state #'data #'event)))
         ...]
        #:with (compiled-data-var ...) (compile-binders! #'(data-var ...))
        #'(lambda ()
@@ -431,6 +441,11 @@
       (machine
        #:initial locked
 
+       (state unlocked
+         (on (pass)
+           (emit 'lock)
+           (-> locked)))
+       
        (data accumulated-value 0)
      
        (state locked
@@ -441,13 +456,10 @@
          (on (coin value)
            (let* ([new-value accumulated-value]
                   [new-value (+ value new-value)])
-             (set accumulated-value new-value)
-             (-> locked))))
-     
-       (state unlocked
-         (on (pass)
-           (emit 'lock)
-           (-> locked)))))
+             (set accumulated-value new-value))
+           (-> locked)))
+
+       ))
  
     (test-turnstile turnstile))
   )
