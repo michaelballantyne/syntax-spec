@@ -36,8 +36,6 @@
   #'(void))
 
 
-
-
 (define-host-interface/expression
   (mk-compile g:goal)
 

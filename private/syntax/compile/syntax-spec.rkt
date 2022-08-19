@@ -2,7 +2,8 @@
 
 (provide sspec-bind-pvars!
          compile-sspec-to-pattern
-         compile-sspec-to-template)
+         compile-sspec-to-template
+         generate-pattern-literal)
 
 (require syntax/parse
          racket/syntax

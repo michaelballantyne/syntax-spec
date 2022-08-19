@@ -37,9 +37,12 @@
  ;;   form-name - when sspec is an s-expression beginning with a nonref-id,
  ;;                 this attribute is bound to that id.
  production
+ form-production
  syntax-production
  rewrite-production
 
+ form-spec
+ 
  extclass-spec
 
  nonterminal-options
@@ -99,26 +102,34 @@
   #:description "nonterminal production"
   (pattern r:rewrite-production
     #:attr form-name #f)
+  (pattern p:form-production
+    #:attr form-name (attribute p.form-name))
   (pattern p:syntax-production
     #:attr form-name (attribute p.form-name)))
-
-(define-splicing-syntax-class syntax-production
-  #:description "production spec"
-  (pattern (~seq sspec:syntax-spec (~optional (~seq #:binding bspec)))
-    #:attr form-name (attribute sspec.form-name)))
-
-(define-syntax-class syntax-spec
-  #:description "syntax spec"
-  (pattern (form-name:form-id . _))
-  (pattern form-name:form-id)
-  (pattern _:expr #:attr form-name #f))
 
 (define-syntax-class rewrite-production
   #:description "rewrite spec"
   #:datum-literals (~>)
   (pattern (~> pat parse-body ... final-body)))
 
+(define-splicing-syntax-class form-production
+  #:description "production spec"
+  (pattern (~seq fspec:form-spec (~optional (~seq #:binding bspec)))
+    #:attr form-name (attribute fspec.form-name)))
 
+(define-splicing-syntax-class syntax-production
+  #:description "production spec"
+  (pattern (~seq sspec:syntax-spec (~optional (~seq #:binding bspec)))
+    #:attr form-name #f))
+
+(define-syntax-class form-spec
+  #:description "form spec"
+  (pattern (form-name:form-id . sspec:syntax-spec))
+  (pattern form-name:form-id))
+
+(define-syntax-class syntax-spec
+  #:description "syntax spec"
+  (pattern _))
 
   
 (define (has:? id)

@@ -29,9 +29,7 @@
       prod-arg ...)
      (define (generate-loop prods-stx maybe-nested-id init-stx-id)
        (define/syntax-parse ((prod:production) ...) prods-stx)
-       (with-syntax ([prod-clauses (map (lambda (prod)
-                                          (generate-prod-clause prod maybe-nested-id (attribute variant) #'recur (attribute opts.space-stx)))
-                                        (attribute prod))]
+       (with-syntax ([prod-clauses (generate-prod-clauses (attribute prod) maybe-nested-id (attribute variant) #'recur (attribute opts.space-stx))]
                      [macro-clauses (for/list ([extclass (attribute opts.ext-classes)])
                                       (generate-macro-clause extclass #'recur))]
                      [description (or (attribute opts.description) (symbol->string (syntax-e (attribute name))))]
@@ -61,24 +59,98 @@
      
      (generate-header)]))
 
-(define (generate-prod-clause prod-stx maybe-nested-id variant recur-id binding-space-stx)
-  (syntax-parse prod-stx
-    [(p:rewrite-production)
-     ;; Hygiene for rewrite productions only uses a macro introduction
-     ;; scope applied to the input and flipped on the output. 
-     (with-syntax ([recur recur-id])
-       #`[p.pat
-          p.parse-body ...
-          (recur p.final-body)])]
-    [(p:syntax-production)
-     (with-scope sc
-       (define sspec (add-scope (attribute p.sspec) sc))
-       (define maybe-bspec (and (attribute p.bspec) (add-scope (attribute p.bspec) sc)))
+(define (form-name prod)
+  (syntax-parse prod
+    [(p:production)
+     (attribute p.form-name)]))
 
-       (generate-prod-expansion
-        sspec maybe-bspec (and maybe-nested-id (add-scope maybe-nested-id sc)) variant binding-space-stx
-        (lambda () #`(syntax/loc this-syntax #,(compile-sspec-to-template sspec)))))]))
+;; Given a sequence of productions beginning with a form production, return two lists:
+;;  1. the prefix of form variants for the same form
+;;  2. the remainder of the productions
+;;
+;; Example:
+#; (list #'(a) #'(a e:expr) #'(b))
+;; ->
+#; (values (list #'(a) #'(a e:expr)) (list #'(b)))
+;;
+(define (gather-group prods)
+  (let loop ([prods prods]
+             [group (list (car prods))])
+    (if (and (pair? prods)
+             (identifier? (form-name (car prods)))
+             (bound-identifier=? (form-name (car group)) (form-name (car prods))))
+        (loop (cdr prods) (cons (car prods) group))
+        (values (reverse group) prods))))
 
+;; Given a list of productions, return a list where sequential variants of forms are grouped
+;; as a list. Raise an syntax when form variants are not adjacent.
+;;
+;; Example:
+#; (list #'(a)
+         #'[e:expr e:expr]
+         #'(b)
+         #'(b e:expr))
+;; ->
+#; (list (list #'(a))
+         #'[e:expr e:expr]
+         (list #'(b)
+               #'(b e)))
+;;
+(define (group-form-productions prods)
+  (let loop ([prods prods]
+             [seen-forms (immutable-bound-id-set)]
+             [res '()])
+    (if (null? prods)
+        (reverse res)
+        (syntax-parse (car prods)
+          [(p:form-production)
+           (when (bound-id-set-member? seen-forms #'p.form-name)
+             (wrong-syntax/orig #'p.fspec "all variants of the same-named form must occur together"))
+           (define-values (group remaining-prods) (gather-group prods))
+           (loop remaining-prods (bound-id-set-add seen-forms #'p.form-name) (cons group res))]
+          [_ (loop (cdr prods) seen-forms (cons (car prods) res))]))))
+
+(define (generate-prod-clauses prod-stxs maybe-nested-id variant recur-id binding-space-stx)
+  (define grouped (group-form-productions prod-stxs))
+  (for/list ([prod-or-group grouped])
+    (generate-prod-group-clause prod-or-group maybe-nested-id variant recur-id binding-space-stx)))
+
+(define (generate-prod-group-clause prod-group maybe-nested-id variant recur-id binding-space-stx)
+  (if (syntax? prod-group)
+      (syntax-parse prod-group
+        [(p:rewrite-production)
+         ;; Hygiene for rewrite productions only uses a macro introduction
+         ;; scope applied to the input and flipped on the output. 
+         (with-syntax ([recur recur-id])
+           #`[p.pat
+              p.parse-body ...
+              (recur p.final-body)])]
+        [(p:syntax-production)
+         (with-scope sc
+           (define sspec (add-scope (attribute p.sspec) sc))
+           (define maybe-bspec (and (attribute p.bspec) (add-scope (attribute p.bspec) sc)))
+
+           (generate-prod-expansion
+            sspec maybe-bspec (and maybe-nested-id (add-scope maybe-nested-id sc)) variant binding-space-stx
+            (lambda () #`(syntax/loc this-syntax #,(compile-sspec-to-template sspec)))))])
+      (syntax-parse (car prod-group)
+        [(p:form-production)
+         #`[(~or #,(generate-pattern-literal #'p.form-name binding-space-stx)
+                 (#,(generate-pattern-literal #'p.form-name binding-space-stx) . _))
+            #,(generate-form-production-body prod-group maybe-nested-id variant recur-id binding-space-stx)]])))
+
+(define (generate-form-production-body prod-group maybe-nested-id variant recur-id binding-space-stx)
+  #`(syntax-parse this-syntax
+      #,@(for/list ([prod prod-group])
+           (syntax-parse prod
+             [(p:form-production)
+              (with-scope sc
+                (define sspec (add-scope (attribute p.fspec) sc))
+                (define maybe-bspec (and (attribute p.bspec) (add-scope (attribute p.bspec) sc)))
+
+                (generate-prod-expansion
+                 sspec maybe-bspec (and maybe-nested-id (add-scope maybe-nested-id sc)) variant binding-space-stx
+                 (lambda () #`(syntax/loc this-syntax #,(compile-sspec-to-template sspec)))))]))))
 
 (define (generate-prod-expansion sspec maybe-bspec maybe-nested-id variant binding-space-stx generate-body)
   (generate-expansion sspec maybe-bspec maybe-nested-id (list variant) #'expand-function-return binding-space-stx generate-body))
