@@ -40,6 +40,7 @@
  form-production
  syntax-production
  rewrite-production
+ form-rewrite-production
 
  form-spec
  
@@ -96,16 +97,23 @@
 (define-syntax-class form-id
   (pattern name:nonref-id
     #:when (not (member (syntax-e #'name)
-                        '(~datum ~literal ~> ... ...+)))))
+                        '(~datum ~literal ~> ~>/form ... ...+)))))
 
 (define-splicing-syntax-class production
   #:description "nonterminal production"
   (pattern r:rewrite-production
     #:attr form-name #f)
+  (pattern r:form-rewrite-production
+    #:attr form-name (attribute r.form-name))
   (pattern p:form-production
     #:attr form-name (attribute p.form-name))
   (pattern p:syntax-production
     #:attr form-name (attribute p.form-name)))
+
+(define-syntax-class form-rewrite-production
+  #:description "form rewrite spec"
+  #:datum-literals (~>/form)
+  (pattern (~>/form (~and pat (form-name:id . _)) parse-body ... final-body)))
 
 (define-syntax-class rewrite-production
   #:description "rewrite spec"

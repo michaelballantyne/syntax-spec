@@ -103,7 +103,7 @@
     (if (null? prods)
         (reverse res)
         (syntax-parse (car prods)
-          [(p:form-production)
+          [(~or (p:form-production) (p:form-rewrite-production))
            (when (bound-id-set-member? seen-forms #'p.form-name)
              (wrong-syntax/orig #'p.fspec "all variants of the same-named form must occur together"))
            (define-values (group remaining-prods) (gather-group prods))
@@ -150,7 +150,14 @@
 
                 (generate-prod-expansion
                  sspec maybe-bspec (and maybe-nested-id (add-scope maybe-nested-id sc)) variant binding-space-stx
-                 (lambda () #`(syntax/loc this-syntax #,(compile-sspec-to-template sspec)))))]))))
+                 (lambda () #`(syntax/loc this-syntax #,(compile-sspec-to-template sspec)))))]
+             [(p:form-rewrite-production)
+              ;; Hygiene for rewrite productions only uses a macro introduction
+              ;; scope applied to the input and flipped on the output. 
+              (with-syntax ([recur recur-id])
+                #`[p.pat
+                   p.parse-body ...
+                   (recur p.final-body)])]))))
 
 (define (generate-prod-expansion sspec maybe-bspec maybe-nested-id variant binding-space-stx generate-body)
   (generate-expansion sspec maybe-bspec maybe-nested-id (list variant) #'expand-function-return binding-space-stx generate-body))
