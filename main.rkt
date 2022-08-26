@@ -3,6 +3,8 @@
 (provide (all-from-out "private/syntax/interface.rkt")
          (for-syntax
           number
+          expr
+          id
 
           in-space
           ~space-literal
