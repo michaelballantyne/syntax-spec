@@ -124,7 +124,10 @@
          (with-syntax ([recur recur-id])
            #`[p.pat
               p.parse-body ...
-              (recur p.final-body)])]
+              (recur (syntax-track-origin
+                      p.final-body
+                      this-syntax
+                      #'~>))])]
         [(p:syntax-production)
          (with-scope sc
            (define sspec (add-scope (attribute p.sspec) sc))
@@ -157,7 +160,9 @@
               (with-syntax ([recur recur-id])
                 #`[p.pat
                    p.parse-body ...
-                   (recur p.final-body)])]))))
+                   (recur (syntax-track-origin p.final-body
+                                               this-syntax
+                                               #'p.form-name))])]))))
 
 (define (generate-prod-expansion sspec maybe-bspec maybe-nested-id variant binding-space-stx generate-body)
   (generate-expansion sspec maybe-bspec maybe-nested-id (list variant) #'expand-function-return binding-space-stx generate-body))
@@ -200,7 +205,10 @@
       #'[(~or m:id (m:id . _))
          #:do [(define binding (lookup #'m m-pred #:space 'm-space))]
          #:when binding
-         (recur (apply-as-transformer (m-acc binding)
-                                      ((in-space 'm-space) #'m)
-                                      'definition
-                                      this-syntax))])))
+         (recur (syntax-track-origin
+                 (apply-as-transformer (m-acc binding)
+                                       ((in-space 'm-space) #'m)
+                                       'definition
+                                       this-syntax)
+                 this-syntax
+                 #'m))])))

@@ -16,6 +16,12 @@
      [(_ f)
       (syntax-property #'f 'foo 'bar)])))
 
+(define-syntax m2
+  (dsl-macro
+   (syntax-parser
+     [(_ f)
+      #'f])))
+
 (define-host-interface/expression
   (dsl e:dsl-expr)
   (syntax-parse #'e
@@ -24,5 +30,5 @@
      #`'#,(syntax-property this-syntax 'foo)]))
 
 (check-equal?
- (dsl (m (form)))
+ (dsl (m (m2 (form))))
  'bar)
