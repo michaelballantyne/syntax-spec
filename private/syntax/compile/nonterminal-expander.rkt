@@ -132,7 +132,7 @@
 
            (generate-prod-expansion
             sspec maybe-bspec (and maybe-nested-id (add-scope maybe-nested-id sc)) variant binding-space-stx
-            (lambda () #`(syntax/loc this-syntax #,(compile-sspec-to-template sspec)))))])
+            (lambda () #`(stx/lp this-syntax #,(compile-sspec-to-template sspec)))))])
       (syntax-parse (car prod-group)
         [(p:form-production)
          #`[(~or #,(generate-pattern-literal #'p.form-name binding-space-stx)
@@ -150,7 +150,7 @@
 
                 (generate-prod-expansion
                  sspec maybe-bspec (and maybe-nested-id (add-scope maybe-nested-id sc)) variant binding-space-stx
-                 (lambda () #`(syntax/loc this-syntax #,(compile-sspec-to-template sspec)))))]
+                 (lambda () #`(stx/lp this-syntax #,(compile-sspec-to-template sspec)))))]
              [(p:form-rewrite-production)
               ;; Hygiene for rewrite productions only uses a macro introduction
               ;; scope applied to the input and flipped on the output. 
