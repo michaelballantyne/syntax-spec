@@ -12,6 +12,9 @@
 ;;
 
 (define ((check-formatted-error-matches rx) exn)
+  ;; I previously used exn->string, but that raised an error
+  ;; re: writing special values when handling an ambiguous binding
+  ;; error.
   (regexp-match? rx (exn-message exn)))
 
 (define-syntax-rule (check-decl-error rx decl-stx)
