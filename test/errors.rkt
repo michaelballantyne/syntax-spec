@@ -370,6 +370,37 @@
  #rx"m2: DSL macro may not be used as a racket expression"
  (m2))
 
+
+(define-host-interface/expression
+  (dsl/let x:dsl-var2 e:expr)
+  #:binding {(bind x) (host e)}
+  (resume-host-expansion #'e))
+
+;; When no reference compiler is provided to resume-host-expansion for
+;; a given binding class, references to those bindings from a host
+;; expression are illegal.
+(check-syntax-error
+ #rx"x: DSL var may not be used as a racket expression"
+ (dsl/let x x))
+
+(define-host-interface/definition
+  (dsl/define x:dsl-var2 e:expr)
+  #:binding [(export x) (host e)]
+  ->
+  (define
+    [(generate-temporary)]
+    [(resume-host-expansion #'e)]))
+
+;; References to DSL vars bound in host contexts from racket expressions
+;; are currently always illegal. There should eventually be a way to define
+;; a reference compiler for such references, though.
+(let ()
+  (dsl/define x 5)
+  (check-syntax-error
+   #rx"x: DSL var may not be used as a racket expression"
+   x))
+
+
 ;; Ensure expansion preserves source locations on the parens
 ;; of each form. (Note that it does not preserve source locations
 ;; of the parens within forms)

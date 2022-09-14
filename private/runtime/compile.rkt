@@ -68,28 +68,21 @@
 
   (define (binding-as-rkt bclass-id description)
     (lambda (s stx)
-      (when (not (current-binding-compilers))
+      (define (error-as-rkt)
         (raise-syntax-error
          #f
-         (format "reference to binding of class ~a encountered in Racket expression outside of resume-host-expansion"
-                 bclass-id)
+         (string-append
+          description
+          " may not be used as a racket expression")
          stx))
+      
+      (when (not (current-binding-compilers))
+        (error-as-rkt))
+      
       (let ([compile (free-id-table-ref
                       (current-binding-compilers) bclass-id
-                      (lambda ()
-                        (raise-syntax-error
-                         #f
-                         (format "binding compiler not defined for binding class ~a"
-                                 bclass-id)
-                         stx)))])
-        (if compile
-            (compile stx)
-            (raise-syntax-error
-             #f
-             (string-append
-              description
-              " may not be used as a racket expression")
-             stx))))))
+                      error-as-rkt)])
+        (compile stx)))))
 
 
 
