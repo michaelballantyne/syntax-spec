@@ -44,22 +44,23 @@
 ;;
 
 (define-syntax define-hosted-syntaxes
-  (syntax-parser
-    [(_ form ...+)
-     (match-define
-       (list (list pass1-res expander-defs) ...)
-       (for/list ([stx (attribute form)])
-         (let-values ([(a b) (define-hosted-syntaxes-compile-form stx)])
-           (list a b))))
+  (module-macro
+   (syntax-parser
+     [(_ form ...+)
+      (match-define
+        (list (list pass1-res expander-defs) ...)
+        (for/list ([stx (attribute form)])
+          (let-values ([(a b) (define-hosted-syntaxes-compile-form stx)])
+            (list a b))))
      
-     (with-syntax ([(pass1 ...) pass1-res]
-                   [(expander-def ...) (filter identity expander-defs)])
-       #'(begin
-           pass1
-           ...
-           (begin-for-syntax
-             expander-def
-             ...)))]))
+      (with-syntax ([(pass1 ...) pass1-res]
+                    [(expander-def ...) (filter identity expander-defs)])
+        #'(begin
+            pass1
+            ...
+            (begin-for-syntax
+              expander-def
+              ...)))])))
 
 (begin-for-syntax
   ; syntax? -> (values syntax? (or/c syntax? #f))
