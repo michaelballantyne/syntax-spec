@@ -23,6 +23,7 @@
   (define bspec-stx (or maybe-bspec #'[]))
 
   (define bspec-elaborated (elaborate-bspec bspec-stx))
+  (check-linear-pvar-use! bspec-elaborated)
   (define bspec-with-implicits (add-implicit-pvar-refs bspec-elaborated bound-pvars))
   (define bspec-flattened (bspec-flatten-groups bspec-with-implicits))
 
@@ -179,6 +180,13 @@
         (wrong-syntax/orig v "binding spec expected a reference to a pattern variable")
         (wrong-syntax v "expected a reference to a pattern variable")))
   (pvar-rep-var-info binding))
+
+(define (check-linear-pvar-use! bspec)
+  (define pvars (bspec-referenced-pvars bspec))
+  (define maybe-dup (check-duplicates pvars free-identifier=?))
+
+  (when maybe-dup
+    (wrong-syntax/orig maybe-dup "each pattern variable must occur in the binding spec at most once")))
 
 ;; Infer implicit pvar refs
 

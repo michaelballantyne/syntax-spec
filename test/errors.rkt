@@ -208,6 +208,13 @@
      (define x:var d:def e:expr)
      #:binding [(export x) e (re-export d)])))
 
+(check-decl-error
+ #rx"nonterminal: each pattern variable must occur in the binding spec at most once"
+ (define-hosted-syntaxes
+   (nonterminal expr
+     (begin e1:expr e2:expr)
+     #:binding [e1 e1])))
+
 ;;
 ;; Valid definitions used to exercise errors
 ;;
