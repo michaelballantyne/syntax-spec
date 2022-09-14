@@ -12,7 +12,7 @@
 ;;
 
 (define ((check-formatted-error-matches rx) exn)
-  (regexp-match? rx (exn->string exn)))
+  (regexp-match? rx (exn-message exn)))
 
 (define-syntax-rule (check-decl-error rx decl-stx)
   (check-exn
@@ -374,6 +374,17 @@
 (check-true
  (phase1-eval
   (let* ([stx #'(dsl-begin (dsl-begin 5))]
-        [expanded ((nonterminal-expander expr1) stx)])
+         [expanded ((nonterminal-expander expr1) stx)])
     (equal? (syntax-srcloc (syntax-case stx () [(_ e) #'e]))
             (syntax-srcloc (syntax-case expanded () [(_ e) #'e]))))))
+
+(define-hosted-syntaxes
+  (nonterminal expr3
+    #:binding-space dsl
+    (foo)))
+
+(let ()
+  (define foo 5)
+  (check-syntax-error
+   #rx"foo: identifier's binding is ambiguous"
+   (expand-nonterminal/datum expr3 (foo))))
