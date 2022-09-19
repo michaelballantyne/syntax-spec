@@ -221,7 +221,7 @@
      (define init-seq (get-pvar st pv))
 
      (define res
-       (simple-expand-nest (nest-call f init-seq '() st inner-spec) local-scopes))
+       (start-nest f init-seq st inner-spec local-scopes))
      
      (match-define (nest-ret done-seq st^) res)
      
@@ -231,7 +231,7 @@
      (define init-seq (list (get-pvar st pv)))
 
      (define res
-       (simple-expand-nest (nest-call f init-seq '() st inner-spec) local-scopes))
+       (start-nest f init-seq st inner-spec local-scopes))
      
      (match-define (nest-ret done-seq st^) res)
      
@@ -270,6 +270,24 @@
      (values
       (call-reconstruct-function (exp-state-pvar-vals st^) reconstruct-f)
       (exp-state-nest-state st^))]))
+
+;; When entering a `nest-one` or `nest` form, add an extra scope. This means that the
+;; expansion within is in a new definition context with a scope distinguishing it from
+;; surrounding definition contexts where macros may have been defined. The Racket expander
+;; knows it can omit use-site scopes in this situation. This avoids a problem with situations
+;; like:
+;;
+;; (define-syntax m (syntax-rules ()
+;;                    [(m a) a]))
+;; (match [(m x)
+;;         ; => expands to
+;;         x                               ; use-site l
+;;         x])                             ; l
+;;
+;; where a binding created in the nest spec is not visible in the nested spec.
+(define (start-nest f init-seq st inner-spec local-scopes)
+  (with-scope sc
+    (simple-expand-nest (nest-call f init-seq '() st inner-spec) (cons sc local-scopes))))
 
 ; nest-call? -> nest-ret?
 (define (simple-expand-nest nest-st new-local-scopes)
