@@ -4,7 +4,7 @@
   
 (require racket/base
          syntax/parse
-         syntax/id-set
+         syntax/id-table
          racket/syntax
          ee-lib
          "../syntax-classes.rkt"
@@ -98,16 +98,16 @@
 ;;
 (define (group-form-productions prods)
   (let loop ([prods prods]
-             [seen-forms (immutable-bound-id-set)]
+             [seen-forms (make-immutable-free-id-table)]
              [res '()])
     (if (null? prods)
         (reverse res)
         (syntax-parse (car prods)
           [(~or (p:form-production) (p:form-rewrite-production))
-           (when (bound-id-set-member? seen-forms #'p.form-name)
+           (when (free-id-table-ref seen-forms #'p.form-name #f)
              (wrong-syntax/orig #'p.fspec "all variants of the same-named form must occur together"))
            (define-values (group remaining-prods) (gather-group prods))
-           (loop remaining-prods (bound-id-set-add seen-forms #'p.form-name) (cons group res))]
+           (loop remaining-prods (free-id-table-set seen-forms #'p.form-name #t) (cons group res))]
           [_ (loop (cdr prods) seen-forms (cons (car prods) res))]))))
 
 (define (generate-prod-clauses prod-stxs maybe-nested-id variant recur-id binding-space-stx)

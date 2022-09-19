@@ -21,7 +21,6 @@
    racket/function
    racket/syntax
    syntax/parse
-   syntax/id-set
    ee-lib
    ee-lib/persistent-id-table
    "syntax-classes.rkt"
@@ -168,7 +167,7 @@
             (define-syntax name (nonterm-rep variant-info))))))
 
   (define (deduplicate-form-names form-names)
-    (bound-id-set->list (immutable-bound-id-set form-names)))
+    (remove-duplicates form-names bound-identifier=?))
 
   (define (make-error-message name description)
     (string-append

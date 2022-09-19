@@ -25,7 +25,6 @@
 
 (require
   racket/match
-  racket/list
   racket/set
   racket/syntax
   racket/pretty

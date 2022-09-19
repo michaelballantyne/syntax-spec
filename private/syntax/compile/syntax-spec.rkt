@@ -6,12 +6,9 @@
          generate-pattern-literal)
 
 (require syntax/parse
-         racket/syntax
          "../syntax-classes.rkt"
          "../env-reps.rkt"
-         racket/pretty
          ee-lib
-         syntax/id-set
          (only-in syntax/parse/private/residual-ct stxclass? has-stxclass-prop?)
          (for-template racket/base
                        syntax/parse

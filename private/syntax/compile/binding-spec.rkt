@@ -6,8 +6,6 @@
          syntax/parse
          racket/syntax
          syntax/parse/class/paren-shape
-         syntax/id-table
-         syntax/id-set
          racket/list
          (only-in syntax/parse/private/residual-ct stxclass? has-stxclass-prop?)
          ee-lib
