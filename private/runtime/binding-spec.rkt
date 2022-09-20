@@ -284,6 +284,10 @@
 ;;         x])                             ; l
 ;;
 ;; where a binding created in the nest spec is not visible in the nested spec.
+;;
+;; TODO: if the meta-DSL supports binding macros in the future, we may need to add a scope
+;; at every nest step rather than only the entry point to account for macros defined in one
+;; nest step and used in the next without an intervening new scope.
 (define (start-nest f init-seq st inner-spec local-scopes)
   (with-scope sc
     (simple-expand-nest (nest-call f init-seq '() st inner-spec) (cons sc local-scopes))))
