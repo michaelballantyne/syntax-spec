@@ -25,7 +25,6 @@
 
 (require
   racket/match
-  racket/set
   racket/syntax
   racket/pretty
   ee-lib
@@ -73,15 +72,15 @@
 (define (nonterm? v)
   (procedure? v))
 
-;; spec, (setof svars) -> (or/c #f any/c)
+;; spec, (listof svars) -> (or/c #f any/c)
 (define (binding-spec-well-formed? spec svars)
   (match spec
     [(ref (? svar? pv) (or #f (? symbol?)) (? procedure?) (? string?))
-     (set-member? svars pv)]
+     (member pv svars)]
     [(subexp (? svar? pv) (? nonterm?))
-     (set-member? svars pv)]
+     (member pv svars)]
     [(bind (? svar? pv) (or #f (? symbol?)) (? procedure?))
-     (set-member? svars pv)]
+     (member pv svars)]
     [(scope spec)
      (binding-spec-well-formed? spec svars)]
     [(group specs)
@@ -90,12 +89,12 @@
     [(or (nest (? svar? pv) (? procedure? nonterm) spec)
          (nest-one (? svar? pv) (? procedure? nonterm) spec))
      (and
-      (set-member? svars pv)
+      (member pv svars)
       (binding-spec-well-formed? spec svars))]
     [(nested)
      #t]
     [(suspend (? svar? pv))
-     (set-member? svars pv)]))
+     (member pv svars)]))
 
 ;;
 ;; Expansion
