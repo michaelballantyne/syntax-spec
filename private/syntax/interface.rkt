@@ -80,7 +80,7 @@
          (values
           #'(begin-for-syntax
               (struct sname []
-                #:property prop:procedure
+                #:property prop:set!-transformer
                 (binding-as-rkt (quote-syntax name) (#%datum . descr.str)))
               (define-syntax name
                 (bindclass-rep

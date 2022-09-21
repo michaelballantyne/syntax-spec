@@ -13,6 +13,7 @@
    syntax/parse
    "../syntax/env-reps.rkt"
    syntax/id-table
+   syntax/transformer
    racket/syntax
    ee-lib)
   (for-meta 2
@@ -82,7 +83,14 @@
       (let ([compile (free-id-table-ref
                       (current-binding-compilers) bclass-id
                       error-as-rkt)])
-        (compile stx)))))
+        (syntax-parse stx
+          [x:id (compile #'x)]
+          [((~literal set!) x:id e:expr)
+           #`(set! #,(compile #'x) e)]
+          [(x:id arg ...)
+           ; ripped from syntax/transformer source code
+           (let ([stx* (cons #'(#%expression x) (cdr (syntax-e stx)))])
+             (datum->syntax stx stx* stx))])))))
 
 
 

@@ -3,3 +3,4 @@
 **/.DS_Store
 test/dsls/js/package-lock.json
 test/dsls/js/node_modules
+doc/
