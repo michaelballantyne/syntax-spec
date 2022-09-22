@@ -88,8 +88,9 @@
           [((~literal set!) x:id e:expr)
            #`(set! #,(compile #'x) e)]
           [(x:id arg ...)
+           #:with x^ (compile #'x)
            ; ripped from syntax/transformer source code
-           (let ([stx* (cons #'(#%expression x) (cdr (syntax-e stx)))])
+           (let ([stx* (cons #'(#%expression x^) (cdr (syntax-e stx)))])
              (datum->syntax stx stx* stx))])))))
 
 
