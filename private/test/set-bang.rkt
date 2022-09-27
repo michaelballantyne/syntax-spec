@@ -29,6 +29,8 @@ set!-transformers.
                #:binding {(bind v) (host body)}
                (regular-let v:var val:expr body:expr)
                #:binding [(host val) {(bind v) (host body)}]
+               (rep-let v:var body:expr)
+               #:binding {(bind v) (host body)}
                (mybegin def:mydef body:expr)
                #:binding {(recursive def) (host body)})
   (two-pass-nonterminal mydef
@@ -41,23 +43,51 @@ set!-transformers.
 (define-host-interface/expression (run le:mylet-expr)
   (compile-mylet-expr #'le))
 
+(begin-for-syntax
+  (define compile-mutable-reference
+    (make-set!-transformer
+     (syntax-parser
+       [x:id (compile-reference #'x)]
+       [((~literal set!) x:id e:expr)
+        #`(set! #,(compile-reference #'x) e)]
+       [(x:id arg ...)
+        #:with x^ (compile-reference #'x)
+        ; ripped from syntax/transformer source code
+        (let ([stx* (cons #'(#%expression x^) (cdr (syntax-e this-syntax)))])
+          (datum->syntax this-syntax stx* this-syntax))])))
+  (struct my-var-rep []
+    #:property prop:set!-transformer
+    (syntax-parser
+      [x:id #`(list #,(compile-reference #'x) #,(compile-reference #'x))]
+      [((~literal set!) x:id e:expr)
+       #`(begin (set! #,(compile-reference #'x) e) 'set!)]
+      [(x:id arg ...)
+       #:with x^ (compile-reference #'x)
+       ; ripped from syntax/transformer source code
+       (let ([stx* (cons #'(#%expression x^) (cdr (syntax-e this-syntax)))])
+          (datum->syntax this-syntax stx* this-syntax))])))
+
 (define-for-syntax compile-mylet-expr
   (syntax-parser
-    [(mylet v:id body:expr)
+    [((~literal mylet) v:id body:expr)
      #:with var^ (compile-binder! #'v)
-     #:with body^ (resume-host-expansion #'body #:reference-compilers ([var compile-reference]))
+     #:with body^ (resume-host-expansion #'body #:reference-compilers ([var compile-mutable-reference]))
      #'(let-syntax ([var^ (make-set!-transformer
                            (syntax-parser
                              [(set! x:id val:expr) #'(list 'set! val)]
                              [x:id #''ref]))])
          body^)]
-    [(regular-let var:id val:expr body:expr)
+    [((~literal regular-let) var:id val:expr body:expr)
      #:with var^ (compile-binder! #'var)
-     #:with val^ (resume-host-expansion #'val #:reference-compilers ([var compile-reference]))
-     #:with body^ (resume-host-expansion #'body #:reference-compilers ([var compile-reference]))
+     #:with val^ (resume-host-expansion #'val #:reference-compilers ([var compile-mutable-reference]))
+     #:with body^ (resume-host-expansion #'body #:reference-compilers ([var compile-mutable-reference]))
      #'(let ([var^ val^]) body^)]
-    [(mybegin ((~literal mydefine-inner) var) body) (compile-mylet-expr #'(mylet var body))]
-    [(mybegin ((~literal regular-define-inner) var val) body) (compile-mylet-expr #'(regular-let var val body))]))
+    [((~literal rep-let) var:id body:expr)
+     #:with var^ (compile-binder! #'var)
+     #:with body^ (resume-host-expansion #'body #:reference-compilers ([var (my-var-rep)]))
+     #'(let ([var^ 1]) body^)]
+    [((~literal mybegin) ((~literal mydefine-inner) var) body) (compile-mylet-expr #'(mylet var body))]
+    [((~literal mybegin) ((~literal regular-define-inner) var val) body) (compile-mylet-expr #'(regular-let var val body))]))
 
 ; dsl-defined macros are not supported
 #;(define-host-interface/definition (mydefine v:var)
@@ -76,7 +106,7 @@ set!-transformers.
   ->
   (define
     [(compile-binder! #'v)]
-    [(resume-host-expansion #'val #:reference-compilers ([var compile-reference]))]))
+    [(resume-host-expansion #'val #:reference-compilers ([var compile-mutable-reference]))]))
 
 (define-host-interface/expression (ref v:var)
   (compile-reference #'v))
@@ -85,13 +115,14 @@ set!-transformers.
 (define-host-interface/expression (my-set! v:var val:expr)
   #:binding (host val)
   #:with var^ (compile-reference #'v)
-  #:with val^ (resume-host-expansion #'val #:reference-compilers ([var compile-reference]))
+  #:with val^ (resume-host-expansion #'val #:reference-compilers ([var compile-mutable-reference]))
   #'(set! var^ val^))
 
 ; this used to pass
 (check-equal? (run (mylet x x)) 'ref)
 ; this used to pass
 (check-equal? (run (regular-let x 1 x)) 1)
+(check-equal? (run (rep-let x x)) '(1 1))
 ; this used to pass
 (check-equal? (run (mybegin (mydefine-inner x) x)) 'ref)
 ; this used to pass
@@ -112,6 +143,7 @@ set!-transformers.
 (check-equal? (run (mylet x (set! x 2))) (list 'set! 2))
 ; this used to fail
 (check-equal? (run (regular-let x 1 (begin (set! x 2) x))) 2)
+(check-equal? (run (rep-let x (list (set! x 2) x))) '(set! (2 2)))
 ; this used to fail with the 'expected identifier' error
 (check-equal? (run (mybegin (mydefine-inner x) (set! x 2))) (list 'set! 2))
 ; this used to fail with the 'expected identifier' error

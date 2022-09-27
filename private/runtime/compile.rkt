@@ -8,6 +8,7 @@
 (require
   (for-syntax
    racket/base
+   racket/function
    racket/private/check
    racket/match
    syntax/parse
@@ -60,7 +61,9 @@
       (for/fold ([env (make-immutable-free-id-table)])
                 ([k ks]
                  [v vs])
-        (check who procedure? v)
+        ; TODO make this something more general once we allow arbitrary structs
+        ; as compilers like match expanders. Should we just get rid of this check?
+        (check who (disjoin procedure? set!-transformer?) v)
         (free-id-table-set env k v)))
     
     (define ctx (car (syntax-property stx suspension-property-key)))
@@ -83,15 +86,17 @@
       (let ([compile (free-id-table-ref
                       (current-binding-compilers) bclass-id
                       error-as-rkt)])
-        (syntax-parse stx
-          [x:id (compile #'x)]
-          [((~literal set!) x:id e:expr)
-           #`(set! #,(compile #'x) e)]
-          [(x:id arg ...)
-           #:with x^ (compile #'x)
-           ; ripped from syntax/transformer source code
-           (let ([stx* (cons #'(#%expression x^) (cdr (syntax-e stx)))])
-             (datum->syntax stx stx* stx))])))))
+        (if (set!-transformer? compile)
+            ((set!-transformer-procedure compile) stx)
+            (syntax-parse stx
+              [x:id (compile #'x)]
+              [((~literal set!) x:id e:expr)
+               (raise-syntax-error #f (format "the reference compiler for ~a does not support set!" s) stx #'x)]
+              [(x:id arg ...)
+               #:with x^ (compile #'x)
+               ; ripped from syntax/transformer source code
+               (let ([stx* (cons #'(#%expression x^) (cdr (syntax-e stx)))])
+                 (datum->syntax stx stx* stx))]))))))
 
 
 
