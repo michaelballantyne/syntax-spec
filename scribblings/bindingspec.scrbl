@@ -143,7 +143,7 @@
          #:grammar ([maybe-reference-compilers
                      (code:line #:reference-compilers ([binding-class-id transformer] ...))
                      (code:line)])
-         #:contracts ([stx syntax?] [transformer (-> identifier? syntax?)])]
+         #:contracts ([stx syntax?] [transformer (or/c set!-transformer? (-> identifier? syntax?))])]
 
 @subsubsection{Persistent free-identifier tables}
 
@@ -177,6 +177,9 @@
 
 @defproc[(compile-reference [id identifier?] [#:table table (or/c free-id-table? persistent-free-id-table?) compiled-ids]) identifier?]
 
+@defthing[immutable-reference-compiler set!-transformer?]
+
+@defthing[mutable-reference-compiler set!-transformer?]
 
 @subsubsection{Binding spaces}
 

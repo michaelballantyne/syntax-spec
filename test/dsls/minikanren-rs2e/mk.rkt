@@ -10,6 +10,7 @@
           racket/base
           syntax/parse
           syntax/id-table
+          syntax/transformer
           ee-lib))
 
 ;;
@@ -221,17 +222,19 @@
        (define/syntax-parse (compiled-x-projected ...)
          (for/list ([x (attribute x)])
            (compile-binder! x #:table compiled-projected)))
-       
-       (define (compile-term-reference id)
-         (if (free-id-table-ref compiled-projected id #f)
-             (compile-reference id #:table compiled-projected)
-             (raise-syntax-error #f "only projected logic variables may be used from Racket code" id)))
 
+       (define term-reference-compiler
+         (make-variable-like-transformer
+          (lambda (id)
+            (if (free-id-table-ref compiled-projected id #f)
+                (compile-reference id #:table compiled-projected)
+                (raise-syntax-error #f "only projected logic variables may be used from Racket code" id)))))
+       
        (define/syntax-parse (e-resume ...)
          (for/list ([e (attribute e)])
            (resume-host-expansion
             e
-            #:reference-compilers ([term-variable compile-term-reference]))))
+            #:reference-compilers ([term-variable term-reference-compiler]))))
        #`(lambda (s)
            (let ([compiled-x-projected (walk* compiled-x-ref s)] ...)
              ((conj-gen (check-goal e-resume #'e) ...) s)))]

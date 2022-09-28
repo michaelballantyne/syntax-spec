@@ -25,7 +25,7 @@
        (resume-host-expansion
         #'e
         #:reference-compilers ([term-variable
-                                (lambda (id) (compile-reference id))]))])))
+                                immutable-reference-compiler]))])))
 
 (define-host-interface/expression
   (run n:expr (qvar:term-variable ...)

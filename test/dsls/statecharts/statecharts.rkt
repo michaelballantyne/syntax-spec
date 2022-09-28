@@ -162,8 +162,8 @@
     (resume-host-expansion
      stx
      #:reference-compilers
-     ([data-var compile-reference]
-      [local-var compile-reference])))
+     ([data-var immutable-reference-compiler]
+      [local-var immutable-reference-compiler])))
 
   (define (action-expr-bindings action-expr)
     (syntax-parse action-expr

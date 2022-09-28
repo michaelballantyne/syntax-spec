@@ -3,7 +3,10 @@
 (provide (for-syntax binding-as-rkt
                      make-suspension
   
-                     resume-host-expansion))
+                     resume-host-expansion
+
+                     mutable-reference-compiler
+                     immutable-reference-compiler))
 
 (require
   (for-syntax
@@ -23,7 +26,19 @@
             "../syntax/env-reps.rkt"
             ee-lib))
 
-(begin-for-syntax
+(begin-for-syntax  
+  (define mutable-reference-compiler
+    (make-variable-like-transformer
+     compile-reference
+     (syntax-parser
+       [((~literal set!) x:id e:expr)
+        #:with x^ (compile-reference #'x)
+        #'(set! x^ e)])))
+
+  (define immutable-reference-compiler
+    (make-variable-like-transformer
+     compile-reference))
+  
   (define suspension-property-key (gensym))
 
   (define/who (make-suspension stx ctx)
@@ -89,16 +104,9 @@
         (if (set!-transformer? compile)
             ((set!-transformer-procedure compile) stx)
             (syntax-parse stx
-              [x:id (compile #'x)]
               [((~literal set!) x:id e:expr)
                (raise-syntax-error #f (format "the reference compiler for ~a does not support set!" s) stx #'x)]
-              [(x:id arg ...)
-               #:with x^ (compile #'x)
-               ; ripped from syntax/transformer source code
-               (let ([stx* (cons #'(#%expression x^) (cdr (syntax-e stx)))])
-                 (datum->syntax stx stx* stx))]))))))
-
-
+              [_ (compile stx)]))))))
 
 (define-syntax expand-suspension
   (syntax-parser

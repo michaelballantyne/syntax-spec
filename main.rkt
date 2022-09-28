@@ -16,6 +16,9 @@
           compile-binder!
           compile-binders!
 
+          mutable-reference-compiler
+          immutable-reference-compiler
+
           define-persistent-free-id-table
           persistent-free-id-table?
           syntax-datum?

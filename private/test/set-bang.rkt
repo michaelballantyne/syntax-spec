@@ -44,17 +44,6 @@ set!-transformers.
   (compile-mylet-expr #'le))
 
 (begin-for-syntax
-  (define compile-mutable-reference
-    (make-set!-transformer
-     (syntax-parser
-       [x:id (compile-reference #'x)]
-       [((~literal set!) x:id e:expr)
-        #`(set! #,(compile-reference #'x) e)]
-       [(x:id arg ...)
-        #:with x^ (compile-reference #'x)
-        ; ripped from syntax/transformer source code
-        (let ([stx* (cons #'(#%expression x^) (cdr (syntax-e this-syntax)))])
-          (datum->syntax this-syntax stx* this-syntax))])))
   (struct my-var-rep []
     #:property prop:set!-transformer
     (syntax-parser
@@ -63,7 +52,7 @@ set!-transformers.
        #`(begin (set! #,(compile-reference #'x) e) 'set!)]
       [(x:id arg ...)
        #:with x^ (compile-reference #'x)
-       ; ripped from syntax/transformer source code
+       ;; ripped from syntax/transformer source code
        (let ([stx* (cons #'(#%expression x^) (cdr (syntax-e this-syntax)))])
           (datum->syntax this-syntax stx* this-syntax))])))
 
@@ -71,7 +60,7 @@ set!-transformers.
   (syntax-parser
     [((~literal mylet) v:id body:expr)
      #:with var^ (compile-binder! #'v)
-     #:with body^ (resume-host-expansion #'body #:reference-compilers ([var compile-mutable-reference]))
+     #:with body^ (resume-host-expansion #'body #:reference-compilers ([var mutable-reference-compiler]))
      #'(let-syntax ([var^ (make-set!-transformer
                            (syntax-parser
                              [(set! x:id val:expr) #'(list 'set! val)]
@@ -79,8 +68,8 @@ set!-transformers.
          body^)]
     [((~literal regular-let) var:id val:expr body:expr)
      #:with var^ (compile-binder! #'var)
-     #:with val^ (resume-host-expansion #'val #:reference-compilers ([var compile-mutable-reference]))
-     #:with body^ (resume-host-expansion #'body #:reference-compilers ([var compile-mutable-reference]))
+     #:with val^ (resume-host-expansion #'val #:reference-compilers ([var mutable-reference-compiler]))
+     #:with body^ (resume-host-expansion #'body #:reference-compilers ([var mutable-reference-compiler]))
      #'(let ([var^ val^]) body^)]
     [((~literal rep-let) var:id body:expr)
      #:with var^ (compile-binder! #'var)
@@ -89,7 +78,7 @@ set!-transformers.
     [((~literal mybegin) ((~literal mydefine-inner) var) body) (compile-mylet-expr #'(mylet var body))]
     [((~literal mybegin) ((~literal regular-define-inner) var val) body) (compile-mylet-expr #'(regular-let var val body))]))
 
-; dsl-defined macros are not supported
+;; dsl-defined macros are not supported
 #;(define-host-interface/definition (mydefine v:var)
   #:binding [(export v)]
   ->
@@ -106,48 +95,49 @@ set!-transformers.
   ->
   (define
     [(compile-binder! #'v)]
-    [(resume-host-expansion #'val #:reference-compilers ([var compile-mutable-reference]))]))
+    [(resume-host-expansion #'val #:reference-compilers ([var mutable-reference-compiler]))]))
 
 (define-host-interface/expression (ref v:var)
   (compile-reference #'v))
 
-; allows set! of dsl vars in regular racket expressions
+;; allows set! of dsl vars in regular racket expressions
 (define-host-interface/expression (my-set! v:var val:expr)
   #:binding (host val)
   #:with var^ (compile-reference #'v)
-  #:with val^ (resume-host-expansion #'val #:reference-compilers ([var compile-mutable-reference]))
+  #:with val^ (resume-host-expansion #'val #:reference-compilers ([var mutable-reference-compiler]))
   #'(set! var^ val^))
 
-; this used to pass
+;; this used to pass
 (check-equal? (run (mylet x x)) 'ref)
-; this used to pass
+;; this used to pass
 (check-equal? (run (regular-let x 1 x)) 1)
 (check-equal? (run (rep-let x x)) '(1 1))
-; this used to pass
+;; this used to pass
 (check-equal? (run (mybegin (mydefine-inner x) x)) 'ref)
-; this used to pass
+;; this used to pass
 (check-equal? (run (mybegin (regular-define-inner x 1) x)) 1)
 #;(let ()
     (mydefine x)
     (check-equal? x 'ref))
-; this used to pass
+;; this used to pass
 (let ()
   (regular-define x 1)
   (check-equal? (ref x) 1))
-; this used to pass, but it doesn't really test set! behavior because it uses my-set!
+;; this used to pass, but it doesn't really test set! behavior because it uses my-set!
 (let ()
   (regular-define x 1)
   (my-set! x 2)
   (check-equal? (ref x) 2))
-; this used to fail
+;; this used to fail
 (check-equal? (run (mylet x (set! x 2))) (list 'set! 2))
-; this used to fail
+;; this used to fail
 (check-equal? (run (regular-let x 1 (begin (set! x 2) x))) 2)
 (check-equal? (run (rep-let x (list (set! x 2) x))) '(set! (2 2)))
-; this used to fail with the 'expected identifier' error
+;; this used to fail with the 'expected identifier' error
 (check-equal? (run (mybegin (mydefine-inner x) (set! x 2))) (list 'set! 2))
-; this used to fail with the 'expected identifier' error
+;; this used to fail with the 'expected identifier' error
 (check-equal? (run (mybegin (regular-define-inner x 1) (begin (set! x 2) x))) 2)
 (test-equal? "using dsl-bound variable as a function"
              (run (regular-let x add1 (x 2)))
              3)
+
