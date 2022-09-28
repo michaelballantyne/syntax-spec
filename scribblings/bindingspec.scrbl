@@ -143,7 +143,7 @@
          #:grammar ([maybe-reference-compilers
                      (code:line #:reference-compilers ([binding-class-id transformer] ...))
                      (code:line)])
-         #:contracts ([stx syntax?] [transformer (or/c set!-transformer? (-> identifier? syntax?))])]
+         #:contracts ([stx syntax?] [transformer (or/c set!-transformer? (-> syntax? syntax?))])]
 
 @subsubsection{Persistent free-identifier tables}
 

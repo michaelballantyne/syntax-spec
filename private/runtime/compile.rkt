@@ -77,8 +77,10 @@
                 ([k ks]
                  [v vs])
         ; TODO make this something more general once we allow arbitrary structs
-        ; as compilers like match expanders. Should we just get rid of this check?
-        (check who (disjoin procedure? set!-transformer?) v)
+        ; as compilers like match expanders.
+        (check who (disjoin procedure? set!-transformer?)
+               #:contract "(or/c (-> syntax? syntax?) set!-transformer?)"
+               v)
         (free-id-table-set env k v)))
     
     (define ctx (car (syntax-property stx suspension-property-key)))
