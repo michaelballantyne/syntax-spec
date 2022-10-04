@@ -190,7 +190,7 @@
   (syntax-parser
     [(_ (name:id . sspec)
         (~optional (~seq #:binding bspec))
-        parse-body ...)
+        parse-body ...+)
      #'(define-syntax name
          (expression-macro
           (generate-host-interface-transformer
@@ -200,7 +200,7 @@
   (syntax-parser
     [(_ (name:id . sspec)
         (~optional (~seq #:binding bspec))
-        parse-body ...)
+        parse-body ...+)
      #'(define-syntax name
          (definition-macro
            (wrap-bind-trampoline
@@ -211,7 +211,7 @@
 (begin-for-syntax
   (define-syntax generate-host-interface-transformer
     (syntax-parser
-      [(_ ctx-id sspec ((~optional (~seq bspec))) (variants ...) parse-body ...)
+      [(_ ctx-id sspec ((~optional (~seq bspec))) (variants ...) parse-body ...+)
        (with-scope sc
          (define (generate-body)
            (add-scope
@@ -240,7 +240,7 @@
     #:datum-literals (-> define)
     [(_ (name:id . sspec)
         (~optional (~seq #:binding bspec))
-        -> (define [name-parse-body ...] [rhs-parse-body ...]))
+        -> (define [name-parse-body ...+] [rhs-parse-body ...+]))
      #'(begin
          (define-syntax pass2-macro
            (expression-macro
@@ -256,7 +256,7 @@
 (begin-for-syntax
   (define-syntax generate-host-interface-transformer/definition-pass1
     (syntax-parser
-      [(_ sspec-arg ((~optional (~seq bspec-arg))) [name-parse-body ...] pass2-macro)
+      [(_ sspec-arg ((~optional (~seq bspec-arg))) [name-parse-body ...+] pass2-macro)
        (with-scope sc
          (define sspec (add-scope (attribute sspec-arg) sc))
          (define bspec (and (attribute bspec-arg) (add-scope (attribute bspec-arg) sc)))
