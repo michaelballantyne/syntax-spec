@@ -1,6 +1,7 @@
 #lang racket/base
 
 (provide (all-from-out "private/syntax/interface.rkt")
+         with-reference-compilers
          (for-syntax
           number
           expr
@@ -9,8 +10,6 @@
           in-space
           ~space-literal
 
-          resume-host-expansion
-          
           compiled-ids
           compile-reference
           compile-binder!

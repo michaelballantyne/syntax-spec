@@ -136,15 +136,6 @@
 
 @subsection{Compilation}
 
-
-@subsubsection{Compiling host sub-terms}
-
-@defform[(resume-host-expansion stx maybe-reference-compilers)
-         #:grammar ([maybe-reference-compilers
-                     (code:line #:reference-compilers ([binding-class-id transformer] ...))
-                     (code:line)])
-         #:contracts ([stx syntax?] [transformer (or/c set!-transformer? (-> syntax? syntax?))])]
-
 @subsubsection{Persistent free-identifier tables}
 
 @require[(for-label syntax/id-table)]
@@ -180,6 +171,8 @@
 @defthing[immutable-reference-compiler set!-transformer?]
 
 @defthing[mutable-reference-compiler set!-transformer?]
+
+@defform[(with-reference-compilers ([binding-class-id reference-compiler-expr] ...) body ...+)]
 
 @subsubsection{Binding spaces}
 

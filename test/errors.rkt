@@ -374,9 +374,9 @@
 (define-host-interface/expression
   (dsl/let x:dsl-var2 e:expr)
   #:binding {(bind x) (host e)}
-  (resume-host-expansion #'e))
+  #'e)
 
-;; When no reference compiler is provided to resume-host-expansion for
+;; When no reference compiler is provided for
 ;; a given binding class, references to those bindings from a host
 ;; expression are illegal.
 (check-syntax-error
@@ -389,7 +389,7 @@
   ->
   (define
     [(generate-temporary)]
-    [(resume-host-expansion #'e)]))
+    [#'e]))
 
 ;; References to DSL vars bound in host contexts from racket expressions
 ;; are currently always illegal. There should eventually be a way to define

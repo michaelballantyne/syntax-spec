@@ -158,13 +158,6 @@
         ...
         [_ (rt:no-transition)]))
 
-  (define (compile-host-expression stx)
-    (resume-host-expansion
-     stx
-     #:reference-compilers
-     ([data-var immutable-reference-compiler]
-      [local-var immutable-reference-compiler])))
-
   (define (action-expr-bindings action-expr)
     (syntax-parse action-expr
       #:literals (let*)
@@ -192,15 +185,12 @@
        (apply append (map action-expr-actions (attribute action)))
        
        #:with (v-c ...) (compile-binders! #'(v ...))
-       #:with (e-c ...) (map compile-host-expression (attribute e))
-       #:with (rhs-c ...) (map compile-host-expression (attribute rhs))
-       #:with (emit-e-c ...) (map compile-host-expression (attribute emit-e))
-       #`(let* ([v-c e-c] ...)
+       #`(let* ([v-c e] ...)
            (values (next-state)
                    (struct-copy machine-data #,data-id
-                                [data-var rhs-c]
+                                [data-var rhs]
                                 ...)
-                   (list emit-e-c ...)))]))
+                   (list emit-e ...)))]))
   
   (define (compile-dispatch-clause data-id event)
     (syntax-parse event
@@ -209,36 +199,38 @@
          (~optional (~seq #:when guard:expr))
          . event-body)
        #:with (arg-c ...) (compile-binders! #'(arg ...))
-       #:attr guard-c (and (attribute guard) (compile-host-expression #'guard))
        #`[(list 'event-name arg-c ...)
-          (~@ . (~? (#:when guard-c) ()))
+          (~@ . (~? (#:when guard) ()))
           #,(compile-event-body data-id #'event-body)]]))
   
   (define (compile-machine machine-spec)
     (syntax-parse machine-spec
       #:literals (data state on ->)
       [[#:initial initial-state:id
-        (~alt (data data-var:id data-rhs:expr)
+        (~alt (data data-v:id data-rhs:expr)
               (~var st (compile-state/cls #'state #'data #'event)))
         ...]
-       #:with (compiled-data-var ...) (compile-binders! #'(data-var ...))
+       #:with (compiled-data-v ...) (compile-binders! #'(data-v ...))
        #'(lambda ()
-           (struct machine-data [data-var ...] #:prefab)
+           (with-reference-compilers ([data-var immutable-reference-compiler]
+                                      [local-var immutable-reference-compiler])
+        
+             (struct machine-data [data-v ...] #:prefab)
            
-           st.constructor
-           ...
+             st.constructor
+             ...
 
-           (define (step-f state data event)
-             (match-define (machine-data compiled-data-var ...) data)
-             (match (car state)
-               ['st.state-name
-                st.step]
-               ...))
+             (define (step-f state data event)
+               (match-define (machine-data compiled-data-v ...) data)
+               (match (car state)
+                 ['st.state-name
+                  st.step]
+                 ...))
              
-           (rt:machine
-            (initial-state)
-            (machine-data data-rhs ...)
-            step-f))])))
+             (rt:machine
+              (initial-state)
+              (machine-data data-rhs ...)
+              step-f)))])))
 
 
 (module+ test
