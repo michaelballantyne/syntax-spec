@@ -22,9 +22,8 @@
       [n:number
        #'n]
       [(rkt e)
-       (resume-host-expansion #'e
-                              #:reference-compilers
-                              ([term-variable immutable-reference-compiler]))])))
+       #'(with-reference-compilers ([term-variable immutable-reference-compiler])
+         e)])))
 
 (define-host-interface/expression
   (run n:expr (qvar:term-variable ...)

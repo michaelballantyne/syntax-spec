@@ -232,9 +232,8 @@
        
        (define/syntax-parse (e-resume ...)
          (for/list ([e (attribute e)])
-           (resume-host-expansion
-            e
-            #:reference-compilers ([term-variable term-reference-compiler]))))
+           #`(with-reference-compilers ([term-variable term-reference-compiler])
+               #,e)))
        #`(lambda (s)
            (let ([compiled-x-projected (walk* compiled-x-ref s)] ...)
              ((conj-gen (check-goal e-resume #'e) ...) s)))]

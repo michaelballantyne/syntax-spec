@@ -159,11 +159,9 @@
         [_ (rt:no-transition)]))
 
   (define (compile-host-expression stx)
-    (resume-host-expansion
-     stx
-     #:reference-compilers
-     ([data-var immutable-reference-compiler]
-      [local-var immutable-reference-compiler])))
+    #`(with-reference-compilers ([data-var immutable-reference-compiler]
+                                 [local-var immutable-reference-compiler])
+        #,stx))
 
   (define (action-expr-bindings action-expr)
     (syntax-parse action-expr
