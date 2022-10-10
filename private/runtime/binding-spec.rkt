@@ -163,7 +163,7 @@
     (define res
       (for/fold ([env posspace-env])
                 ([pass-spec pass-specs])
-        (exp-state-pvar-vals (simple-expand-internal pass-spec (exp-state posspace-env #f) '()))))
+        (exp-state-pvar-vals (simple-expand-internal pass-spec (exp-state env #f) '()))))
     (k (flip-intro-scope/env res))))
 
 (define (simple-expand-single-exp f stx)
@@ -195,7 +195,7 @@
        (when (not (lookup (flip-intro-scope id^) pred #:space space))
          ;(pretty-write (syntax-debug-info (flip-intro-scope id^) 0 #t))
          (wrong-syntax (flip-intro-scope id^) msg))
-       id^)]
+       (flip-intro-scope (compile-reference (flip-intro-scope id^))))]
     
     [(subexp pv f)
      (for/pv-state-tree ([stx pv])
@@ -204,7 +204,7 @@
     [(bind pv space constr-id)
      (for/pv-state-tree ([stx pv])
        (flip-intro-scope
-        ((do-bind!) (flip-intro-scope (add-scopes stx local-scopes)) #`(#,constr-id) #:space space)))]
+        (compile-binder! ((do-bind!) (flip-intro-scope (add-scopes stx local-scopes)) #`(#,constr-id) #:space space))))]
     
     [(scope spec)
      (with-scope sc

@@ -1,5 +1,6 @@
 #lang racket/base
 
+(provide (all-defined-out))
 (require bindingspec
          racket/match
          
@@ -62,9 +63,8 @@
 (define-host-interface/definitions
   (define-machine n:machine-name . spec:machine-spec)
   #:binding (export n)
-  #:with compiled-n (compile-binder! #'n)
   #:with machine-constructor (compile-machine #'spec)
-  #'(define compiled-n machine-constructor))
+  #'(define n machine-constructor))
   
 
 ;; Runtime
@@ -124,26 +124,27 @@
   (define-syntax-class (compile-state/cls state-id data-id event-id)
     #:literals (state)
     (pattern
-      (state state-name:id
-        #:nested-machine nested:id
-        . events)
+     (state state-name:id
+            #:nested-machine nested:id
+            . events)
 
-      #:attr constructor
-      (with-syntax ([compiled-nested (compile-reference #'nested)])
-        #'(define (state-name) (list 'state-name (compiled-nested))))
-      
-      #:attr step
-      #`(rt:try-nested #,state-id
-                       #,data-id
-                       #,event-id
-                       (lambda (event)
-                         #,(compile-dispatch #'event data-id #'events))))
+     #:attr constructor
+     #'(define (state-name) (list 'state-name (nested)))
+
+     #:attr step
+     #`(rt:try-nested #,state-id
+                      #,data-id
+                      #,event-id
+                      (lambda (event)
+                        #,(compile-dispatch #'event data-id #'events))))
     (pattern
       (state state-name:id
         . events)
       
       #:attr constructor
-      #'(define (state-name) '(state-name))
+      (begin
+        (displayln (syntax-debug-info #'state-name))
+        #'(define (state-name) '(state-name)))
       
       #:attr step
       (compile-dispatch event-id data-id #'events)))
@@ -184,8 +185,7 @@
                ...)
        (apply append (map action-expr-actions (attribute action)))
        
-       #:with (v-c ...) (compile-binders! #'(v ...))
-       #`(let* ([v-c e] ...)
+       #`(let* ([v e] ...)
            (values (next-state)
                    (struct-copy machine-data #,data-id
                                 [data-var rhs]
@@ -198,8 +198,7 @@
       [(on (event-name:id arg:id ...)
          (~optional (~seq #:when guard:expr))
          . event-body)
-       #:with (arg-c ...) (compile-binders! #'(arg ...))
-       #`[(list 'event-name arg-c ...)
+       #`[(list 'event-name arg ...)
           (~@ . (~? (#:when guard) ()))
           #,(compile-event-body data-id #'event-body)]]))
   
@@ -210,7 +209,6 @@
         (~alt (data data-v:id data-rhs:expr)
               (~var st (compile-state/cls #'state #'data #'event)))
         ...]
-       #:with (compiled-data-v ...) (compile-binders! #'(data-v ...))
        #'(lambda ()
            (with-reference-compilers ([data-var immutable-reference-compiler]
                                       [local-var immutable-reference-compiler])
@@ -221,7 +219,7 @@
              ...
 
              (define (step-f state data event)
-               (match-define (machine-data compiled-data-v ...) data)
+               (match-define (machine-data data-v ...) data)
                (match (car state)
                  ['st.state-name
                   st.step]
@@ -233,7 +231,7 @@
               step-f)))])))
 
 
-(module+ test
+#;(module+ test
   (require rackunit)
 
   ;;
