@@ -328,8 +328,9 @@
 
 
 (define (trampoline-bind! id rhs-e #:space [space #f])
+  (define pos-id (flip-intro-scope id))
   (trampoline-lift! #`(define-syntax #,((in-space space) id) #,rhs-e))
-  id)
+  (flip-intro-scope pos-id))
 
 (define (wrap-bind-trampoline transformer)
   (wrap-lift-trampoline
