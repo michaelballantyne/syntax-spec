@@ -103,7 +103,7 @@
            v))])))
 
 (define-syntax #%host-expression
-  (let ([who 'host-expr])
+  (let ([who '#%host-expression])
     (syntax-parser
       [(_ e:expr)
        (unless (suspension? this-syntax)
