@@ -394,7 +394,7 @@
        [(nonterm-rep (simple-nonterm-info exp-proc))
         #`(subexp '#,v #,exp-proc)]
        [(bindclass-rep description _ pred space)
-        #`(ref '#,v '#,space #,pred #,(string-append "not bound as " description))]
+        #`(group (list (ref '#,v '#,space #,pred #,(string-append "not bound as " description)) (rename-ref '#,v '#,space)))]
        [(nested-binding)
         #`(nested)]
        [(nonterm-rep (nesting-nonterm-info _))
@@ -406,7 +406,7 @@
     [(suspend _ (pvar v info))
      #`(suspend '#,v)]
     [(bind _ (pvar v (bindclass-rep _ constr _ space)))
-     #`(bind '#,v '#,space #'#,constr)]
+     #`(group (list (bind '#,v '#,space #'#,constr) (rename-bind '#,v '#,space)))]
     [(rec _ pvars)
      (with-syntax ([(s-cp1 ...) (for/list ([pv pvars])
                                   (match-define (pvar v (nonterm-rep (two-pass-nonterm-info pass1-expander _))) pv)
@@ -476,7 +476,8 @@
          (suspend _ _))
      (compile-bspec-term/single-pass spec)]
     
-    [(export _ _) no-op]
+    [(export _ (pvar v (bindclass-rep _ constr _ space)))
+     #`(rename-bind '#,v '#,space)]
     [(re-export _ pvars)
      (with-syntax ([(s-c ...) (for/list ([pv pvars])
                                 (match-define (pvar v (nonterm-rep (two-pass-nonterm-info _ pass2-expander))) pv)

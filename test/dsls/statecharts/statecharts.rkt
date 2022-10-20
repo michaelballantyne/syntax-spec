@@ -24,10 +24,10 @@
     #:binding (export v)
 
     (state n:state-name #:nested-machine nm:machine-name e:event-spec ...)
-    #:binding (export n)
+    #:binding [(export n) nm e]
     
     (state n:state-name e:event-spec ...)
-    #:binding (export n))
+    #:binding [(export n) e])
 
   (nonterminal event-spec
     (on (evt:id arg:local-var ...) #:when guard:expr b:action-spec ... t:transition-spec)
@@ -142,9 +142,7 @@
         . events)
       
       #:attr constructor
-      (begin
-        (displayln (syntax-debug-info #'state-name))
-        #'(define (state-name) '(state-name)))
+      #'(define (state-name) '(state-name))
       
       #:attr step
       (compile-dispatch event-id data-id #'events)))
@@ -231,7 +229,7 @@
               step-f)))])))
 
 
-#;(module+ test
+(module+ test
   (require rackunit)
 
   ;;

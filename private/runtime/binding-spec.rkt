@@ -1,8 +1,12 @@
 #lang racket/base
 
+(require racket/pretty)
+
 (provide
+ (struct-out rename-ref)
  (struct-out ref)      ; v:binding-class
  (struct-out subexp)   ; v:nonterminal
+ (struct-out  rename-bind)
  (struct-out bind)     ; !
  (struct-out scope)    ; {}
  (struct-out group)    ; []
@@ -10,12 +14,6 @@
  (struct-out nest-one)
  (struct-out nested)
  (struct-out suspend)
-
- qualifier?
- svar?
- nonterm?
-
- binding-spec-well-formed?
 
  expand-top
  expand-function-return
@@ -40,8 +38,10 @@
 
 ;; Binding `spec`
 ;; is one of:
+(struct rename-ref [svar space] #:transparent)
 (struct ref [svar space pred msg] #:transparent)
 (struct subexp [svar nonterm] #:transparent)
+(struct rename-bind [psvar space] #:transparent)
 (struct bind [svar space bvalc] #:transparent)
 (struct scope [spec] #:transparent)
 (struct group [specs] #:transparent)
@@ -49,52 +49,6 @@
 (struct nest-one [svar nonterm spec] #:transparent)
 (struct nested [] #:transparent)
 (struct suspend [svar] #:transparent)
-
-;; `bvalc` is (-> any/c)
-
-;; Export `qualifier`
-;; is one of:
-;;   'disjoint
-;;   'same
-;;   'union
-(define (qualifier? v)
-  (member v '(disjoint same union)))
-
-;; `svar` is a symbol
-(define (svar? v)
-  (symbol? v))
-
-;; `nonterm-transformer` is (syntax?, maybe-nest-state?) -> (syntax?, maybe-nest-state?)
-;;
-;; Note: right now nonterminal expander must *not* be hygienic
-;;  in the sense of define/hygienic; otherwise continuing a `nest`
-;;  with `nested` will have the wrong scopes.
-(define (nonterm? v)
-  (procedure? v))
-
-;; spec, (listof svars) -> (or/c #f any/c)
-(define (binding-spec-well-formed? spec svars)
-  (match spec
-    [(ref (? svar? pv) (or #f (? symbol?)) (? procedure?) (? string?))
-     (member pv svars)]
-    [(subexp (? svar? pv) (? nonterm?))
-     (member pv svars)]
-    [(bind (? svar? pv) (or #f (? symbol?)) (? procedure?))
-     (member pv svars)]
-    [(scope spec)
-     (binding-spec-well-formed? spec svars)]
-    [(group specs)
-     (for/and ([spec specs])
-       (binding-spec-well-formed? spec svars))]
-    [(or (nest (? svar? pv) (? procedure? nonterm) spec)
-         (nest-one (? svar? pv) (? procedure? nonterm) spec))
-     (and
-      (member pv svars)
-      (binding-spec-well-formed? spec svars))]
-    [(nested)
-     #t]
-    [(suspend (? svar? pv))
-     (member pv svars)]))
 
 ;;
 ;; Expansion
@@ -191,20 +145,37 @@
     
     [(ref pv space pred msg)
      (for/pv-state-tree ([id pv])
+       (displayln 'ref)
+       (pretty-write id)
        (define id^ (add-scopes id local-scopes))
        (when (not (lookup (flip-intro-scope id^) pred #:space space))
          ;(pretty-write (syntax-debug-info (flip-intro-scope id^) 0 #t))
          (wrong-syntax (flip-intro-scope id^) msg))
-       (flip-intro-scope (compile-reference (flip-intro-scope id^))))]
+       id^)]
     
+    [(bind pv space constr-id)
+     (for/pv-state-tree ([id pv])
+       (displayln 'bind)
+       (pretty-write id)
+       (let ([bound-id ((do-bind!) (flip-intro-scope (add-scopes id local-scopes)) #`(#,constr-id) #:space space)])
+         (compile-binder! bound-id)
+         (flip-intro-scope bound-id)))]
+
+    [(rename-ref pv space)
+     (for/pv-state-tree ([id pv])
+       (displayln 'rename-ref)
+       (pretty-write (syntax-debug-info id))
+       (flip-intro-scope (compile-reference (flip-intro-scope id))))]
+
+    [(rename-bind pv space)
+     (for/pv-state-tree ([id pv])
+       (displayln 'rename-bind)
+       (pretty-write (syntax-debug-info id))
+       (flip-intro-scope (compile-binder! (flip-intro-scope id) #:reuse? #t)))]
+
     [(subexp pv f)
      (for/pv-state-tree ([stx pv])
        (call-expand-function f (add-scopes stx local-scopes)))]
-    
-    [(bind pv space constr-id)
-     (for/pv-state-tree ([stx pv])
-       (flip-intro-scope
-        (compile-binder! ((do-bind!) (flip-intro-scope (add-scopes stx local-scopes)) #`(#,constr-id) #:space space))))]
     
     [(scope spec)
      (with-scope sc

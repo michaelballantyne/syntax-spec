@@ -13,7 +13,7 @@
   #:binding (export x)
   ->
   (define
-    [(compile-binder! #'x)]
+    [(begin (displayln (syntax-debug-info #'x)) (compile-binder! #'x))]
     [#''rhs]))
 
 (define-host-interface/expression
