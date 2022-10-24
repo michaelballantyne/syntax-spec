@@ -3,7 +3,8 @@
 (provide sspec-bind-pvars!
          compile-sspec-to-pattern
          compile-sspec-to-template
-         generate-pattern-literal)
+         generate-pattern-literal
+         sspec-template-composite?)
 
 (require syntax/parse
          "../syntax-classes.rkt"
@@ -112,6 +113,15 @@
        #'r.var]))
       
   (generate-template-form stx))
+
+(define (sspec-template-composite? stx)
+  (syntax-parse stx
+    [name:form-id
+     #f]
+    [r:ref-id
+     #f]
+    [_ #t]))
+    
 
 (define (sspec-bind-pvars! stx)
   (define res '())

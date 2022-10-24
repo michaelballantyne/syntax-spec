@@ -413,7 +413,7 @@
                                   #`(subexp '#,v #,pass1-expander))]
                    [(s-cp2 ...) (for/list ([pv pvars])
                                   (match-define (pvar v (nonterm-rep (two-pass-nonterm-info _ pass2-expander))) pv)
-                                  #`(subexp '#,v #,pass2-expander))])
+                                  #`(subexp/no-scope '#,v #,pass2-expander))])
        #`(group (list s-cp1 ... s-cp2 ...)))]
     [(export _ (pvar v _))
      (invariant-error 'compile-bspec-term/single-pass)]
@@ -454,7 +454,7 @@
      no-op]
     
     [(export _ (pvar v (bindclass-rep _ constr _ space)))
-     #`(bind '#,v '#,space #'#,constr)]
+     #`(group (list (bind '#,v '#,space #'#,constr) (rename-bind '#,v '#,space)))]
     [(re-export _ pvars)
      (with-syntax ([(s-c ...) (for/list ([pv pvars])
                                 (match-define (pvar v (nonterm-rep (two-pass-nonterm-info pass1-expander _))) pv)
@@ -475,11 +475,11 @@
          (scope _ _)
          (suspend _ _))
      (compile-bspec-term/single-pass spec)]
-    
+
     [(export _ (pvar v (bindclass-rep _ constr _ space)))
-     #`(rename-bind '#,v '#,space)]
+     no-op]
     [(re-export _ pvars)
      (with-syntax ([(s-c ...) (for/list ([pv pvars])
                                 (match-define (pvar v (nonterm-rep (two-pass-nonterm-info _ pass2-expander))) pv)
-                                #`(subexp '#,v #,pass2-expander))])
+                                #`(subexp/no-scope '#,v #,pass2-expander))])
        #`(group (list s-c ...)))]))

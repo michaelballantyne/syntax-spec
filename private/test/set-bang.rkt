@@ -47,33 +47,29 @@ set!-transformers.
   (struct my-var-rep []
     #:property prop:set!-transformer
     (syntax-parser
-      [x:id #`(list #,(compile-reference #'x) #,(compile-reference #'x))]
+      [x:id #`(list x x)]
       [((~literal set!) x:id e:expr)
-       #`(begin (set! #,(compile-reference #'x) e) 'set!)]
+       #`(begin (set! x e) 'set!)]
       [(x:id arg ...)
-       #:with x^ (compile-reference #'x)
        ;; ripped from syntax/transformer source code
-       (let ([stx* (cons #'(#%expression x^) (cdr (syntax-e this-syntax)))])
+       (let ([stx* (cons #'(#%expression x) (cdr (syntax-e this-syntax)))])
           (datum->syntax this-syntax stx* this-syntax))])))
 
 (define-for-syntax compile-mylet-expr
   (syntax-parser
     [((~literal mylet) v:id body:expr)
-     #:with var^ (compile-binder! #'v)
      #:with body^ #'(with-reference-compilers ([var mutable-reference-compiler]) body)
-     #'(let-syntax ([var^ (make-set!-transformer
+     #'(let-syntax ([v (make-set!-transformer
                            (syntax-parser
                              [(set! x:id val:expr) #'(list 'set! val)]
                              [x:id #''ref]))])
          body^)]
     [((~literal regular-let) v:id val:expr body:expr)
-     #:with var^ (compile-binder! #'v)
      #'(with-reference-compilers ([var mutable-reference-compiler])
-         (let ([var^ val]) body))]
+         (let ([v val]) body))]
     [((~literal rep-let) v:id body:expr)
-     #:with var^ (compile-binder! #'v)
      #:with body^ #'(with-reference-compilers ([var (my-var-rep)]) body)
-     #'(let ([var^ 1]) body^)]
+     #'(let ([v 1]) body^)]
     [((~literal mybegin) ((~literal mydefine-inner) var) body) (compile-mylet-expr #'(mylet var body))]
     [((~literal mybegin) ((~literal regular-define-inner) var val) body) (compile-mylet-expr #'(regular-let var val body))]))
 
@@ -83,7 +79,7 @@ set!-transformers.
   ->
   ; this has to be 'define'
   (define-syntax
-    [(compile-binder! #'v)]
+    [#'v]
     [(make-set!-transformer
       (syntax-parser
         [(set! x:id val:expr) #'(list 'set! val)]
@@ -93,18 +89,17 @@ set!-transformers.
   #:binding [(export v) (host val)]
   ->
   (define
-    [(compile-binder! #'v)]
+    [#'v]
     [#'(with-reference-compilers ([var mutable-reference-compiler]) val)]))
 
 (define-host-interface/expression (ref v:var)
-  (compile-reference #'v))
+  #'v)
 
 ;; allows set! of dsl vars in regular racket expressions
 (define-host-interface/expression (my-set! v:var val:expr)
   #:binding (host val)
-  #:with var^ (compile-reference #'v)
   #:with val^ #'(with-reference-compilers ([var mutable-reference-compiler]) val)
-  #'(set! var^ val^))
+  #'(set! v val^))
 
 ;; this used to pass
 (check-equal? (run (mylet x x)) 'ref)

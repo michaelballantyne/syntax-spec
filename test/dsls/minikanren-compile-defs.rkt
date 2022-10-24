@@ -11,9 +11,7 @@
     (syntax-parser
       #:literals (== fresh)
       [(fresh1 (v ...) b)
-       #:with (v-c ...) (for/list ([v (attribute v)])
-                          (compile-binder! v))
-       #`(let ([v-c (gensym)] ...)
+       #`(let ([v (gensym)] ...)
            #,(compile-goal #'b))]
       [(== t1 t2)
        #`(displayln (list #,(compile-term #'t1) #,(compile-term #'t2)))]))

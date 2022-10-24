@@ -5,6 +5,7 @@
 (provide
  (struct-out rename-ref)
  (struct-out ref)      ; v:binding-class
+ (struct-out subexp/no-scope)
  (struct-out subexp)   ; v:nonterminal
  (struct-out  rename-bind)
  (struct-out bind)     ; !
@@ -32,6 +33,8 @@
    "compile.rkt")
   "../syntax/syntax-classes.rkt")
 
+(define DEBUG-RENAME #f)
+
 ;;
 ;; Representation
 ;;
@@ -41,6 +44,7 @@
 (struct rename-ref [svar space] #:transparent)
 (struct ref [svar space pred msg] #:transparent)
 (struct subexp [svar nonterm] #:transparent)
+(struct subexp/no-scope [svar nonterm] #:transparent)
 (struct rename-bind [psvar space] #:transparent)
 (struct bind [svar space bvalc] #:transparent)
 (struct scope [spec] #:transparent)
@@ -145,8 +149,9 @@
     
     [(ref pv space pred msg)
      (for/pv-state-tree ([id pv])
-       (displayln 'ref)
-       (pretty-write id)
+       (when DEBUG-RENAME
+         (displayln 'ref)
+         (pretty-write id))
        (define id^ (add-scopes id local-scopes))
        (when (not (lookup (flip-intro-scope id^) pred #:space space))
          ;(pretty-write (syntax-debug-info (flip-intro-scope id^) 0 #t))
@@ -155,24 +160,31 @@
     
     [(bind pv space constr-id)
      (for/pv-state-tree ([id pv])
-       (displayln 'bind)
-       (pretty-write id)
+       (when DEBUG-RENAME
+         (displayln 'bind)
+         (pretty-write (syntax-debug-info id)))
        (let ([bound-id ((do-bind!) (flip-intro-scope (add-scopes id local-scopes)) #`(#,constr-id) #:space space)])
-         (compile-binder! bound-id)
+         (compile-binder! ((in-space space) bound-id))
          (flip-intro-scope bound-id)))]
 
     [(rename-ref pv space)
      (for/pv-state-tree ([id pv])
-       (displayln 'rename-ref)
-       (pretty-write (syntax-debug-info id))
-       (flip-intro-scope (compile-reference (flip-intro-scope id))))]
+       (when DEBUG-RENAME
+         (displayln 'rename-ref/spaced)
+         (pretty-write (syntax-debug-info ((in-space space) id))))
+       (flip-intro-scope (compile-reference (flip-intro-scope ((in-space space) id)))))]
 
     [(rename-bind pv space)
      (for/pv-state-tree ([id pv])
-       (displayln 'rename-bind)
-       (pretty-write (syntax-debug-info id))
-       (flip-intro-scope (compile-binder! (flip-intro-scope id) #:reuse? #t)))]
+       (when DEBUG-RENAME
+         (displayln 'rename-bind/spaced)
+         (pretty-write (syntax-debug-info ((in-space space) id))))
+       (flip-intro-scope (compile-binder! (flip-intro-scope ((in-space space) id)) #:reuse? #t)))]
 
+    [(subexp/no-scope pv f)
+     (for/pv-state-tree ([stx pv])
+       (call-expand-function f stx))]
+    
     [(subexp pv f)
      (for/pv-state-tree ([stx pv])
        (call-expand-function f (add-scopes stx local-scopes)))]

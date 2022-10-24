@@ -7,6 +7,7 @@
   (binding-class dsl-name)
   (nonterminal dsl-expr       
     n:dsl-name
+    #:binding [n]
     
     (dsl-let n:dsl-name e:dsl-expr)
     #:binding {(bind n) e}
@@ -23,6 +24,7 @@
  (phase1-eval
   (syntax-case ((nonterminal-expander dsl-expr) #'(b)) (dsl-let)
     [(dsl-let b1 (dsl-let b2 r))
-     (list (same-binding? #'b1 #'r) (same-binding? #'b2 #'r))]))
+     (list (same-binding? (compiled-from #'b1) (compiled-from #'r))
+           (same-binding? (compiled-from #'b2) (compiled-from #'r)))]))
  (list #t #f))
 

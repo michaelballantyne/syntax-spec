@@ -29,15 +29,12 @@
 (begin-for-syntax  
   (define mutable-reference-compiler
     (make-variable-like-transformer
-     compile-reference
-     (syntax-parser
-       [((~literal set!) x:id e:expr)
-        #:with x^ (compile-reference #'x)
-        #'(set! x^ e)])))
+     (lambda (id) id)
+     (lambda (stx) stx)))
 
   (define immutable-reference-compiler
     (make-variable-like-transformer
-     compile-reference))
+     (lambda (id) id)))
   
   (define suspension-property-key (gensym))
 
@@ -70,15 +67,23 @@
       (when (not (current-reference-compilers))
         (error-as-rkt))
       
-      (let ([compile (free-id-table-ref
+      (define compile (free-id-table-ref
                       (current-reference-compilers) bclass-id
-                      error-as-rkt)])
-        (if (set!-transformer? compile)
-            ((set!-transformer-procedure compile) stx)
-            (syntax-parse stx
-              [((~literal set!) x:id e:expr)
-               (raise-syntax-error #f (format "the reference compiler for ~a does not support set!" s) stx #'x)]
-              [_ (compile stx)]))))))
+                      error-as-rkt))
+
+      (define t (if (set!-transformer? compile)
+                    (set!-transformer-procedure compile)
+                    compile))
+      
+      (syntax-parse stx
+        [v:id
+         (t (compile-reference #'v))]
+        [((~and set! (~literal set!)) v e)
+         (if (set!-transformer? compile)
+             (t (datum->syntax this-syntax (list #'set! (compile-reference #'v) #'e) this-syntax this-syntax))
+             (raise-syntax-error #f (format "the reference compiler for ~a does not support set!" s) stx #'x))]
+        [(v:id . rest)
+         (t (datum->syntax this-syntax (cons (compile-reference #'v) #'rest) this-syntax this-syntax))]))))
 
 (define-syntax with-reference-compilers
   (let ([who 'with-reference-compilers])

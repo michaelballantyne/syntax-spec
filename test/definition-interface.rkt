@@ -13,12 +13,12 @@
   #:binding (export x)
   ->
   (define
-    [(begin (displayln (syntax-debug-info #'x)) (compile-binder! #'x))]
+    [#'x]
     [#''rhs]))
 
 (define-host-interface/expression
   (dsl-ref v:dsl-var)
-  (compile-reference #'v))
+  #'v)
 
 
 (define f (lambda () (dsl-ref x)))

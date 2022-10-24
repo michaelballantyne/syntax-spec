@@ -8,6 +8,7 @@
          ee-lib/errors
          (for-syntax
           racket/base
+          racket/pretty
           syntax/parse
           syntax/id-table
           syntax/transformer
@@ -142,14 +143,13 @@
   #:binding [(export name) {(bind x) g}]
   ->
   (define
-    [(persistent-free-id-table-set!
+    [(symbol-table-set!
       relation-arity
       #'name
       (length (syntax->list #'(x ...))))
-     (compile-binder! #'name)]
+     #'name]
     
-    [#:with (compiled-x ...) (compile-binders! #'(x ...))
-     #`(lambda (compiled-x ...)
+    [#`(lambda (x ...)
          (lambda (s)
            (lambda ()
              (#,(compile-goal #'g) s))))]))
@@ -157,11 +157,9 @@
 (define-host-interface/expression
   (core-run n:expr q:term-variable g:goal)
   #:binding {(bind q) g}
-
-  #:with compiled-q (compile-binder! #'q)
   
-  #`(let ([compiled-q (var 'q)])
-      (map (reify compiled-q)
+  #`(let ([q (var 'q)])
+      (map (reify q)
            (run-goal n #,(compile-goal #'g)))))
 
 (define-host-interface/expression
@@ -194,7 +192,7 @@
 ;;
 
 (begin-for-syntax
-  (define-persistent-free-id-table relation-arity)
+  (define-symbol-table relation-arity)
   
   (define (compile-goal g)
     (syntax-parse g
@@ -210,28 +208,22 @@
       [(conj2 g1 g2)
        #`(conj2-rt #,(compile-goal #'g1) #,(compile-goal #'g2))]
       [(fresh1 (x) b)
-       #:with compiled-x (compile-binder! #'x)
-       #`(call/fresh 'x (lambda (compiled-x) #,(compile-goal #'b)))]
+       #`(call/fresh 'x (lambda (x) #,(compile-goal #'b)))]
       
       [(project (x ...) e:expr ...)
-       (define/syntax-parse (compiled-x-ref ...)
-         (for/list ([x (attribute x)])
-           (compile-reference x)))
-
-       (define compiled-projected (make-free-id-table))
-       (define/syntax-parse (compiled-x-projected ...)
-         (for/list ([x (attribute x)])
-           (compile-binder! x #:table compiled-projected)))
-
+       (define projected-names (make-free-id-table))
+       (for ([x (attribute x)])
+         (free-id-table-set! projected-names (flip-intro-scope (compiled-from x)) #t))
+       
        (define term-reference-compiler
          (make-variable-like-transformer
           (lambda (id)
-            (if (free-id-table-ref compiled-projected id #f)
-                (compile-reference id #:table compiled-projected)
+            (if (free-id-table-ref projected-names (flip-intro-scope (compiled-from id)) #f)
+                id
                 (raise-syntax-error #f "only projected logic variables may be used from Racket code" id)))))
 
        #`(lambda (s)
-           (let ([compiled-x-projected (walk* compiled-x-ref s)] ...)
+           (let ([x (walk* x s)] ...)
              (with-reference-compilers ([term-variable #,term-reference-compiler])
                ((conj-gen (check-goal e #'e) ...) s))))]
       [(ifte g1 g2 g3)
@@ -239,18 +231,18 @@
       [(once g)
        #`(once-rt #,(compile-goal #'g))]
       [(relname t ...)
-       #:with compiled-relation (compile-reference #'relname)
        #:with (compiled-term ...) (map compile-term (attribute t))
 
+       ;; TODO
        (let ([actual (length (attribute t))]
-             [expected (persistent-free-id-table-ref relation-arity #'relname)])
+             [expected  (symbol-table-ref relation-arity #'relname)])
          (when (not (= actual expected ))
            (raise-syntax-error
             #f
             (format "wrong number of arguments; actual ~a, expected ~a" actual expected)
             #'relname)))
        
-       #'(compiled-relation compiled-term ...)]))
+       #'(relname compiled-term ...)]))
   
   (define (compile-term t)
     (syntax-parse t
@@ -258,7 +250,7 @@
       [n:number
        #''n]
       [x:id
-       (compile-reference #'x)]
+       #'x]
       [(quote t)
        #''t]
       [(cons t1 t2)

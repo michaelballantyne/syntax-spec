@@ -51,6 +51,15 @@
                (lambda (stx-a)
                  #,(generate-loop (add-scope #'(prod-arg ...) sc) id^ #'stx-a))
                'definition))]
+         ;; Skip hygiene on the second pass of a two-pass definition context to cooperate
+         ;; with binder renaming. Exports will have been renamed on the first passs; if we
+         ;; applied hygiene, we would improperly add inside-edge scopes to the renamed binders.
+         ;;
+         ;; All macro expansions, ~> rewritings should happen on the first pass so hygiene on
+         ;; the second pass should be unneccessary.
+         [#:pass2
+          #`(lambda (stx-a)
+              #,(generate-loop #'(prod-arg ...) #f #'stx-a))]
          [_
           #`(wrap-hygiene
              (lambda (stx-a)
@@ -135,7 +144,7 @@
 
            (generate-prod-expansion
             sspec maybe-bspec (and maybe-nested-id (add-scope maybe-nested-id sc)) variant binding-space-stx
-            (lambda () #`(stx/lp this-syntax #,(compile-sspec-to-template sspec)))))])
+            (lambda () #`(syntax/loc this-syntax #,(compile-sspec-to-template sspec)))))])
       (syntax-parse (car prod-group)
         [(p:form-production)
          #`[(~or #,(generate-pattern-literal #'p.form-name binding-space-stx)
@@ -153,7 +162,13 @@
 
                 (generate-prod-expansion
                  sspec maybe-bspec (and maybe-nested-id (add-scope maybe-nested-id sc)) variant binding-space-stx
-                 (lambda () #`(stx/lp this-syntax #,(compile-sspec-to-template sspec)))))]
+                 (lambda ()
+                   ;; Nasty workaround: the only syntax/lp we can define in userspace will misbehave given
+                   ;; a template that just refers to a single pattern variable and put the this-syntax properties
+                   ;; in place of those on the syntax in the pvar. So, detect that case and just use plain `syntax`.
+                   (if (sspec-template-composite? sspec)
+                       #`(stx/lp this-syntax #,(compile-sspec-to-template sspec))
+                       #`(syntax #,(compile-sspec-to-template sspec))))))]
              [(p:form-rewrite-production)
               ;; Hygiene for rewrite productions only uses a macro introduction
               ;; scope applied to the input and flipped on the output. 

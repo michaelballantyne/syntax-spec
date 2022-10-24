@@ -100,7 +100,15 @@
          (conj g ...)
          ...)])))
 
-(define-mk-syntax appendo ((binding-class-constructor relation-name)))
+(define-host-interface/definition
+  (define-relation/stub name:relation-name)
+  #:binding (export name)
+  ->
+  (define
+    [#'name]
+    [#'(void)]))
+
+(define-relation/stub appendo)
 
 (define expanded
   (expand-nonterminal/datum goal
