@@ -18,13 +18,11 @@
           mutable-reference-compiler
           immutable-reference-compiler
 
-          define-persistent-free-id-table
-          persistent-free-id-table?
           syntax-datum?
           identifier-with-binding?
-          persistent-free-id-table-has-key?
-          persistent-free-id-table-set!
-          persistent-free-id-table-ref))
+          define-symbol-table
+          symbol-table-set!
+          symbol-table-ref))
 
 (require "private/syntax/interface.rkt"
          "private/runtime/compile.rkt"
