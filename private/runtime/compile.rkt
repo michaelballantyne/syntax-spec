@@ -83,7 +83,7 @@
              (t (datum->syntax this-syntax (list #'set! (compile-reference #'v) #'e) this-syntax this-syntax))
              (raise-syntax-error #f (format "the reference compiler for ~a does not support set!" s) stx #'x))]
         [(v:id . rest)
-         (t (datum->syntax this-syntax (cons (compile-reference #'v) #'rest) this-syntax this-syntax))]))))
+         (datum->syntax this-syntax (cons #'(#%expression v) #'rest) this-syntax this-syntax)]))))
 
 (define-syntax with-reference-compilers
   (let ([who 'with-reference-compilers])
