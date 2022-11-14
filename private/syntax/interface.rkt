@@ -5,7 +5,8 @@
          define-host-interface/definition
          define-host-interface/definitions
          
-         (for-syntax binding-class-predicate
+         (for-syntax racket-macro
+                     binding-class-predicate
                      binding-class-constructor
                      nonterminal-expander))
   
@@ -23,6 +24,7 @@
    syntax/parse
    ee-lib
    ee-lib/persistent-id-table
+   ee-lib/syntax-category
    "syntax-classes.rkt"
    "../runtime/binding-spec.rkt"
    "../runtime/errors.rkt"
@@ -81,7 +83,8 @@
           #'(begin-for-syntax
               (struct sname []
                 #:property prop:set!-transformer
-                (binding-as-rkt (quote-syntax name) (#%datum . descr.str)))
+                (binding-as-rkt (quote-syntax name) (#%datum . descr.str))
+                #:property prop:not-racket-syntax #t)
               (define-syntax name
                 (bindclass-rep
                  (#%datum . descr.str)
@@ -100,7 +103,8 @@
           #'(begin-for-syntax
               (struct sname [transformer]
                 #:property prop:procedure
-                (dsl-error-as-expression (#%datum . descr.str)))
+                (dsl-error-as-expression (#%datum . descr.str))
+                #:property prop:not-racket-syntax #t)
               (define-syntax name
                 (extclass-rep (quote-syntax sname)
                               (quote-syntax sname-pred)
@@ -162,7 +166,7 @@
                   [(form-name ...) (deduplicate-form-names (filter identity form-names))]
                   [variant-info variant-info-stx])
       #'(begin
-          (define-literal-forms litset-name #:binding-space opts.space-stx 'error-message (form-name ...))
+          (define-literal-forms litset-name #:binding-space opts.space-stx error-message (form-name ...))
           (begin-for-syntax
             (define-syntax name (nonterm-rep variant-info))))))
 
@@ -281,6 +285,16 @@
               (syntax-parse (attribute rest)
                 #:context ctx
                 clause)]))])))
+
+(begin-for-syntax
+  (define racket-macro-constructor (lambda (x) x))
+  (define racket-macro? (lambda (v) (and (procedure? v) (not (not-racket-syntax? v)))))
+  (define racket-macro-transformer (lambda (x) x))
+  (define-syntax racket-macro
+    (extclass-rep (quote-syntax racket-macro-constructor)
+                  (quote-syntax racket-macro?)
+                  (quote-syntax racket-macro-transformer)
+                  #f)))
 
 ;;
 ;; phase 1 accessors

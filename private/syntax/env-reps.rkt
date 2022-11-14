@@ -14,6 +14,7 @@
 (require syntax/parse
          "../runtime/errors.rkt"
          racket/syntax
+         ee-lib/syntax-category
          (for-template racket/base))
 
 (define (nonterm-lang-error-as-expression type)
@@ -34,15 +35,18 @@
 
 (struct bindclass-rep (description constr pred binding-space)
   #:property prop:procedure
-  (nonterm-lang-error-as-expression "binding classes"))
+  (nonterm-lang-error-as-expression "binding classes")
+  #:property prop:not-racket-syntax #t)
 
 (struct extclass-rep (constr pred acc binding-space)
   #:property prop:procedure
-  expand-as-constructor)
+  expand-as-constructor
+  #:property prop:not-racket-syntax #t)
 
 (struct nonterm-rep (variant-info)
   #:property prop:procedure
-  (nonterm-lang-error-as-expression "nonterminals"))
+  (nonterm-lang-error-as-expression "nonterminals")
+  #:property prop:not-racket-syntax #t)
 
 (struct simple-nonterm-info (expander))
 (struct nesting-nonterm-info (expander))
