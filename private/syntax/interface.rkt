@@ -288,8 +288,12 @@
 
 (begin-for-syntax
   (define racket-macro-constructor (lambda (x) x))
-  (define racket-macro? (lambda (v) (and (procedure? v) (not (not-racket-syntax? v)))))
-  (define racket-macro-transformer (lambda (x) x))
+  (define racket-macro? (lambda (v) (and (or (set!-transformer? v) (procedure? v))
+                                         (not (not-racket-syntax? v)))))
+  (define racket-macro-transformer (lambda (v)
+                                     (if (set!-transformer? v)
+                                         (set!-transformer-procedure v)
+                                         v)))
   (define-syntax racket-macro
     (extclass-rep (quote-syntax racket-macro-constructor)
                   (quote-syntax racket-macro?)
