@@ -9,12 +9,15 @@
          (struct-out two-pass-nonterm-info)
          
          (struct-out nested-binding)
-         (struct-out pvar-rep))
+         (struct-out pvar-rep)
+
+         stxclass-rep?)
 
 (require syntax/parse
          "../runtime/errors.rkt"
          racket/syntax
          ee-lib/syntax-category
+         (only-in syntax/parse/private/residual-ct stxclass? has-stxclass-prop?)
          (for-template racket/base))
 
 (define (nonterm-lang-error-as-expression type)
@@ -32,6 +35,13 @@
        #'(constr e))]
     [_
      (wrong-syntax stx "expected expression producing a macro transformer")]))
+
+#;(Any -> boolean?)
+; Is the value an expander environment representative of a syntax class?
+; Used to recognize something like e:expr
+(define (stxclass-rep? v)
+  (or (stxclass? v)
+      (has-stxclass-prop? v)))
 
 (struct bindclass-rep (description constr pred binding-space)
   #:property prop:procedure

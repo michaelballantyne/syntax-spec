@@ -6,7 +6,8 @@
          generate-pattern-literal
          sspec-template-composite?)
 
-(require syntax/parse
+(require racket/function
+         syntax/parse
          "../syntax-classes.rkt"
          "../env-reps.rkt"
          ee-lib
@@ -52,7 +53,7 @@
                      [t2-c (generate-pattern-term #'t2)])
          #'(t1-c . t2-c))]
       [r:ref-id
-       #:do [(define binding (lookup #'r.ref bindclass-rep?))]
+       #:do [(define binding (lookup #'r.ref (disjoin bindclass-rep? extclass-rep?)))]
        #:when binding
        #'(~var r.var id)]
       [r:ref-id
@@ -99,7 +100,7 @@
                      [t2-c (generate-template-term #'t2)])
          #'(t1-c . t2-c))]
       [r:ref-id
-       #:do [(define binding (lookup #'r.ref bindclass-rep?))]
+       #:do [(define binding (lookup #'r.ref (disjoin bindclass-rep? extclass-rep?)))]
        #:when binding
        #'r.var]
       [r:ref-id
@@ -137,11 +138,11 @@
        (define binding (lookup #'r.ref
                                (lambda (v)
                                  (or (bindclass-rep? v)
+                                     (extclass-rep? v)
                                      (nonterm-rep? v)
-                                     (stxclass? v)
-                                     (has-stxclass-prop? v)))))
+                                     (stxclass-rep? v)))))
        (when (not binding)
-         (wrong-syntax/orig #'r.ref "expected a reference to a binding class, syntax class, or nonterminal"))
+         (wrong-syntax/orig #'r.ref "expected a reference to a binding class, extension class, syntax class, or nonterminal"))
        (when (member #'r.var res bound-identifier=?)
          (wrong-syntax/orig #'r.ref "duplicate pattern variable"))
        (bind! #'r.var (pvar-rep binding))
