@@ -1,5 +1,10 @@
 #lang racket/base
 
+;; This module is responsible for compiling the surface syntax of a binding specification
+;; to syntax that generates a runtime representation of the binding specification.
+;; Surface syntax is elaborated into structures, which are then validated
+;; and then compiled into syntax which generates structures that the runtime can interpret.
+
 (provide compile-bspec)
 
 (require racket/match
@@ -17,6 +22,10 @@
           racket/base
           syntax/parse))
 
+#;((or/c syntax? #f) (listof pvar?) syntax? -> syntax?)
+;; Given a bindingspec's syntax (or lack thereof), bound pvars, and the variant
+;; of the bspec (#:simple, #:pass1, etc.),
+;; generate syntax that generates a runtime representation of the binding spec
 (define (compile-bspec maybe-bspec bound-pvars variant)
   (define bspec-stx (or maybe-bspec #'[]))
 
@@ -46,8 +55,10 @@
 
 (struct with-stx [stx])
 
+;; A BSpec is one of
 (struct ref [pvar])
 (struct bind with-stx [pvar])
+(struct bind-syntax with-stx [pvar transformer-pvar])
 (struct rec with-stx [pvars])
 (struct re-export with-stx [pvars])
 (struct export with-stx [pvar])
@@ -62,6 +73,8 @@
     [(_ sname:id [fname:id p] ...)
      #'(struct* sname ([fname p] ...))]))
 
+#;((BSpec -> BSpec) BSpec -> BSpec)
+; bottom-up mapping of spec
 (define (map-bspec f spec)
   (match spec
     [(nest stx pv s)
@@ -78,6 +91,8 @@
        (f (group ss^)))]
     [_ (f spec)]))
 
+#;(∀ A ((BSpec (listof A) -> A) BSpec -> A))
+; bottom-up fold of spec
 (define (fold-bspec f spec)
   (match spec
     [(or (s* nest [spec s])
@@ -93,11 +108,13 @@
 
 ;; Elaborate
 
+#;(syntax? -> BSpec)
+; convert surface syntax for a bspec to a structure representation.
 (define elaborate-bspec
   (syntax-parser
-    #:datum-literals (bind recursive export re-export nest nest-one host)
+    #:datum-literals (bind bind-syntax recursive export re-export nest nest-one host)
     [v:nonref-id
-     (ref (pvar (attribute v) (lookup-pvar (attribute v))))]
+     (elaborate-ref (attribute v))]
     [(bind v:nonref-id ...+)
      (group
       (for/list ([v (attribute v)])
@@ -106,6 +123,15 @@
          (elaborate-pvar v
                          (s* bindclass-rep)
                          "binding class"))))]
+    [(bind-syntax v:nonref-id v-transformer:nonref-id)
+     (bind-syntax
+      this-syntax
+      (elaborate-pvar (attribute v)
+                      (s* extclass-rep)
+                      "binding class or 'id'")
+      (elaborate-pvar (attribute v-transformer)
+                      (? stxclass-rep?)
+                      "syntax class"))]
     [(recursive v:nonref-id ...+)
      (rec
          this-syntax
@@ -156,6 +182,12 @@
 
 ;; Elaborator helpers
 
+#;(identifier? -> BSpec)
+(define (elaborate-ref v)
+  (ref (elaborate-pvar v
+                       (or (s* bindclass-rep) (s* nonterm-rep) (? stxclass-rep?))
+                       "binding class, syntax class, or nonterminal")))
+
 (define-syntax-rule
   (elaborate-pvar v-e pattern expected-str-e)
   (elaborate-pvar-rt
@@ -165,6 +197,9 @@
      [_ #f])
    expected-str-e))
 
+#;(pvar? (Any -> boolean?) string? -> Any)
+; ensure the pvar is bound to a value that matches info-pred.
+; get the value if it is, throw an error with expected-str if it is not.
 (define (elaborate-pvar-rt v info-pred expected-str)
   (let ([info (lookup-pvar v)])
     (if (info-pred info)
@@ -196,7 +231,7 @@
      bound-identifier=?))
 
   (group (cons bspec (for/list ([v unreferenced-pvars])
-                       (ref (pvar v (lookup-pvar v)))))))
+                       (elaborate-ref v)))))
 
 (define (bspec-referenced-pvars spec)
   (fold-bspec
@@ -210,6 +245,8 @@
               (s* nest-one [pvar (pvar v _)])
               (s* suspend [pvar (pvar v _)]))
           (list v)]
+         [(s* bind-syntax [pvar (pvar v1 _)] [transformer-pvar (pvar v2 _)])
+          (list v1 v2)]
          [(or (s* rec [pvars (list (pvar vs _) ...)])
               (s* re-export [pvars (list (pvar vs _) ...)]))
           vs]
@@ -264,22 +301,24 @@
 ; As a grammar:
 ;
 ; one-pass-spec: unscoped-spec
-; two-pass-spec: (seq (* (export _)) (* (rec _)) refs+subexps)
+; two-pass-spec: (seq (* (export _)) (* (re-export _)) refs+subexps)
 ; unscoped-spec: refs+subexps
 ; refs+subexps: (* (or (ref _) (nest _ unscoped-spec) (nest-one _ unscoped-spec) (scope scoped-spec)))
-; scoped-spec:   (seq (* (bind _)) (? (rec _)) refs+subexps)
+; scoped-spec:   (seq (* (or (bind-syntax _ _) (bind _))) (? (rec _)) refs+subexps)
 ;
 ; The implementation below separately implements refs+subexps for each context in which it occurs to
 ; provide specific error messages.
 ;
 
+#;((BSpec (listof BSpec) -> A) (listof BSpec) -> A)
+; Apply f to the car and cdr of specs or do nothing if it's null.
 (define (check-sequence f specs)
   (if (null? specs)
       (void)
       (f (car specs) (cdr specs))))
 
 (define (binding-scope-error stx)
-  (wrong-syntax/orig stx "variable binding must occur within a scope"))
+  (wrong-syntax/orig stx "binding must occur within a scope"))
 
 (define (export-context-error stx)
   (wrong-syntax/orig stx "exports may only occur at the top-level of a two-pass binding spec"))
@@ -288,11 +327,12 @@
   (wrong-syntax/orig stx "re-exports may only occur at the top-level of a two-pass binding spec"))
 
 ; spec -> (void) or raised syntax error
+; enforces the above grammar for an unscoped expression
 (define (check-order/unscoped-expression spec)
   (define (refs+subexps spec)
     (match spec
       [(or (s* ref) (s* suspend)) (void)]
-      [(and (s* bind) (with-stx stx))
+      [(and (or (s* bind) (s* bind-syntax)) (with-stx stx))
        (binding-scope-error stx)]
       [(and (s* rec) (with-stx stx))
        (wrong-syntax/orig stx "recursive binding groups must occur within a scope")]
@@ -307,10 +347,12 @@
        (check-order/scoped-expression s)]))
   (map refs+subexps (flat-bspec-top-elements spec)))
 
+#;(BSpec -> void?)
+; enforces the aboev grammar for a scoped expression
 (define (check-order/scoped-expression spec)
   (define (bindings spec specs)
     (match spec
-      [(s* bind)
+      [(or (s* bind) (s* bind-syntax))
        (check-sequence bindings specs)]
       [(and (s* export) (with-stx stx))
        (export-context-error stx)]
@@ -328,7 +370,7 @@
 
   (define (refs+subexps spec specs)
     (match spec
-      [(and (s* bind) (with-stx stx))
+      [(and (or (s* bind) (s* bind-syntax)) (with-stx stx))
        (wrong-syntax/orig stx "bindings must appear first within a scope")]
       [(and (s* export) (with-stx stx))
        (export-context-error stx)]
@@ -364,7 +406,7 @@
   
   (define (refs+subexps spec specs)
     (match spec
-      [(and (s* bind) (with-stx stx))
+      [(and (or (s* bind) (s* bind-syntax)) (with-stx stx))
        (binding-scope-error stx)]
       [(and (s* export) (with-stx stx))
        (wrong-syntax/orig stx "exports must appear first in a two-pass spec")]
@@ -407,6 +449,8 @@
      #`(suspend '#,v)]
     [(bind _ (pvar v (bindclass-rep _ constr _ space)))
      #`(group (list (bind '#,v '#,space #'#,constr) (rename-bind '#,v '#,space)))]
+    [(bind-syntax _ (pvar v (extclass-rep constr _ _ space)) (pvar v-transformer _))
+     #`(group (list (bind-syntax '#,v '#,space #'#,constr '#,v-transformer) (rename-bind '#,v '#,space)))]
     [(rec _ pvars)
      (with-syntax ([(s-cp1 ...) (for/list ([pv pvars])
                                   (match-define (pvar v (nonterm-rep (two-pass-nonterm-info pass1-expander _))) pv)
@@ -440,7 +484,7 @@
 
 (define (compile-bspec-term/pass1 spec)
   (match spec
-    [(bind _ (pvar v _))
+    [(or (s* bind) (s* bind-syntax))
      (invariant-error 'compile-bspec-term/pass1)]
     [(group specs)
      (with-syntax ([(spec-c ...) (map compile-bspec-term/pass1 specs)])
@@ -463,7 +507,7 @@
 
 (define (compile-bspec-term/pass2 spec)
   (match spec
-    [(bind _ (pvar v _))
+    [(or (s* bind) (s* bind-syntax))
      (invariant-error 'compile-bspec-term/pass2)]
     [(group specs)
      (with-syntax ([(spec-c ...) (map compile-bspec-term/pass2 specs)])

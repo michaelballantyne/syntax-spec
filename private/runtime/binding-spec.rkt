@@ -7,8 +7,9 @@
  (struct-out ref)      ; v:binding-class
  (struct-out subexp/no-scope)
  (struct-out subexp)   ; v:nonterminal
- (struct-out  rename-bind)
- (struct-out bind)     ; !
+ (struct-out rename-bind)
+ (struct-out bind)
+ (struct-out bind-syntax)
  (struct-out scope)    ; {}
  (struct-out group)    ; []
  (struct-out nest)
@@ -23,6 +24,7 @@
  wrap-bind-trampoline)
 
 (require
+  racket/function
   racket/match
   racket/syntax
   racket/pretty
@@ -31,7 +33,12 @@
   (for-template
    racket/base
    "compile.rkt")
+  (for-syntax
+   racket/base
+   syntax/parse)
   "../syntax/syntax-classes.rkt")
+
+(module+ test (require rackunit))
 
 (define DEBUG-RENAME #f)
 
@@ -41,18 +48,19 @@
 
 ;; Binding `spec`
 ;; is one of:
-(struct rename-ref [svar space] #:transparent)
-(struct ref [svar space pred msg] #:transparent)
-(struct subexp [svar nonterm] #:transparent)
-(struct subexp/no-scope [svar nonterm] #:transparent)
-(struct rename-bind [psvar space] #:transparent)
-(struct bind [svar space bvalc] #:transparent)
+(struct rename-ref [pvar space] #:transparent)
+(struct ref [pvar space pred msg] #:transparent)
+(struct subexp [pvar nonterm] #:transparent)
+(struct subexp/no-scope [pvar nonterm] #:transparent)
+(struct rename-bind [pvar space] #:transparent)
+(struct bind [pvar space bvalc] #:transparent)
+(struct bind-syntax [pvar space bvalc transformer-pvar] #:transparent)
 (struct scope [spec] #:transparent)
 (struct group [specs] #:transparent)
-(struct nest [svar nonterm spec] #:transparent)
-(struct nest-one [svar nonterm spec] #:transparent)
+(struct nest [pvar nonterm spec] #:transparent)
+(struct nest-one [pvar nonterm spec] #:transparent)
 (struct nested [] #:transparent)
-(struct suspend [svar] #:transparent)
+(struct suspend [pvar] #:transparent)
 
 ;;
 ;; Expansion
@@ -71,6 +79,20 @@
   (struct-copy
    exp-state st
    [pvar-vals (hash-set (exp-state-pvar-vals st) pv val)]))
+
+(define (update-pvar* st pvs f)
+  (define env (exp-state-pvar-vals st))
+  (define vals (for/list ([pv pvs]) (hash-ref env pv)))
+  (define vals^ (call-with-values (lambda () (apply f vals))
+                     list))
+  (define env^
+    (for/fold ([env^ env])
+              ([pv pvs]
+               [val^ vals^])
+      (hash-set env^ pv val^)))
+  (struct-copy
+   exp-state st
+   [pvar-vals env^]))
 
 (define (update-pvar st pv f)
   (struct-copy
@@ -136,14 +158,16 @@
 ;; spec, exp-state, (listof scope-tagger) -> exp-state
 (define (simple-expand-internal spec st local-scopes)
   
-  (define-syntax-rule
+  (define-syntax for/pv-state-tree
     ;; update the state of `pv` by mapping over its tree
-    (for/pv-state-tree ([item pv])
-      b ...)
-    (update-pvar st pv
-                 (lambda (st)
-                   (for/tree ([item st])
-                     b ...))))
+    (syntax-parser
+      [(_ ([item pv] ...+)
+         b ...)
+       #:with (tree ...) (generate-temporaries (attribute item))
+       #'(update-pvar* st (list pv ...)
+                       (lambda (tree ...)
+                         (for/tree ([item tree] ...)
+                           b ...)))]))
                   
   (match spec
     
@@ -167,6 +191,15 @@
          (compile-binder! ((in-space space) bound-id))
          (flip-intro-scope bound-id)))]
 
+    [(bind-syntax pv space constr-id transformer-pv)
+     (for/pv-state-tree ([id pv] [transformer-stx transformer-pv])
+       (when DEBUG-RENAME
+         (displayln 'bind-syntax)
+         (pretty-write (syntax-debug-info id)))
+       (define scoped-transformer-stx (add-scopes transformer-stx local-scopes))
+       (let ([bound-id ((do-bind!) (flip-intro-scope (add-scopes id local-scopes)) #`(#,constr-id #,(flip-intro-scope scoped-transformer-stx)) #:space space)])
+         (compile-binder! ((in-space space) bound-id))
+         (values (flip-intro-scope bound-id) scoped-transformer-stx)))]
     [(rename-ref pv space)
      (for/pv-state-tree ([id pv])
        (when DEBUG-RENAME
@@ -300,15 +333,44 @@
 ;;
 ;; tree := (listof tree)
 ;;       | any/c
-(define-syntax-rule
-  (for/tree ([item init]) body ...)
-  (let for-nested ([list-at-depth init])
-    (let ([item list-at-depth])
-      (if (list? item)
-          (for/list ([nested item])
-            (for-nested nested))
-          (let () body ...)))))
+(define-syntax for/tree
+  (syntax-parser
+    [(_ ([item init] ...+) body ...)
+     #'(apply values (map/trees (lambda (item ...) body ...) (list init ...)))]))
 
+; trees must have same structure and f must always return the same number of values given a particular
+; number of arguments.
+; traverse the trees in parallel, applying f at each leaf with arguments from each tree.
+; Constructs as many parallel trees as return values, each with the same shape as the input trees.
+(define (map/trees f trees)
+  (cond
+    [(andmap (negate list?) trees) (call-with-values (lambda () (apply f trees)) list)]
+    [(and (andmap list? trees) (apply = (map length trees)))
+     (transpose (apply map (lambda items (map/trees f items)) trees))]
+    ; TODO make this a better error that reports in terms of binding specs
+    [else (error 'map/tree "tree shapes are not the same")]))
+
+(module+ test
+  (check-equal? (map/trees list '())
+                '(()))
+  (check-equal? (map/trees (lambda (v1 v2) (values (add1 v1) (sub1 v2)))
+                           '(1 2))
+                '(2 1))
+  (check-equal? (map/trees (lambda (v1 v2) (values (add1 v1) (sub1 v2)))
+                           '((1 2 3) (3 4 5)))
+                '((2 3 4) (2 3 4)))
+  (check-equal? (map/trees (lambda (v1 v2) (values (add1 v1) (vector v1 v2)))
+                           '((1 (2) 3) (3 (4) 5)))
+                '((2 (3) 4) (#(1 3) (#(2 4)) #(3 5))))
+  (check-equal? (map/trees add1 '((((2) (3 4)))))
+                '((((3) (4 5)))))
+  (check-equal? (map/trees *
+                          '((((2) (3 4)))
+                            (((5) (6 7)))))
+                '((((10) (18 28))))))
+
+(define (transpose v)
+  (apply map list v))
 
 (define (trampoline-bind! id rhs-e #:space [space #f])
   (define pos-id (flip-intro-scope id))
