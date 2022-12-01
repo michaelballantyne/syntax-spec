@@ -20,7 +20,9 @@
 
           syntax-datum?
           identifier-with-binding?
-          define-symbol-table
+          
+          define-persistent-symbol-table
+          define-local-symbol-table
           symbol-table-set!
           symbol-table-ref))
 

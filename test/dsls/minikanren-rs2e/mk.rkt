@@ -192,7 +192,7 @@
 ;;
 
 (begin-for-syntax
-  (define-symbol-table relation-arity)
+  (define-persistent-symbol-table relation-arity)
   
   (define (compile-goal g)
     (syntax-parse g
@@ -211,14 +211,16 @@
        #`(call/fresh 'x (lambda (x) #,(compile-goal #'b)))]
       
       [(project (x ...) e:expr ...)
-       (define projected-names (make-free-id-table))
+       (define-local-symbol-table projected-names)
+       
        (for ([x (attribute x)])
-         (free-id-table-set! projected-names (flip-intro-scope (compiled-from x)) #t))
+         (when (not (symbol-table-ref projected-names x #f))
+           (symbol-table-set! projected-names x #t)))
        
        (define term-reference-compiler
          (make-variable-like-transformer
           (lambda (id)
-            (if (free-id-table-ref projected-names (flip-intro-scope (compiled-from id)) #f)
+            (if (symbol-table-ref projected-names id #f)
                 id
                 (raise-syntax-error #f "only projected logic variables may be used from Racket code" id)))))
 
