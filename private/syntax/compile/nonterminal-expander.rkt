@@ -49,8 +49,13 @@
             (define id^ (bind! (add-scope (attribute nested-id) sc) (pvar-rep (nested-binding))))
             #`(wrap-hygiene
                (lambda (stx-a)
-                 #,(generate-loop (add-scope #'(prod-arg ...) sc) id^ #'stx-a))
-               'definition))]
+                 (with-scope _ #,(generate-loop (add-scope #'(prod-arg ...) sc) id^ #'stx-a)))
+               'expression))]
+         [#:pass1
+          #`(wrap-hygiene
+             (lambda (stx-a)
+               #,(generate-loop #'(prod-arg ...) #f #'stx-a))
+             'definition)]
          ;; Skip hygiene on the second pass of a two-pass definition context to cooperate
          ;; with binder renaming. Exports will have been renamed on the first passs; if we
          ;; applied hygiene, we would improperly add inside-edge scopes to the renamed binders.
@@ -64,7 +69,7 @@
           #`(wrap-hygiene
              (lambda (stx-a)
                #,(generate-loop #'(prod-arg ...) #f #'stx-a))
-             'definition)]))
+             'expression)]))
      
      (generate-header)]))
 
