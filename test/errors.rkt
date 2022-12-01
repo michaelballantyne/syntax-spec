@@ -1,39 +1,6 @@
 #lang racket/base
 
-(require "../main.rkt"
-         (for-syntax racket/base syntax/parse)
-         syntax/macro-testing
-         racket/exn
-         rackunit
-         (only-in "../testing.rkt" expand-nonterminal/datum))
-
-;;
-;; Helpers
-;;
-
-(define ((check-formatted-error-matches rx) exn)
-  ;; I previously used exn->string, but that raised an error
-  ;; re: writing special values when handling an ambiguous binding
-  ;; error.
-  (regexp-match? rx (exn-message exn)))
-
-(define-syntax-rule (check-decl-error rx decl-stx)
-  (check-exn
-   (check-formatted-error-matches rx)
-   (lambda ()
-     (eval-syntax #`(module m racket/base
-                      (require "../main.rkt")
-                      decl-stx)))))
-
-(define-syntax-rule (check-phase1-error rx e)
-  (check-exn
-   (check-formatted-error-matches rx)
-   (lambda () (phase1-eval e #:catch? #t))))
-
-(define-syntax-rule (check-syntax-error rx e)
-  (check-exn
-   (check-formatted-error-matches rx)
-   (lambda () (convert-compile-time-error e))))
+(require "../testing.rkt")
 
 ;;
 ;; Nonterminal declaration syntax errors

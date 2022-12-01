@@ -152,7 +152,7 @@
     [#`(lambda (x ...)
          (lambda (s)
            (lambda ()
-             (#,(compile-goal #'g) s))))]))
+             (#%app (compile-goal g) s))))]))
 
 (define-host-interface/expression
   (core-run n:expr q:term-variable g:goal)
@@ -160,11 +160,11 @@
   
   #`(let ([q (var 'q)])
       (map (reify q)
-           (run-goal n #,(compile-goal #'g)))))
+           (run-goal n (compile-goal g)))))
 
 (define-host-interface/expression
   (goal-expression g:goal)
-  #`(goal-value #,(compile-goal #'g)))
+  #`(goal-value (compile-goal g)))
 
 ;;
 ;; Surface syntax for interface macros
@@ -192,71 +192,68 @@
 ;;
 
 (begin-for-syntax
-  (define-persistent-symbol-table relation-arity)
-  
-  (define (compile-goal g)
-    (syntax-parse g
-      #:literals (succeed fail == disj2 conj2 fresh1 project ifte once)
-      [succeed
-       #'succeed-rt]
-      [fail
-       #'fail-rt]
-      [(== t1 t2)
-       #`(==-rt #,(compile-term #'t1) #,(compile-term #'t2))]
-      [(disj2 g1 g2)
-       #`(disj2-rt #,(compile-goal #'g1) #,(compile-goal #'g2))]
-      [(conj2 g1 g2)
-       #`(conj2-rt #,(compile-goal #'g1) #,(compile-goal #'g2))]
-      [(fresh1 (x) b)
-       #`(call/fresh 'x (lambda (x) #,(compile-goal #'b)))]
+  (define-persistent-symbol-table relation-arity))
+
+(define-syntax compile-goal
+  (syntax-parser
+    #:literals (succeed fail == disj2 conj2 fresh1 project ifte once)
+    [(_ succeed)
+     #'succeed-rt]
+    [(_ fail)
+     #'fail-rt]
+    [(_ (== t1 t2))
+     #`(==-rt (compile-term t1) (compile-term t2))]
+    [(_ (disj2 g1 g2))
+     #`(disj2-rt (compile-goal g1) (compile-goal g2))]
+    [(_ (conj2 g1 g2))
+     #`(conj2-rt (compile-goal g1) (compile-goal g2))]
+    [(_ (fresh1 (x) b))
+     #`(call/fresh 'x (lambda (x) (compile-goal b)))]
       
-      [(project (x ...) e:expr ...)
-       (define-local-symbol-table projected-names)
+    [(_ (project (x ...) e:expr ...))
+     (define-local-symbol-table projected-names)
        
-       (for ([x (attribute x)])
-         (when (not (symbol-table-ref projected-names x #f))
-           (symbol-table-set! projected-names x #t)))
+     (for ([x (attribute x)])
+       (when (not (symbol-table-ref projected-names x #f))
+         (symbol-table-set! projected-names x #t)))
        
-       (define term-reference-compiler
-         (make-variable-like-transformer
-          (lambda (id)
-            (if (symbol-table-ref projected-names id #f)
-                id
-                (raise-syntax-error #f "only projected logic variables may be used from Racket code" id)))))
+     (define term-reference-compiler
+       (make-variable-like-transformer
+        (lambda (id)
+          (if (symbol-table-ref projected-names id #f)
+              id
+              (raise-syntax-error #f "only projected logic variables may be used from Racket code" id)))))
 
-       #`(lambda (s)
-           (let ([x (walk* x s)] ...)
-             (with-reference-compilers ([term-variable #,term-reference-compiler])
-               ((conj-gen (check-goal e #'e) ...) s))))]
-      [(ifte g1 g2 g3)
-       #`(ifte-rt #,(compile-goal #'g1) #,(compile-goal #'g2) #,(compile-goal #'g3))]
-      [(once g)
-       #`(once-rt #,(compile-goal #'g))]
-      [(relname t ...)
-       #:with (compiled-term ...) (map compile-term (attribute t))
-
-       ;; TODO
-       (let ([actual (length (attribute t))]
-             [expected  (symbol-table-ref relation-arity #'relname)])
-         (when (not (= actual expected ))
-           (raise-syntax-error
-            #f
-            (format "wrong number of arguments; actual ~a, expected ~a" actual expected)
-            #'relname)))
+     #`(lambda (s)
+         (let ([x (walk* x s)] ...)
+           (with-reference-compilers ([term-variable #,term-reference-compiler])
+             ((conj-gen (check-goal e #'e) ...) s))))]
+    [(_ (ifte g1 g2 g3))
+     #`(ifte-rt (compile-goal g1) (compile-goal g2) (compile-goal g3))]
+    [(_ (once g))
+     #`(once-rt (compile-goal g))]
+    [(_ (relname t ...))
+     (let ([actual (length (attribute t))]
+           [expected (symbol-table-ref relation-arity #'relname)])
+       (when (not (= actual expected ))
+         (raise-syntax-error
+          #f
+          (format "wrong number of arguments; actual ~a, expected ~a" actual expected)
+          #'relname)))
        
-       #'(relname compiled-term ...)]))
+     #'(relname (compile-term t) ...)]))
   
-  (define (compile-term t)
-    (syntax-parse t
-      #:literals (quote cons)
-      [n:number
-       #''n]
-      [x:id
-       #'x]
-      [(quote t)
-       #''t]
-      [(cons t1 t2)
-       #`(cons #,(compile-term #'t1) #,(compile-term #'t2))])))
+(define-syntax compile-term
+  (syntax-parser
+    #:literals (quote cons)
+    [(_ n:number)
+     #''n]
+    [(_ x:id)
+     #'x]
+    [(_ (quote t))
+     #''t]
+    [(_ (cons t1 t2))
+     #`(cons (compile-term t1) (compile-term t2))]))
 
 ;;
 ;; Runtime
