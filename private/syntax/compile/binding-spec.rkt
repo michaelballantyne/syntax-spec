@@ -195,7 +195,7 @@
 #;(identifier? -> BSpec)
 (define (elaborate-ref v)
   (ref (elaborate-pvar v
-                       (or (s* bindclass-rep) (s* nonterm-rep) (? stxclass-rep?))
+                       (or (s* bindclass-rep) (s* nonterm-rep) (? stxclass-rep?) (s* nested-binding))
                        "binding class, syntax class, or nonterminal")))
 
 (define-syntax-rule
