@@ -338,30 +338,47 @@
     [(_ ([item init] ...+) body ...)
      #'(apply values (map/trees (lambda (item ...) body ...) (list init ...)))]))
 
-; trees must have same structure and f must always return the same number of values given a particular
-; number of arguments.
-; traverse the trees in parallel, applying f at each leaf with arguments from each tree.
+; the trees must have the same structure.
+; the number of trees, the number of arguments f accepts, and the number of values f returns
+; must all be the same.
+; If this is violated, unexpected results may be returned. This is not validated.
+; Traverse the trees in parallel, applying f at each leaf with arguments from each tree.
 ; Constructs as many parallel trees as return values, each with the same shape as the input trees.
+; For example, if the function takes in 3 arguments and returns 3 value, there must be three trees and
+; the result will be a list containing 3 trees with the same structure as each input tree.
+; If the function returns 2 values, the result will be a list contining 2 trees
 (define (map/trees f trees)
+  ; TODO map does an arity check to make sure that f's arity is equal to the number of lists
+  ; do we want to do that?
   (cond
+    [(null? trees) (error 'map/trees "expected at least one tree")]
     [(andmap (negate list?) trees) (call-with-values (lambda () (apply f trees)) list)]
+    ; this only works if the number of return values of f is the same as the number of trees
+    [(andmap null? trees) trees]
     [(and (andmap list? trees) (apply = (map length trees)))
      (transpose (apply map (lambda items (map/trees f items)) trees))]
     ; TODO make this a better error that reports in terms of binding specs
     [else (error 'map/tree "tree shapes are not the same")]))
 
 (module+ test
-  (check-equal? (map/trees list '())
+  ; TODO remove tests that violate the new constraint.
+  (check-exn #rx"expected at least one tree" (lambda () (map/trees values '())))
+  (check-equal? (map/trees list '(()))
                 '(()))
-  (check-equal? (map/trees (lambda (v1 v2) (values (add1 v1) (sub1 v2)))
+  (check-equal? (map/trees (lambda (v1 v2) (values (add1 v1) (- v2)))
                            '(1 2))
-                '(2 1))
-  (check-equal? (map/trees (lambda (v1 v2) (values (add1 v1) (sub1 v2)))
+                '(2 -2))
+  (check-equal? (map/trees (lambda (v1 v2) (values (add1 v1) (- v2)))
                            '((1 2 3) (3 4 5)))
-                '((2 3 4) (2 3 4)))
+                '((2 3 4) (-3 -4 -5)))
+  (check-equal? (map/trees (lambda (v1 v2) (values (add1 v1) (- v2)))
+                           '((1 (2) 3)
+                             (3 (4) 5)))
+                '((2 (3) 4) (-3 (-4) -5)))
   (check-equal? (map/trees (lambda (v1 v2) (values (add1 v1) (vector v1 v2)))
                            '((1 (2) 3) (3 (4) 5)))
-                '((2 (3) 4) (#(1 3) (#(2 4)) #(3 5))))
+                '((2 (3) 4)
+                  (#(1 3) (#(2 4)) #(3 5))))
   (check-equal? (map/trees add1 '((((2) (3 4)))))
                 '((((3) (4 5)))))
   (check-equal? (map/trees *
