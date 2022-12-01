@@ -79,7 +79,6 @@
      (define (on-error e)
        (queue-callback
         (lambda ()
-          (displayln 'here)
           (csv-controller '(load-error)))))
      
      (with-handlers ([exn:fail? on-error])                                
@@ -93,7 +92,7 @@
 ;; Controller via encoded state machine
 ;;
 
-(define csv-controller
+#;(define csv-controller
   (let ()
     (define state #f)
     (define (-> new-state)
@@ -157,29 +156,29 @@
 ;; Controller via state machine DSL
 ;;
 
-#;(require "state-machine.rkt")
-#;(define csv-controller
-    (machine
-     #:initial-state no-data
+(require "state-machine.rkt")
+(define csv-controller
+  (machine
+   #:initial-state no-data
    
-     #:states
-     (state no-data
-       (on-enter (show url-message)))
-     (state loading
-       (on-enter (show loading-message)
-                 (load-data (send url-field get-value)))
-       (on (load-error) (-> error))
-       (on (loaded data)
-         (set-data data)
-         (-> display)))
-     (state display
-       (on-enter (show table)))
-     (state error
-       (on-enter (show error-message)))
+   #:states
+   (state no-data
+     (on-enter (show url-message)))
+   (state loading
+     (on-enter (show loading-message)
+               (load-data (send url-field get-value)))
+     (on (load-error) (-> error))
+     (on (loaded data)
+       (set-data data)
+       (-> display)))
+   (state display
+     (on-enter (show table)))
+   (state error
+     (on-enter (show error-message)))
    
-     #:shared-events
-     (on (load-click) (-> loading))
-     (on (url-change) (-> no-data))))
+   #:shared-events
+   (on (load-click) (-> loading))
+   (on (url-change) (-> no-data))))
 
 
 ;;
