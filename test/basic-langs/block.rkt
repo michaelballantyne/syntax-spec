@@ -25,7 +25,6 @@
 ; like a (non-splicing) begin, but the last form may be a definition
 (define-host-interface/expression (block body:block-form ...)
   #:binding {(recursive body)}
-  (displayln (attribute body))
   (let ([res (syntax-parse #'(body ...)
                ; empty block
                [() #'(void)]
@@ -41,18 +40,17 @@
                           (define-syntaxes (trans-id) trans-expr)
                           expr)
                     ...)
-                   #`(letrec-syntaxes+values
-            ([(trans-id) trans-expr] ...)
-            ([(val-id ...) val-expr] ...)
-                       expr
-                       ...
-                       #,@(if last-is-definition?
-                              ; this allows the last form to be a definition
-                              ; last is a definition, put void at the end
-                              #'((void))
-                              ; last is an expr, leave it be
-                              #'()))])])])
-    (displayln res)
+                   #`(with-reference-compilers ([rkt-var mutable-reference-compiler])
+                       (letrec-syntaxes+values ([(trans-id) trans-expr] ...)
+                                               ([(val-id ...) val-expr] ...)
+                         expr
+                         ...
+                         #,@(if last-is-definition?
+                                ; this allows the last form to be a definition
+                                ; last is a definition, put void at the end
+                                #'((void))
+                                ; last is an expr, leave it be
+                                #'())))])])])
     res))
 
 (check-equal?
