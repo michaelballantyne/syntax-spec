@@ -94,12 +94,6 @@
    exp-state st
    [pvar-vals env^]))
 
-(define (update-pvar st pv f)
-  (struct-copy
-   exp-state st
-   [pvar-vals (hash-update
-               (exp-state-pvar-vals st) pv f)]))
-
 (define (update-nest-state st f)
   (struct-copy
    exp-state st
