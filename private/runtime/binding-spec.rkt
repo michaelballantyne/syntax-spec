@@ -338,33 +338,40 @@
     [(_ ([item init] ...+) body ...)
      #'(apply values (map/trees (lambda (item ...) body ...) (list init ...)))]))
 
+#;(procedure? (listof tree) -> (listof tree))
+; maps a function over the leaves of the trees.
 ; the trees must have the same structure.
-; the number of trees, the number of arguments f accepts, and the number of values f returns
-; must all be the same.
+; the number of trees, the number of arguments f accepts, the number of values f returns, and the number
+; of trees returned by this function must be equal.
 ; If this is violated, unexpected results may be returned. This is not validated.
 ; Traverse the trees in parallel, applying f at each leaf with arguments from each tree.
-; Constructs as many parallel trees as return values, each with the same shape as the input trees.
-; For example, if the function takes in 3 arguments and returns 3 value, there must be three trees and
-; the result will be a list containing 3 trees with the same structure as each input tree.
-; If the function returns 2 values, the result will be a list contining 2 trees
+; In the case of multiple trees and multiple return values for f, applies the function
+; to the corresponding leaves from all trees and returns parallel trees for each return value.
 (define (map/trees f trees)
-  ; TODO map does an arity check to make sure that f's arity is equal to the number of lists
-  ; do we want to do that?
   (cond
     [(null? trees) (error 'map/trees "expected at least one tree")]
     [(andmap (negate list?) trees) (call-with-values (lambda () (apply f trees)) list)]
-    ; this only works if the number of return values of f is the same as the number of trees
-    [(andmap null? trees) trees]
+    [(andmap null? trees)
+     ; this assumes that the number of output trees is the same as the number of input trees
+     trees]
     [(and (andmap list? trees) (apply = (map length trees)))
+     ; since we convert a leaf's resulting return values to a list, we must transpose to convert a tree of lists
+     ; to a list of trees.
      (transpose (apply map (lambda items (map/trees f items)) trees))]
     ; TODO make this a better error that reports in terms of binding specs
     [else (error 'map/tree "tree shapes are not the same")]))
 
 (module+ test
-  ; TODO remove tests that violate the new constraint.
   (check-exn #rx"expected at least one tree" (lambda () (map/trees values '())))
-  (check-equal? (map/trees list '(()))
+  (check-exn #rx"tree shapes are not the same"
+             (lambda () (map/trees values '((1 (2) 3)
+                                            (4 ((5)) 6)))))
+  ; the function never gets applied because there are no leaves
+  (check-equal? (map/trees error '(()))
                 '(()))
+  (check-equal? (map/trees add1 '(1)) '(2))
+  (check-equal? (map/trees add1 '((1 ((2) (3 4)))))
+                '((2 ((3) (4 5)))))
   (check-equal? (map/trees (lambda (v1 v2) (values (add1 v1) (- v2)))
                            '(1 2))
                 '(2 -2))
@@ -375,16 +382,14 @@
                            '((1 (2) 3)
                              (3 (4) 5)))
                 '((2 (3) 4) (-3 (-4) -5)))
+  (check-equal? (map/trees (lambda (v1 v2) (values (add1 v1) (- v2)))
+                           '((1 (2) (()) 3)
+                             (3 (4) (()) 5)))
+                '((2 (3) (()) 4) (-3 (-4) (()) -5)))
   (check-equal? (map/trees (lambda (v1 v2) (values (add1 v1) (vector v1 v2)))
                            '((1 (2) 3) (3 (4) 5)))
                 '((2 (3) 4)
-                  (#(1 3) (#(2 4)) #(3 5))))
-  (check-equal? (map/trees add1 '((((2) (3 4)))))
-                '((((3) (4 5)))))
-  (check-equal? (map/trees *
-                          '((((2) (3 4)))
-                            (((5) (6 7)))))
-                '((((10) (18 28))))))
+                  (#(1 3) (#(2 4)) #(3 5)))))
 
 (define (transpose v)
   (apply map list v))
