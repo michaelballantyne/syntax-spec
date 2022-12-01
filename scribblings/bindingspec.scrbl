@@ -136,43 +136,27 @@
 
 @subsection{Compilation}
 
-@subsubsection{Persistent free-identifier tables}
+@subsubsection{Symbol tables}
 
-@require[(for-label syntax/id-table)]
+@defform[(define-persistent-symbol-table id)]
 
-
-@defform[(define-persistent-free-id-table id)]
-
-@defproc[(persistent-free-id-table? [v any/c]) boolean?]
+@defform[(define-local-symbol-table id)]
 
 @defproc[(syntax-datum? [v any/c]) boolean?]
 
-@defproc[(identifier-with-binding? [v any/c]) boolean?]
+@defproc[(symbol-table-set! [table any/c]
+                            [id identifier?]
+                            [v (or/c syntax? syntax-datum?)]) void?]
 
-@defproc[(persistent-free-id-table-has-key? [table persistent-free-id-table?] [id identifier-with-binding?]) boolean?]
-
-@defproc[(persistent-free-id-table-set! [table persistent-free-id-table?]
-                                        [id identifier-with-binding?]
-                                        [v (or/c syntax? syntax-datum?)]) void?]
-
-@defproc[(persistent-free-id-table-ref [table persistent-free-id-table?] [id identifier-with-binding?] [failure any/c]) any/c]
-
+@defproc[(symbol-table-ref [table any/c] [id identifier?] [failure any/c]) any/c]
 
 @subsubsection{Compiling bindings and references}
 
-@defthing[compiled-ids persistent-free-id-table?]
-
-@defproc[(compile-binder! [id identifier?] [#:table table (or/c mutable-free-id-table? persistent-free-id-table?) compiled-ids]) identifier?]
-
-@defproc[(compile-binders! [ids (listof identifier?)] [#:table table (or/c mutable-free-id-table? persistent-free-id-table?) compiled-ids]) (listof identifier?)]
-
-@defproc[(compile-reference [id identifier?] [#:table table (or/c free-id-table? persistent-free-id-table?) compiled-ids]) identifier?]
+@defform[(with-reference-compilers ([binding-class-id reference-compiler-expr] ...) body ...+)]
 
 @defthing[immutable-reference-compiler set!-transformer?]
 
 @defthing[mutable-reference-compiler set!-transformer?]
-
-@defform[(with-reference-compilers ([binding-class-id reference-compiler-expr] ...) body ...+)]
 
 @subsubsection{Binding spaces}
 

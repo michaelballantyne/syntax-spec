@@ -10,19 +10,12 @@
           in-space
           ~space-literal
 
-          compiled-ids
-          compile-reference
-          compile-binder!
-          compile-binders!
-
           mutable-reference-compiler
           immutable-reference-compiler
 
-          syntax-datum?
-          identifier-with-binding?
-          
           define-persistent-symbol-table
           define-local-symbol-table
+          syntax-datum?
           symbol-table-set!
           symbol-table-ref))
 
