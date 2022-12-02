@@ -6,6 +6,7 @@
          define-host-interface/definitions
          
          (for-syntax racket-macro
+                     racket-var
                      binding-class-predicate
                      binding-class-constructor
                      nonterminal-expander))
@@ -219,9 +220,10 @@
        (with-scope sc
          (define (generate-body)
            (add-scope
-            #'(syntax-parse #f
-                [_
-                 parse-body ...])
+            #'(add-built-in-reference-compilers
+               (syntax-parse #f
+                 [_
+                  parse-body ...]))
             sc))
 
          (define/syntax-parse clause
@@ -299,6 +301,28 @@
                   (quote-syntax racket-macro?)
                   (quote-syntax racket-macro-transformer)
                   #f)))
+
+(begin-for-syntax
+  ; racket var is not super-special.
+  ; It's just a binding class that gets an implicit
+  ; (with-reference-compilers ([racket-var mutable-reference-compiler])).
+  ; The dsl-writer still has to say (host e) for racket host expressions.
+  (struct racket-var-rep []
+    #:property prop:set!-transformer
+    (binding-as-rkt #'racket-var "racket variable")
+    #:property prop:not-racket-syntax #t)
+  (define-syntax racket-var
+    (bindclass-rep "racket variable"
+                   (quote-syntax racket-var-rep)
+                   (quote-syntax racket-var-rep?)
+                   #f)))
+
+(begin-for-syntax
+  (define (add-built-in-reference-compilers stx)
+    ; I know this is a bit of a hack, but I think it'd actually be nice to see this
+    ; in the macro stepper, as opposed to it being complete behind-the-scenes magic
+    #`(with-reference-compilers ([racket-var mutable-reference-compiler])
+        #,stx)))
 
 ;;
 ;; phase 1 accessors

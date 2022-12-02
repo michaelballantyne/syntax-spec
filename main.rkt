@@ -22,7 +22,7 @@
 (require "private/syntax/interface.rkt"
          "private/runtime/compile.rkt"
          (for-syntax syntax/parse
-                     ee-lib
+                     (except-in ee-lib racket-var racket-var?)
                      ee-lib/persistent-id-table
                      ee-lib/private/binding
                      "private/runtime/syntax-classes.rkt"))
