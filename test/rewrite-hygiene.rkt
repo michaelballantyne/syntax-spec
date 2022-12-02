@@ -1,7 +1,7 @@
 #lang racket/base
 
 (require "../testing.rkt"
-         (for-syntax racket/base ee-lib syntax/parse))
+         (for-syntax racket/base (except-in ee-lib racket-var) syntax/parse))
 
 (define-hosted-syntaxes
   (binding-class dsl-name)

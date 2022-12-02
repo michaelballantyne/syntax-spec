@@ -12,7 +12,7 @@
           syntax/parse
           syntax/id-table
           syntax/transformer
-          ee-lib))
+          (except-in ee-lib racket-var)))
 
 ;;
 ;; Core syntax

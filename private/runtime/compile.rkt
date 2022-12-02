@@ -2,7 +2,8 @@
 
 (provide #%host-expression
          with-reference-compilers
-         (for-syntax binding-as-rkt
+         (for-syntax current-reference-compilers
+                     binding-as-rkt
                      make-suspension
 
                      mutable-reference-compiler

@@ -23,6 +23,7 @@
    racket/function
    racket/syntax
    syntax/parse
+   syntax/id-table
    ee-lib
    ee-lib/persistent-id-table
    ee-lib/syntax-category
@@ -220,10 +221,9 @@
        (with-scope sc
          (define (generate-body)
            (add-scope
-            #'(add-built-in-reference-compilers
-               (syntax-parse #f
-                 [_
-                  parse-body ...]))
+            #'(syntax-parse #f
+                [_
+                 parse-body ...])
             sc))
 
          (define/syntax-parse clause
@@ -318,11 +318,22 @@
                    #f)))
 
 (begin-for-syntax
-  (define (add-built-in-reference-compilers stx)
-    ; I know this is a bit of a hack, but I think it'd actually be nice to see this
-    ; in the macro stepper, as opposed to it being complete behind-the-scenes magic
-    #`(with-reference-compilers ([racket-var mutable-reference-compiler])
-        #,stx)))
+  (define built-in-reference-compilers (list (list #'racket-var mutable-reference-compiler)))
+  #;((syntax? -> syntax?) -> (syntax? -> syntax?))
+  ; this only works for procedure transformers.
+  (define new-reference-compilers
+    (for/fold ([env (current-reference-compilers)])
+              ([pair built-in-reference-compilers])
+      (free-id-table-set env (first pair) (second pair))))
+  ; TODO figure out a better way to get this into the parameter during expansion. This is not ok.
+  ; It's tricky because it has to be in the parameter when the host expression expands.
+  ; I don't think you can just wrap the interface macro transformer in something that does this,
+  ; but it's worth trying. The reason I don't think it'd work is because the transformer
+  ; probably won't expand host exprs during its dynamic extent.
+  ; You could local expand the result of the transformer inside of a parameterize, but then you'd
+  ; get potentially quadratic re-expansion. with-reference-compilers uses syntax-local-expand-expression,
+  ; but you can't do that for transformers that may produce definitions.
+  (current-reference-compilers new-reference-compilers))
 
 ;;
 ;; phase 1 accessors
