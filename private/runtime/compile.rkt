@@ -51,7 +51,7 @@
                    (syntax-property stx suspension-property-key)))))
 
   (define current-reference-compilers
-    (make-parameter #f))
+    (make-parameter (make-immutable-free-id-table)))
 
 
   (define (binding-as-rkt bclass-id description)
@@ -63,9 +63,6 @@
           description
           " may not be used as a racket expression")
          stx))
-      
-      (when (not (current-reference-compilers))
-        (error-as-rkt))
       
       (define compile (free-id-table-ref
                       (current-reference-compilers) bclass-id
@@ -90,7 +87,7 @@
     (syntax-parser
       [(_ ([bclass:id t-e:expr] ...) body ...+)
        (define binding-compilers
-         (for/fold ([env (make-immutable-free-id-table)])
+         (for/fold ([env (current-reference-compilers)])
                    ([k (attribute bclass)]
                     [t-e (attribute t-e)])
            (define v (eval-transformer t-e))
