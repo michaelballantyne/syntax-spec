@@ -6,11 +6,10 @@
 (require "../../testing.rkt")
 
 (define-hosted-syntaxes
-  (binding-class rkt-var)
   (two-pass-nonterminal block-form
                         #:allow-extension racket-macro
 
-                        ((~literal define-values) (x:rkt-var ...) e:expr)
+                        ((~literal define-values) (x:racket-var ...) e:expr)
                         #:binding [(export x) (host e)]
 
                         ; currently can only express single macro definitions
@@ -40,17 +39,16 @@
                           (define-syntaxes (trans-id) trans-expr)
                           expr)
                     ...)
-                   #`(with-reference-compilers ([rkt-var mutable-reference-compiler])
-                       (letrec-syntaxes+values ([(trans-id) trans-expr] ...)
-                                               ([(val-id ...) val-expr] ...)
-                         expr
-                         ...
-                         #,@(if last-is-definition?
-                                ; this allows the last form to be a definition
-                                ; last is a definition, put void at the end
-                                #'((void))
-                                ; last is an expr, leave it be
-                                #'())))])])])
+                   #`(letrec-syntaxes+values ([(trans-id) trans-expr] ...)
+                                             ([(val-id ...) val-expr] ...)
+                       expr
+                       ...
+                       #,@(if last-is-definition?
+                              ; this allows the last form to be a definition
+                              ; last is a definition, put void at the end
+                              #'((void))
+                              ; last is an expr, leave it be
+                              #'()))])])])
     res))
 
 (check-equal?
