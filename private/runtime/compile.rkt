@@ -2,7 +2,7 @@
 
 (provide #%host-expression
          with-reference-compilers
-         (for-syntax current-reference-compilers
+         (for-syntax setup-default-reference-compilers!
                      binding-as-rkt
                      make-suspension
 
@@ -12,6 +12,7 @@
 (require
   (for-syntax
    racket/base
+   racket/list
    racket/function
    racket/private/check
    racket/match
@@ -81,7 +82,19 @@
              (t (datum->syntax this-syntax (list #'set! (compile-reference #'v) #'e) this-syntax this-syntax))
              (raise-syntax-error #f (format "the reference compiler for ~a does not support set!" s) stx #'x))]
         [(v:id . rest)
-         (datum->syntax this-syntax (cons #'(#%expression v) #'rest) this-syntax this-syntax)]))))
+         (datum->syntax this-syntax (cons #'(#%expression v) #'rest) this-syntax this-syntax)])))
+
+  #;(listof (list identifier? reference-compiler?))
+  ; associates binding classes with reference compilers in the default environment.
+  ; calling multiple times will add all associations to the default environment.
+  ; NOTE: This must only be used before any DSL expansion may occur.
+  (define (setup-default-reference-compilers! assocs)
+    ; this only works for procedure transformers.
+    (define new-reference-compilers
+      (for/fold ([env (current-reference-compilers)])
+                ([pair assocs])
+        (free-id-table-set env (first pair) (second pair))))
+   (current-reference-compilers new-reference-compilers)))
 
 (define-syntax with-reference-compilers
   (let ([who 'with-reference-compilers])

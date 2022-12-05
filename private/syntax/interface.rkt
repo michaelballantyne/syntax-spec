@@ -302,38 +302,16 @@
                   (quote-syntax racket-macro-transformer)
                   #f)))
 
-(begin-for-syntax
-  ; racket var is not super-special.
-  ; It's just a binding class that gets an implicit
-  ; (with-reference-compilers ([racket-var mutable-reference-compiler])).
-  ; The dsl-writer still has to say (host e) for racket host expressions.
-  (struct racket-var-rep []
-    #:property prop:set!-transformer
-    (binding-as-rkt #'racket-var "racket variable")
-    #:property prop:not-racket-syntax #t)
-  (define-syntax racket-var
-    (bindclass-rep "racket variable"
-                   (quote-syntax racket-var-rep)
-                   (quote-syntax racket-var-rep?)
-                   #f)))
+; racket var is not super-special.
+; It's just a binding class that gets an implicit
+; (with-reference-compilers ([racket-var mutable-reference-compiler])).
+; The dsl-writer still has to say (host e) for racket host expressions.
+(define-hosted-syntaxes
+  (binding-class racket-var #:description "racket variable"))
 
 (begin-for-syntax
   (define built-in-reference-compilers (list (list #'racket-var mutable-reference-compiler)))
-  #;((syntax? -> syntax?) -> (syntax? -> syntax?))
-  ; this only works for procedure transformers.
-  (define new-reference-compilers
-    (for/fold ([env (current-reference-compilers)])
-              ([pair built-in-reference-compilers])
-      (free-id-table-set env (first pair) (second pair))))
-  ; TODO figure out a better way to get this into the parameter during expansion. This is not ok.
-  ; It's tricky because it has to be in the parameter when the host expression expands.
-  ; I don't think you can just wrap the interface macro transformer in something that does this,
-  ; but it's worth trying. The reason I don't think it'd work is because the transformer
-  ; probably won't expand host exprs during its dynamic extent.
-  ; You could local expand the result of the transformer inside of a parameterize, but then you'd
-  ; get potentially quadratic re-expansion. with-reference-compilers uses syntax-local-expand-expression,
-  ; but you can't do that for transformers that may produce definitions.
-  (current-reference-compilers new-reference-compilers))
+  (setup-default-reference-compilers! built-in-reference-compilers))
 
 ;;
 ;; phase 1 accessors
