@@ -8,27 +8,31 @@
   (extension-class dsl-macro)
   (nonterminal dsl-expr
     #:allow-extension dsl-macro
+    form
     (form)))
 
-(define-syntax m
+
+(define-syntax attach-property-to-argument
   (dsl-macro
    (syntax-parser
      [(_ f)
       (syntax-property #'f 'foo 'bar)])))
 
-(define-syntax m2
+(define-syntax identity-macro
   (dsl-macro
    (syntax-parser
      [(_ f)
       #'f])))
 
 (define-host-interface/expression
-  (dsl e:dsl-expr)
-  (syntax-parse #'e
-    #:literals (form)
-    [(form)
-     #`'#,(syntax-property this-syntax 'foo)]))
+  (check-for-property e:dsl-expr)
+  #`'#,(syntax-property #'e 'foo))
+
 
 (check-equal?
- (dsl (m (m2 (form))))
+ (check-for-property (attach-property-to-argument (identity-macro (form))))
+ 'bar)
+
+(check-equal?
+ (check-for-property (attach-property-to-argument (identity-macro form)))
  'bar)

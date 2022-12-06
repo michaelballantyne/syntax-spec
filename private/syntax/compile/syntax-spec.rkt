@@ -4,7 +4,7 @@
          compile-sspec-to-pattern
          compile-sspec-to-template
          generate-pattern-literal
-         sspec-template-composite?)
+         sspec-template-single-pvar?)
 
 (require racket/function
          syntax/parse
@@ -115,13 +115,10 @@
       
   (generate-template-form stx))
 
-(define (sspec-template-composite? stx)
+(define (sspec-template-single-pvar? stx)
   (syntax-parse stx
-    [name:form-id
-     #f]
-    [r:ref-id
-     #f]
-    [_ #t]))
+    [r:ref-id #t]
+    [_ #f]))
     
 
 (define (sspec-bind-pvars! stx)

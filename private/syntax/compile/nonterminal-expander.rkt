@@ -171,9 +171,9 @@
                    ;; Nasty workaround: the only syntax/lp we can define in userspace will misbehave given
                    ;; a template that just refers to a single pattern variable and put the this-syntax properties
                    ;; in place of those on the syntax in the pvar. So, detect that case and just use plain `syntax`.
-                   (if (sspec-template-composite? sspec)
-                       #`(stx/lp this-syntax #,(compile-sspec-to-template sspec))
-                       #`(syntax #,(compile-sspec-to-template sspec))))))]
+                   (if (sspec-template-single-pvar? sspec)
+                       #`(syntax #,(compile-sspec-to-template sspec))
+                       #`(stx/lp this-syntax #,(compile-sspec-to-template sspec))))))]
              [(p:form-rewrite-production)
               ;; Hygiene for rewrite productions only uses a macro introduction
               ;; scope applied to the input and flipped on the output. 
