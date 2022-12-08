@@ -49,7 +49,7 @@
             (define id^ (bind! (add-scope (attribute nested-id) sc) (pvar-rep (nested-binding))))
             #`(wrap-hygiene
                (lambda (stx-a)
-                 (with-scope _ #,(generate-loop (add-scope #'(prod-arg ...) sc) id^ #'stx-a)))
+                 #,(generate-loop (add-scope #'(prod-arg ...) sc) id^ #'stx-a))
                'expression))]
          [#:pass1
           #`(wrap-hygiene

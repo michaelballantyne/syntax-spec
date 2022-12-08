@@ -84,7 +84,7 @@
   (define env (exp-state-pvar-vals st))
   (define vals (for/list ([pv pvs]) (hash-ref env pv)))
   (define vals^ (call-with-values (lambda () (apply f vals))
-                     list))
+                                  list))
   (define env^
     (for/fold ([env^ env])
               ([pv pvs]
@@ -156,7 +156,7 @@
     ;; update the state of `pv` by mapping over its tree
     (syntax-parser
       [(_ ([item pv] ...+)
-         b ...)
+          b ...)
        #:with (tree ...) (generate-temporaries (attribute item))
        #'(update-pvar* st (list pv ...)
                        (lambda (tree ...)
@@ -280,48 +280,47 @@
       (call-reconstruct-function (exp-state-pvar-vals st^) reconstruct-f)
       (exp-state-nest-state st^))]))
 
-;; When entering a `nest-one` or `nest` form, add an extra scope. This means that the
-;; expansion within is in a new definition context with a scope distinguishing it from
-;; surrounding definition contexts where macros may have been defined. The Racket expander
-;; knows it can omit use-site scopes in this situation. This avoids a problem with situations
-;; like:
-;;
-;; (define-syntax m (syntax-rules ()
-;;                    [(m a) a]))
-;; (match [(m x)
-;;         ; => expands to
-;;         x                               ; use-site l
-;;         x])                             ; l
-;;
-;; where a binding created in the nest spec is not visible in the nested spec.
-;;
-;; TODO: if the meta-DSL supports binding macros in the future, we may need to add a scope
-;; at every nest step rather than only the entry point to account for macros defined in one
-;; nest step and used in the next without an intervening new scope.
 (define (start-nest f init-seq st inner-spec local-scopes)
-  (with-scope sc
-    (simple-expand-nest (nest-call f init-seq '() st inner-spec) (cons sc local-scopes))))
+  (simple-expand-nest (nest-call f init-seq '() st inner-spec) local-scopes))
 
 ; nest-call? -> nest-ret?
 (define (simple-expand-nest nest-st new-local-scopes)
   (match-define (nest-call f seq acc-scopes inner-spec-st inner-spec) nest-st)
-  
-  (define acc-scopes^ (append acc-scopes new-local-scopes))
 
-  (match seq
-    [(cons stx rest)
-     (define-values
-       (stx^ nest-st^)
-       ;; Original:
-       (call-expand-function/nest
-        f
-        (add-scopes stx acc-scopes^)
-        (nest-call f rest acc-scopes^ inner-spec-st inner-spec)))
+  ;; When entering a `nest-one` or `nest` form, enter an expression context and add an extra scope.
+  ;; This means that the expansion within is in a new definition context with a scope distinguishing
+  ;; it from surrounding definition contexts where macros may have been defined. Entering an expression
+  ;; context conveys that a binding cannot splice out of the context. The Racket expander
+  ;; knows it can omit use-site scopes in this situation. This avoids a problem with situations
+  ;; like:
+  ;;
+  ;; (define-syntax m (syntax-rules ()
+  ;;                    [(m a) a]))
+  ;; (match [(m x)
+  ;;         ; => expands to
+  ;;         x                               ; use-site l
+  ;;         x])                             ; l
+  ;;
+  ;; where a binding created in the nest spec is not visible in the nested spec.
+  (call-in-expression-context
+   (lambda ()
+     (with-scope sc
+       (define acc-scopes^ (append acc-scopes new-local-scopes (list sc)))
 
-     (match-define (nest-ret done-seq inner-spec-st^) nest-st^)
-     (nest-ret (cons stx^ done-seq) inner-spec-st^)]
-    ['()
-     (nest-ret '() (simple-expand-internal inner-spec inner-spec-st acc-scopes^))]))
+       (match seq
+         [(cons stx rest)
+          (define-values
+            (stx^ nest-st^)
+            ;; Original:
+            (call-expand-function/nest
+             f
+             (add-scopes stx acc-scopes^)
+             (nest-call f rest acc-scopes^ inner-spec-st inner-spec)))
+
+          (match-define (nest-ret done-seq inner-spec-st^) nest-st^)
+          (nest-ret (cons stx^ done-seq) inner-spec-st^)]
+         ['()
+          (nest-ret '() (simple-expand-internal inner-spec inner-spec-st acc-scopes^))])))))
 
 ;; maps over a tree
 ;;
