@@ -31,7 +31,7 @@
      1)))
 
 (check-decl-error
- #rx"nonterminal: expected a reference to a binding class, syntax class, or nonterminal"
+ #rx"nonterminal: expected a reference to a binding class, extension class, syntax class, or nonterminal"
  (define-hosted-syntaxes
    (nonterminal expr
      x:unbound-name)))
@@ -111,7 +111,7 @@
      #:binding (export v))))
 
 (check-decl-error
- #rx"nonterminal: variable binding must occur within a scope"
+ #rx"nonterminal: binding must occur within a scope"
  (define-hosted-syntaxes
    (binding-class pvar)
    (nonterminal pat
