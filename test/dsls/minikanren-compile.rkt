@@ -23,19 +23,20 @@
        #'(with-reference-compilers ([term-variable immutable-reference-compiler])
          e)])))
 
-(define-host-interface/expression
-  (run n:expr (qvar:term-variable ...)
-    g:goal ...)
-  #:binding {(bind qvar) g}
+(syntax-spec
+  (host-interface/expression
+    (run n:expr (qvar:term-variable ...)
+      g:goal ...)
+    #:binding {(bind qvar) g}
 
-  (displayln #'(g ...))
-  #'(void))
+    (displayln #'(g ...))
+    #'(void))
 
 
-(define-host-interface/expression
-  (mk-compile g:goal)
+  (host-interface/expression
+    (mk-compile g:goal)
 
-  (compile-goal #'g))
+    (compile-goal #'g)))
 
 
 (mk-compile
