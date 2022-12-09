@@ -1,14 +1,14 @@
 #lang racket
 
-(require bindingspec (for-syntax syntax/parse))
+(require "../main.rkt" (for-syntax syntax/parse))
 
-(define-hosted-syntaxes
+(syntax-spec
   (binding-class statechart-name)
   (binding-class state-name)
   (binding-class var)
   (binding-class data-name)
   
-  (two-pass-nonterminal state-body
+  (nonterminal/two-pass state-body
     (initial n:state-name)
     #:binding {n}
     
@@ -18,7 +18,7 @@
     #:binding [(export n) (host e)]
 
     (state n:state-name
-           sb:state-body ...)
+      sb:state-body ...)
     #:binding [(export n) {(recursive sb)}]
 
     (use scn:statechart-name #:as sn:state-name
@@ -26,7 +26,7 @@
 
   (nonterminal event
     (on (evt:id arg:var ...)
-        ab:action ...+)
+      ab:action ...+)
     #:binding {(bind arg) ab}
 
     (on-enter ab:action ...)
@@ -44,18 +44,18 @@
     (let* (b:binding-group ...) body:action ...)
     #:binding (nest b body))
 
-  (nesting-nonterminal binding-group (tail)
+  (nonterminal/nesting binding-group (tail)
     [v:var e:expr]
-    #:binding [(host e) {(bind v) tail}]))
+    #:binding [(host e) {(bind v) tail}])
+  
+  #;(host-interface/definition
+      (define-statechart n:statechart-name
+        sb:state-body)
+      #:binding [(export n) {(recursive sb)}])
 
-#;(define-host-interface/definition
-    (define-statechart n:statechart-name
-      sb:state-body)
-    #:binding [(export n) {(recursive sb)}])
-
-(define-host-interface/expression
-  (machine st:statechart-name)
-  #''TODO)
+  (host-interface/expression
+    (machine st:statechart-name)
+    #''TODO))
 
 ; (machine, any) -> (machine, (listof any))
 (define (machine-step m event)

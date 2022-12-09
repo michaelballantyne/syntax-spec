@@ -2,7 +2,7 @@
 
 (require "../../testing.rkt")
 
-(define-hosted-syntaxes
+(syntax-spec
   (binding-class var #:description "dsl variable")
 
   (extension-class dsl-macro)
@@ -26,13 +26,13 @@
 
     (v:var e:expr ...))
 
-  (nesting-nonterminal binding (nested)
+  (nonterminal/nesting binding (nested)
     #:description "dsl-let* binding group"
     
     [v:var e:expr]
     #:binding [e {(bind v) nested}])
   
-  (two-pass-nonterminal def-or-expr
+  (nonterminal/two-pass def-or-expr
     #:description "dsl definition context"
     #:allow-extension dsl-macro
 

@@ -10,13 +10,13 @@
           racket/base
           syntax/parse
           syntax/id-table
-          ee-lib))
+          (except-in ee-lib racket-var)))
 
 ;;
 ;; Core syntax
 ;;
 
-(define-hosted-syntaxes
+(syntax-spec
   (binding-class term-variable #:description "miniKanren term variable")
   (binding-class relation-name #:description "miniKanren relation name")
   
@@ -100,12 +100,13 @@
   (nonterminal condg-clause
     ([x:term-variable ...] [guard:goal] [body:goal])
     #:binding {(bind x) guard body})
-  )
 
+  (host-interface/definition
+    (defrel/condg (r:relation-name arg:term-variable ...)
+      clause:condg-clause ...)
+    #:binding [(export r) {(bind arg) clause}]
 
-(define-host-interface/definition
-  (defrel/condg (r:relation-name arg:term-variable ...)
-    clause:condg-clause ...)
-  #:binding [(export r) {(bind arg) clause}])
+    #:lhs [#'r]
+    #:rhs [#'(void)]))
 
 

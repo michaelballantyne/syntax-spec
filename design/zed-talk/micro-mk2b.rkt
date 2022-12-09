@@ -22,7 +22,7 @@
 
 (require bindingspec)
 
-(define-hosted-syntaxes
+(syntax-spec
   (binding-class term-variable)
 
   (nonterminal goal    

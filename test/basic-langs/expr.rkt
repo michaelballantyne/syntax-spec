@@ -2,7 +2,7 @@
 
 (require "../../testing.rkt")
 
-(define-hosted-syntaxes
+(syntax-spec
   (binding-class var #:description "expr language variable")
   
   (nonterminal expr
@@ -18,7 +18,7 @@
     (let* (b:binding ...) e:expr)
     #:binding (nest b e))
 
-  (nesting-nonterminal binding (nested)
+  (nonterminal/nesting binding (nested)
     #:description "let* binding group"
     
     [v:var e:expr]

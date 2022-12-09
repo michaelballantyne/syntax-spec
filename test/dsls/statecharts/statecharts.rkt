@@ -1,15 +1,12 @@
 #lang racket/base
 
 (provide (all-defined-out))
-(require bindingspec
-         racket/match
-         
-         (for-syntax racket/base
-                     syntax/parse))
+(require "../../../testing.rkt"
+         racket/match)
 
 ;; Syntax
 
-(define-hosted-syntaxes
+(syntax-spec
   (binding-class data-var)
   (binding-class local-var)
   (binding-class machine-name)
@@ -19,7 +16,7 @@
     [#:initial initial-state:state-name s:machine-element-spec ...]
     #:binding {(recursive s) initial-state})
   
-  (two-pass-nonterminal machine-element-spec
+  (nonterminal/two-pass machine-element-spec
     (data v:data-var e:expr)
     #:binding (export v)
 
@@ -36,7 +33,7 @@
     (on (evt:id arg:local-var ...) b:action-spec ... t:transition-spec)
     #:binding {(bind arg) b})
 
-  (nesting-nonterminal binding (nested)    
+  (nonterminal/nesting binding (nested)    
     [v:local-var e:expr]
     #:binding [(host e) {(bind v) nested}])
   
@@ -55,18 +52,18 @@
 
 ;; Interface
 
-(define-host-interface/expression
-  (machine . spec:machine-spec)
-  #:with machine-constructor (compile-machine #'spec)
-  #'(machine-constructor))
+(syntax-spec
+  (host-interface/expression
+    (machine . spec:machine-spec)
+    #:with machine-constructor (compile-machine #'spec)
+    #'(machine-constructor))
 
-(define-host-interface/definitions
-  (define-machine n:machine-name . spec:machine-spec)
-  #:binding (export n)
-  #:with machine-constructor (compile-machine #'spec)
-  #'(define n machine-constructor))
+  (host-interface/definitions
+    (define-machine n:machine-name . spec:machine-spec)
+    #:binding (export n)
+    #:with machine-constructor (compile-machine #'spec)
+    #'(define n machine-constructor)))
   
-
 ;; Runtime
 
 (module rt racket/base

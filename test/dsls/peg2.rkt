@@ -6,7 +6,7 @@
   (define-syntax-class string
     (pattern val #:when (string? (syntax-e #'val)))))
 
-(define-hosted-syntaxes
+(syntax-spec
   (binding-class var #:description "PEG variable")
   (binding-class nonterm #:description "PEG nonterminal")
   (extension-class peg-macro #:description "PEG macro")
@@ -28,7 +28,7 @@
     (=> ps:peg-seq e:expr)
     #:binding (nest-one ps (host e)))
 
-  (nesting-nonterminal peg-seq (tail)
+  (nonterminal/nesting peg-seq (tail)
     #:description "PEG expression"
     #:allow-extension peg-macro
     

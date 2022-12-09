@@ -2,9 +2,8 @@
 
 (require "../../testing.rkt")
 
-(define-hosted-syntaxes
-
-  (nesting-nonterminal binding-floe (nested)
+(syntax-spec
+  (nonterminal/nesting binding-floe (nested)
     (as v:racket-var)
     #:binding {(bind v) nested}
 

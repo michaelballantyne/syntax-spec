@@ -23,38 +23,37 @@
        #'n]
       [(rkt e)
        #'(with-reference-compilers ([term-variable immutable-reference-compiler])
-        e)])))
+           e)])))
 
-(define-host-interface/expression
-  (run n:expr (qvar:term-variable ...)
-    g:goal ...)
-  #:binding {(bind qvar) g}
+(syntax-spec
+  (host-interface/expression
+    (run n:expr (qvar:term-variable ...)
+      g:goal ...)
+    #:binding {(bind qvar) g}
   
-  (displayln #'(g ...))
-  #'(void))
+    (displayln #'(g ...))
+    #'(void))
+
+  (host-interface/expression
+    (mk-compile g:goal)
+
+    (compile-goal #'g))
+
+  (host-interface/definitions
+    (define-relation (name:relation-name arg:term-variable ...) body:goal)
+    #:binding [(export name) {(bind arg) body}]
+    #'(define tmp 5)))
 
 
+(syntax-spec
+ (nonterminal/two-pass mk-def
+   (define-relation2 (name:relation-name arg:term-variable ...) body:goal)
+   #:binding [(export name) {(bind arg) body}])
 
-
-(define-host-interface/expression
-  (mk-compile g:goal)
-
-  (compile-goal #'g))
-
-(define-host-interface/definitions
-  (define-relation (name:relation-name arg:term-variable ...) body:goal)
-  #:binding [(export name) {(bind arg) body}]
-  #'(define tmp 5))
-
-(define-hosted-syntaxes
-  (two-pass-nonterminal mk-def
-    (define-relation2 (name:relation-name arg:term-variable ...) body:goal)
-    #:binding [(export name) {(bind arg) body}]))
-
-(define-host-interface/definitions
-  (mk-defs d:mk-def ...)
-  #:binding (re-export d)
-  #'(define tmp 5))
+ (host-interface/definitions
+   (mk-defs d:mk-def ...)
+   #:binding (re-export d)
+   #'(define tmp 5)))
 
 
 (define-relation (appendo2 l1 l2 l3)

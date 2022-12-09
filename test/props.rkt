@@ -1,10 +1,8 @@
 #lang racket/base
 
-(require bindingspec
-         rackunit
-         (for-syntax racket/base syntax/parse))
+(require "../testing.rkt")
 
-(define-hosted-syntaxes
+(syntax-spec
   (extension-class dsl-macro)
   (nonterminal dsl-expr
     #:allow-extension dsl-macro
@@ -24,9 +22,10 @@
      [(_ f)
       #'f])))
 
-(define-host-interface/expression
-  (check-for-property e:dsl-expr)
-  #`'#,(syntax-property #'e 'foo))
+(syntax-spec
+  (host-interface/expression
+    (check-for-property e:dsl-expr)
+    #`'#,(syntax-property #'e 'foo)))
 
 
 (check-equal?

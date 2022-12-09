@@ -8,16 +8,16 @@
 
 (check-decl-error
  #rx"nonterminal: expected extension class name"
- (define-hosted-syntaxes
+ (syntax-spec
    (binding-class var #:description "var")
    (nonterminal expr
      #:allow-extension unbound-name
      v:var)))
 
 (check-decl-error
- #rx"nesting-nonterminal: expected pattern variable binding for nested syntax"
- (define-hosted-syntaxes
-   (nesting-nonterminal binding-group
+ #rx"nonterminal/nesting: expected pattern variable binding for nested syntax"
+ (syntax-spec
+   (nonterminal/nesting binding-group
      1)))
 
 ;;
@@ -26,19 +26,19 @@
 
 (check-decl-error
  #rx"nonterminal: expected a syntax spec term"
- (define-hosted-syntaxes
+ (syntax-spec
    (nonterminal expr
      1)))
 
 (check-decl-error
  #rx"nonterminal: expected a reference to a binding class, extension class, syntax class, or nonterminal"
- (define-hosted-syntaxes
+ (syntax-spec
    (nonterminal expr
      x:unbound-name)))
 
 (check-decl-error
  #rx"nonterminal: duplicate pattern variable"
- (define-hosted-syntaxes
+ (syntax-spec
    (binding-class dsl-var #:description "dsl-var")
    (nonterminal expr
      [x:dsl-var x:dsl-var])))
@@ -49,7 +49,7 @@
 
 (check-decl-error
  #rx"nonterminal: binding spec expected a reference to a pattern variable"
- (define-hosted-syntaxes
+ (syntax-spec
    (binding-class dsl-var #:description "DSL variable")
    (nonterminal expr
      x:dsl-var
@@ -57,7 +57,7 @@
 
 (check-decl-error
  #rx"bind: expected a reference to a pattern variable"
- (define-hosted-syntaxes
+ (syntax-spec
    (binding-class dsl-var #:description "DSL variable")
    (nonterminal expr
      x:dsl-var
@@ -65,38 +65,38 @@
 
 (check-decl-error
  #rx"nonterminal: nesting nonterminals may only be used with `nest`"
- (define-hosted-syntaxes
+ (syntax-spec
    (binding-class dsl-var #:description "DSL variable")
    (nonterminal expr
      b:binding-group
      #:binding b)
-   (nesting-nonterminal binding-group (nested)
+   (nonterminal/nesting binding-group (nested)
      [])))
 
 (check-decl-error
  #rx"nest: expected pattern variable associated with a nesting nonterminal"
- (define-hosted-syntaxes
+ (syntax-spec
    (nonterminal expr
      (e:expr)
      #:binding (nest e []))))
 
 (check-decl-error
  #rx"nest: expected more terms starting with binding spec term"
- (define-hosted-syntaxes
+ (syntax-spec
    (nonterminal expr
      b:expr
      #:binding (nest b))))
 
 (check-decl-error
  #rx"bind: expected pattern variable associated with a binding class"
- (define-hosted-syntaxes
+ (syntax-spec
    (nonterminal expr
      b:expr
      #:binding (bind b))))
 
 (check-decl-error
  #rx"recursive: expected pattern variable associated with a two-pass nonterminal"
- (define-hosted-syntaxes
+ (syntax-spec
    (nonterminal expr
      b:expr
      #:binding (recursive b))))
@@ -104,7 +104,7 @@
 
 (check-decl-error
  #rx"nonterminal: exports may only occur at the top-level of a two-pass binding spec"
- (define-hosted-syntaxes
+ (syntax-spec
    (binding-class var #:description "var")
    (nonterminal expr
      v:var
@@ -112,7 +112,7 @@
 
 (check-decl-error
  #rx"nonterminal: binding must occur within a scope"
- (define-hosted-syntaxes
+ (syntax-spec
    (binding-class pvar)
    (nonterminal pat
      x:pvar
@@ -120,9 +120,9 @@
 
 (check-decl-error
  #rx"nonterminal: recursive binding groups must occur within a scope"
- (define-hosted-syntaxes
+ (syntax-spec
    (binding-class var #:description "var")
-   (two-pass-nonterminal def
+   (nonterminal/two-pass def
      (define x:var e:expr)
      #:binding [(export x) e])
    (nonterminal expr
@@ -131,7 +131,7 @@
 
 (check-decl-error
  #rx"nonterminal: bindings must appear first within a scope"
- (define-hosted-syntaxes
+ (syntax-spec
    (binding-class var)
    (nonterminal expr
      (let x:var e:expr)
@@ -139,9 +139,9 @@
 
 (check-decl-error
  #rx"nonterminal: a recursive binding group must appear before references and subexpressions"
- (define-hosted-syntaxes
+ (syntax-spec
    (binding-class var)
-   (two-pass-nonterminal def
+   (nonterminal/two-pass def
      (define x:var e:expr)
      #:binding [(export x) e])
    (nonterminal expr
@@ -150,9 +150,9 @@
 
 (check-decl-error
  #rx"nonterminal: only one recursive binding group may appear in a scope"
- (define-hosted-syntaxes
+ (syntax-spec
    (binding-class var)
-   (two-pass-nonterminal def
+   (nonterminal/two-pass def
      (define x:var e:expr)
      #:binding [(export x) e])
    (nonterminal expr
@@ -161,23 +161,23 @@
 
 (check-decl-error
  #rx"exports must appear first in a two-pass spec"
- (define-hosted-syntaxes
+ (syntax-spec
    (binding-class var)
-   (two-pass-nonterminal def
+   (nonterminal/two-pass def
      (define x:var e:expr)
      #:binding [e (export x)])))
 
 (check-decl-error
  #rx"re-exports must occur before references and subexpressions"
- (define-hosted-syntaxes
+ (syntax-spec
    (binding-class var)
-   (two-pass-nonterminal def
+   (nonterminal/two-pass def
      (define x:var d:def e:expr)
      #:binding [(export x) e (re-export d)])))
 
 (check-decl-error
  #rx"nonterminal: each pattern variable must occur in the binding spec at most once"
- (define-hosted-syntaxes
+ (syntax-spec
    (nonterminal expr
      (begin e1:expr e2:expr)
      #:binding [e1 e1])))
@@ -186,7 +186,7 @@
 ;; Valid definitions used to exercise errors
 ;;
 
-(define-hosted-syntaxes
+(syntax-spec
   (binding-class dsl-var1)
   (binding-class dsl-var2 #:description "DSL var")
   (extension-class dsl-macro1)
@@ -201,7 +201,7 @@
   (nonterminal expr2
     #:description "DSL expression"
     n:number)
-  (nesting-nonterminal binding-group (tail)
+  (nonterminal/nesting binding-group (tail)
     [v:dsl-var2 e:expr1]
     #:binding {(bind v) tail}))
 
@@ -316,9 +316,10 @@
  #rx"expand-nonterminal/datum: expected expr1"
  (expand-nonterminal/datum expr1 [x]))
 
-(define-host-interface/expression
-  (dsl-expr1-interface e:expr1)
-  #`#,'#'e)
+(syntax-spec
+  (host-interface/expression
+    (dsl-expr1-interface e:expr1)
+    #`#,'#'e))
 
 ; interface macro should be named as raising syntax
 (check-syntax-error
@@ -338,10 +339,11 @@
  (m2))
 
 
-(define-host-interface/expression
-  (dsl/let x:dsl-var2 e:expr)
-  #:binding {(bind x) (host e)}
-  #'e)
+(syntax-spec
+  (host-interface/expression
+    (dsl/let x:dsl-var2 e:expr)
+    #:binding {(bind x) (host e)}
+    #'e))
 
 ;; When no reference compiler is provided for
 ;; a given binding class, references to those bindings from a host
@@ -350,13 +352,13 @@
  #rx"x: DSL var may not be used as a racket expression"
  (dsl/let x x))
 
-(define-host-interface/definition
-  (dsl/define x:dsl-var2 e:expr)
-  #:binding [(export x) (host e)]
-  ->
-  (define
-    [(generate-temporary)]
-    [#'e]))
+(syntax-spec
+  (host-interface/definition
+    (dsl/define x:dsl-var2 e:expr)
+    #:binding [(export x) (host e)]
+
+    #:lhs [#'x]
+    #:rhs [#'e]))
 
 ;; References to DSL vars bound in host contexts from racket expressions
 ;; are currently always illegal. There should eventually be a way to define
@@ -386,7 +388,7 @@
     (equal? (syntax-srcloc (syntax-case stx () [(_ e) #'e]))
             (syntax-srcloc (syntax-case expanded () [(_ e) #'e]))))))
 
-(define-hosted-syntaxes
+(syntax-spec
   (nonterminal expr3
     #:binding-space dsl
     (foo)))

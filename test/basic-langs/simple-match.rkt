@@ -2,7 +2,7 @@
 
 (require "../../testing.rkt")
 
-(define-hosted-syntaxes
+(syntax-spec
   (binding-class var #:description "mylang variable")
 
   (extension-class mylang-macro)
@@ -29,7 +29,7 @@
     [p:pat rhs:expr]
     #:binding (nest-one p rhs))
 
-  (nesting-nonterminal pat (nested)
+  (nonterminal/nesting pat (nested)
     #:description "mylang match pattern"
                
     v:var

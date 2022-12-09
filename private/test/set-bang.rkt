@@ -20,28 +20,30 @@ set!-transformers.
 
 (require "../../testing.rkt")
 
-(define-hosted-syntaxes
+(syntax-spec
   (binding-class var #:description "mylet variable")
 
   (nonterminal mylet-expr
-               #:description "mylet expression"
-               (mylet v:var body:expr)
-               #:binding {(bind v) (host body)}
-               (regular-let v:var val:expr body:expr)
-               #:binding [(host val) {(bind v) (host body)}]
-               (rep-let v:var body:expr)
-               #:binding {(bind v) (host body)}
-               (mybegin def:mydef body:expr)
-               #:binding {(recursive def) (host body)})
-  (two-pass-nonterminal mydef
-               #:description "mylet definition"
-               (mydefine-inner v:var)
-               #:binding (export v)
-               (regular-define-inner v:var val:expr)
-               #:binding [(export v) (host val)]))
+    #:description "mylet expression"
+    (mylet v:var body:expr)
+    #:binding {(bind v) (host body)}
+    (regular-let v:var val:expr body:expr)
+    #:binding [(host val) {(bind v) (host body)}]
+    (rep-let v:var body:expr)
+    #:binding {(bind v) (host body)}
+    (mybegin def:mydef body:expr)
+    #:binding {(recursive def) (host body)})
+ 
+  (nonterminal/two-pass mydef
+    #:description "mylet definition"
+    (mydefine-inner v:var)
+    #:binding (export v)
+    (regular-define-inner v:var val:expr)
+    #:binding [(export v) (host val)])
 
-(define-host-interface/expression (run le:mylet-expr)
-  (compile-mylet-expr #'le))
+  (host-interface/expression
+    (run le:mylet-expr)
+    (compile-mylet-expr #'le)))
 
 (begin-for-syntax
   (struct my-var-rep []
@@ -53,16 +55,16 @@ set!-transformers.
       [(x:id arg ...)
        ;; ripped from syntax/transformer source code
        (let ([stx* (cons #'(#%expression x) (cdr (syntax-e this-syntax)))])
-          (datum->syntax this-syntax stx* this-syntax))])))
+         (datum->syntax this-syntax stx* this-syntax))])))
 
 (define-for-syntax compile-mylet-expr
   (syntax-parser
     [((~literal mylet) v:id body:expr)
      #:with body^ #'(with-reference-compilers ([var mutable-reference-compiler]) body)
      #'(let-syntax ([v (make-set!-transformer
-                           (syntax-parser
-                             [(set! x:id val:expr) #'(list 'set! val)]
-                             [x:id #''ref]))])
+                        (syntax-parser
+                          [(set! x:id val:expr) #'(list 'set! val)]
+                          [x:id #''ref]))])
          body^)]
     [((~literal regular-let) v:id val:expr body:expr)
      #'(with-reference-compilers ([var mutable-reference-compiler])
@@ -73,33 +75,40 @@ set!-transformers.
     [((~literal mybegin) ((~literal mydefine-inner) var) body) (compile-mylet-expr #'(mylet var body))]
     [((~literal mybegin) ((~literal regular-define-inner) var val) body) (compile-mylet-expr #'(regular-let var val body))]))
 
-;; dsl-defined macros are not supported
-#;(define-host-interface/definition (mydefine v:var)
-  #:binding [(export v)]
-  ->
-  ; this has to be 'define'
-  (define-syntax
+(syntax-spec
+  ;; dsl-defined macros are not supported
+  #;(host-interface/definition (mydefine v:var)
+      #:binding [(export v)]
+      ->
+      ; this has to be 'define'
+      (define-syntax
+        [#'v]
+        [(make-set!-transformer
+          (syntax-parser
+            [(set! x:id val:expr) #'(list 'set! val)]
+            [x:id #''ref]))]))
+ 
+  (host-interface/definition
+    (regular-define v:var val:expr)
+    #:binding [(export v) (host val)]
+  
+    #:lhs
     [#'v]
-    [(make-set!-transformer
-      (syntax-parser
-        [(set! x:id val:expr) #'(list 'set! val)]
-        [x:id #''ref]))]))
+    #:rhs
+    [#'(with-reference-compilers ([var mutable-reference-compiler]) val)])
+ 
+  (host-interface/expression
+    (ref v:var)
+    #'v)
 
-(define-host-interface/definition (regular-define v:var val:expr)
-  #:binding [(export v) (host val)]
-  ->
-  (define
-    [#'v]
-    [#'(with-reference-compilers ([var mutable-reference-compiler]) val)]))
-
-(define-host-interface/expression (ref v:var)
-  #'v)
+  (host-interface/expression
+    (my-set! v:var val:expr)
+    #:binding (host val)
+    #:with val^ #'(with-reference-compilers ([var mutable-reference-compiler]) val)
+    #'(set! v val^)))
 
 ;; allows set! of dsl vars in regular racket expressions
-(define-host-interface/expression (my-set! v:var val:expr)
-  #:binding (host val)
-  #:with val^ #'(with-reference-compilers ([var mutable-reference-compiler]) val)
-  #'(set! v val^))
+
 
 ;; this used to pass
 (check-equal? (run (mylet x x)) 'ref)
@@ -123,7 +132,7 @@ set!-transformers.
   (my-set! x 2)
   (check-equal? (ref x) 2))
 ;; this used to fail
- (check-equal? (run (mylet x (set! x 2))) (list 'set! 2))
+(check-equal? (run (mylet x (set! x 2))) (list 'set! 2))
 ;; this used to fail
 (check-equal? (run (regular-let x 1 (begin (set! x 2) x))) 2)
 (check-equal? (run (rep-let x (list (set! x 2) x))) '(set! (2 2)))

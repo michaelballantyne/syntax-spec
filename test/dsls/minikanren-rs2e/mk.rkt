@@ -18,7 +18,7 @@
 ;; Core syntax
 ;;
 
-(define-hosted-syntaxes
+(syntax-spec
   (binding-class term-variable #:description "miniKanren term variable")
   (binding-class relation-name #:description "miniKanren relation name")
   
@@ -138,33 +138,35 @@
 ;; Interface macros
 ;;
 
-(define-host-interface/definition
-  (core-defrel (name:relation-name x:term-variable ...) g:goal)
-  #:binding [(export name) {(bind x) g}]
-  ->
-  (define
+(syntax-spec
+  (host-interface/definition
+    (core-defrel (name:relation-name x:term-variable ...) g:goal)
+    #:binding [(export name) {(bind x) g}]
+   
+    #:lhs
     [(symbol-table-set!
       relation-arity
       #'name
       (length (syntax->list #'(x ...))))
      #'name]
-    
+
+    #:rhs
     [#`(lambda (x ...)
          (lambda (s)
            (lambda ()
-             (#%app (compile-goal g) s))))]))
+             (#%app (compile-goal g) s))))])
 
-(define-host-interface/expression
-  (core-run n:expr q:term-variable g:goal)
-  #:binding {(bind q) g}
+  (host-interface/expression
+    (core-run n:expr q:term-variable g:goal)
+    #:binding {(bind q) g}
   
-  #`(let ([q (var 'q)])
-      (map (reify q)
-           (run-goal n (compile-goal g)))))
+    #`(let ([q (var 'q)])
+        (map (reify q)
+             (run-goal n (compile-goal g)))))
 
-(define-host-interface/expression
-  (goal-expression g:goal)
-  #`(goal-value (compile-goal g)))
+  (host-interface/expression
+    (goal-expression g:goal)
+    #`(goal-value (compile-goal g))))
 
 ;;
 ;; Surface syntax for interface macros

@@ -1,10 +1,6 @@
 #lang racket/base
 
-(provide define-hosted-syntaxes
-         define-host-interface/expression
-         define-host-interface/definition
-         define-host-interface/definitions
-         
+(provide syntax-spec
          (for-syntax racket-macro
                      racket-var
                      binding-class-predicate
@@ -43,42 +39,56 @@
             "compile/nonterminal-expander.rkt"))
 
 ;;
-;; define-hosted-syntaxes
+;; syntax-spec
 ;;
 
-(define-syntax define-hosted-syntaxes
+(define-syntax syntax-spec
   (module-macro
    (syntax-parser
      [(_ form ...+)
       (match-define
-        (list (list pass1-res expander-defs) ...)
+        (list (list pass1-res pass2-res pass3-res) ...)
         (for/list ([stx (attribute form)])
-          (let-values ([(a b) (define-hosted-syntaxes-compile-form stx)])
-            (list a b))))
+          (let-values ([(a b c) (syntax-spec-compile-form stx)])
+            (list a b c))))
      
-      (with-syntax ([(pass1 ...) pass1-res]
-                    [(expander-def ...) (filter identity expander-defs)])
+      (with-syntax ([(pass1 ...) (filter identity pass1-res)]
+                    [(pass2 ...) (filter identity pass2-res)]
+                    [(pass3 ...) (filter identity pass3-res)])
         #'(begin
             pass1
             ...
             (begin-for-syntax
-              expander-def
-              ...)))])))
+              pass2
+              ...)
+            pass3
+            ...))])))
 
 (begin-for-syntax
-  ; syntax? -> (values syntax? (or/c syntax? #f))
-  ; the first return value is used as part of the first-pass compilation;
-  ; if present, the second value is used as part of the second-pass compilation,
-  ; in begin-for-syntax.
-  (define/hygienic (define-hosted-syntaxes-compile-form stx) #:expression
+  ;; syntax? -> (values (or/c syntax? #f) (or/c syntax? #f) (or/c syntax? #f))
+  ;; Three return values for three passes of expansion of the generated code.
+  ;;
+  ;; pass 1: define-syntax declarations for binding and extension classes and nonterminals.
+  ;; pass 2: nonterminal expander definitions; these all get added to a single begin-for-syntax
+  ;; pass 3: host interface macro definitions.
+  ;;
+  ;; Racket only applies its trick of allowing mutual recursion between begin-for-syntaxes
+  ;; by allowing forward references apparently only applies to identifiers with module scope.
+  ;; Here we're using generated names, so we can't have any forward references; all recursion
+  ;; happens within the single begin-for-syntax.
+  (define/hygienic (syntax-spec-compile-form stx) #:expression
     (syntax-parse stx
       #:datum-literals (binding-class
                         extension-class
-                        nonterminal nesting-nonterminal two-pass-nonterminal)
+                        nonterminal nonterminal/nesting nonterminal/two-pass
+                        host-interface/expression
+                        host-interface/definition
+                        host-interface/definitions)
       
-      [(binding-class name:id
-                      (~var descr (maybe-description #'name))
-                      (~var space maybe-binding-space))
+      [(binding-class
+        ~! name:id
+        (~var descr (maybe-description #'name))
+        (~var space maybe-binding-space))
        (with-syntax ([sname (format-id #'here "~a-var" #'name)]
                      [sname-pred (format-id #'here "~a-var?" #'name)])
          (values
@@ -93,11 +103,13 @@
                  (quote-syntax sname)
                  (quote-syntax sname-pred)
                  (quote space.stx))))
+          #f
           #f))]
       
-      [(extension-class name:id
-                        (~var descr (maybe-description #'name))
-                        (~var space maybe-binding-space))
+      [(extension-class
+        ~! name:id
+        (~var descr (maybe-description #'name))
+        (~var space maybe-binding-space))
        (with-syntax ([sname (format-id #'here "~a" #'name)]
                      [sname-pred (format-id #'here "~a?" #'name)]
                      [sname-acc (format-id #'here "~a-transformer" #'name)])
@@ -112,9 +124,10 @@
                               (quote-syntax sname-pred)
                               (quote-syntax sname-acc)
                               (quote space.stx))))
+          #f
           #f))]
       
-      [(nonterminal
+      [(nonterminal ~!
          name:id
          opts:nonterminal-options
          prod:production ...+)
@@ -126,8 +139,9 @@
           #`(define expander-name
               (generate-nonterminal-expander
                #,this-syntax
-               #:simple name opts prod ...))))]
-      [(nesting-nonterminal
+               #:simple name opts prod ...))
+          #f))]
+      [(nonterminal/nesting ~!
          name:id nested:nested-binding-syntax
          opts:nonterminal-options
          prod:production ...+)
@@ -139,8 +153,9 @@
           #`(define expander-name
               (generate-nonterminal-expander
                #,this-syntax
-               (#:nesting nested.id) name opts prod ...))))]
-      [(two-pass-nonterminal ~!
+               (#:nesting nested.id) name opts prod ...))
+          #f))]
+      [(nonterminal/two-pass ~!
          name:id
          opts:nonterminal-options
          prod:production ...+)
@@ -157,7 +172,51 @@
               (define pass2-expander-name
                 (generate-nonterminal-expander
                  #,this-syntax
-                 #:pass2 name opts prod ...)))))])))
+                 #:pass2 name opts prod ...)))
+          #f))]
+      [(host-interface/expression
+         ~! (name:id . sspec)
+         (~optional (~seq #:binding bspec))
+         parse-body ...+)
+       (values
+        #f
+        #f
+        #'(define-syntax name
+            (expression-macro
+             (generate-host-interface-transformer
+              name sspec (~? (bspec) ()) (#:simple) parse-body ...))))]
+      [(host-interface/definitions
+         ~! (name:id . sspec)
+         (~optional (~seq #:binding bspec))
+         parse-body ...+)
+       (values
+        #f
+        #f
+        #'(define-syntax name
+            (definition-macro
+              (wrap-bind-trampoline
+               (wrap-persist
+                (generate-host-interface-transformer
+                 name sspec (~? (bspec) ()) (#:pass1 #:pass2) parse-body ...))))))]
+      [(host-interface/definition
+         ~! (name:id . sspec)
+         (~optional (~seq #:binding bspec))
+         #:lhs [name-parse-body ...+]
+         #:rhs [rhs-parse-body ...+])
+       (values
+        #f
+        #f
+        #'(begin
+            (define-syntax pass2-macro
+              (expression-macro
+               (generate-host-interface-transformer
+                name sspec (~? (bspec) ()) (#:pass2) rhs-parse-body ...)))
+            (define-syntax name
+              (definition-macro
+                (wrap-bind-trampoline
+                 (wrap-persist
+                  (generate-host-interface-transformer/definition-pass1
+                   sspec (~? (bspec) ()) [name-parse-body ...] pass2-macro)))))))])))
 
 (begin-for-syntax
   (define (generate-nonterminal-declarations name-stx opts-stx form-names variant-info-stx)
@@ -191,29 +250,6 @@
 ;; interface macro definition forms
 ;;
 
-
-(define-syntax define-host-interface/expression
-  (syntax-parser
-    [(_ (name:id . sspec)
-        (~optional (~seq #:binding bspec))
-        parse-body ...+)
-     #'(define-syntax name
-         (expression-macro
-          (generate-host-interface-transformer
-           name sspec (~? (bspec) ()) (#:simple) parse-body ...)))]))
-
-(define-syntax define-host-interface/definitions
-  (syntax-parser
-    [(_ (name:id . sspec)
-        (~optional (~seq #:binding bspec))
-        parse-body ...+)
-     #'(define-syntax name
-         (definition-macro
-           (wrap-bind-trampoline
-            (wrap-persist
-             (generate-host-interface-transformer
-              name sspec (~? (bspec) ()) (#:pass1 #:pass2) parse-body ...)))))]))
-
 (begin-for-syntax
   (define-syntax generate-host-interface-transformer
     (syntax-parser
@@ -239,25 +275,6 @@
               (syntax-parse (attribute rest)
                 #:context #'ctx-id
                 clause)]))])))
-
-
-(define-syntax define-host-interface/definition
-  (syntax-parser
-    #:datum-literals (-> define)
-    [(_ (name:id . sspec)
-        (~optional (~seq #:binding bspec))
-        -> (define [name-parse-body ...+] [rhs-parse-body ...+]))
-     #'(begin
-         (define-syntax pass2-macro
-           (expression-macro
-            (generate-host-interface-transformer
-             name sspec (~? (bspec) ()) (#:pass2) rhs-parse-body ...)))
-         (define-syntax name
-           (definition-macro
-             (wrap-bind-trampoline
-              (wrap-persist
-               (generate-host-interface-transformer/definition-pass1
-                sspec (~? (bspec) ()) [name-parse-body ...] pass2-macro))))))]))
 
 (begin-for-syntax
   (define-syntax generate-host-interface-transformer/definition-pass1
@@ -306,7 +323,7 @@
 ; It's just a binding class that gets an implicit
 ; (with-reference-compilers ([racket-var mutable-reference-compiler])).
 ; The dsl-writer still has to say (host e) for racket host expressions.
-(define-hosted-syntaxes
+(syntax-spec
   (binding-class racket-var #:description "racket variable"))
 
 (begin-for-syntax

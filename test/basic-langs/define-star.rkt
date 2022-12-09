@@ -2,7 +2,7 @@
 
 (require "../../testing.rkt")
 
-(define-hosted-syntaxes
+(syntax-spec
   (binding-class var #:description "mylang variable")
 
   (extension-class mylang-macro)
@@ -18,7 +18,7 @@
     (block d:def-or-expr ...)
     #:binding (nest d []))
 
-  (nesting-nonterminal def-or-expr (tail)
+  (nonterminal/nesting def-or-expr (tail)
     #:description "mylang definition context"
     #:allow-extension mylang-macro
 

@@ -6,7 +6,7 @@
          (for-syntax (all-defined-out)))
 
 
-(define-hosted-syntaxes
+(syntax-spec
   (binding-class term-variable
                  #:description "miniKanren term variable")
   (binding-class relation-name
@@ -100,12 +100,14 @@
          (conj g ...)
          ...)])))
 
-(define-host-interface/definition
-  (define-relation/stub name:relation-name)
-  #:binding (export name)
-  ->
-  (define
+(syntax-spec
+  (host-interface/definition
+    (define-relation/stub name:relation-name)
+    #:binding (export name)
+
+    #:lhs
     [#'name]
+    #:rhs
     [#'(void)]))
 
 (define-relation/stub appendo)

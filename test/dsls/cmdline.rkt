@@ -30,7 +30,7 @@
   (define-syntax-class string-stx
     (pattern _:string)))
 
-(define-hosted-syntaxes
+(syntax-spec
   (extension-class option-macro)
   (extension-class flag-macro)
 

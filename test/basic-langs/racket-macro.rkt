@@ -3,7 +3,7 @@
 (require "../../testing.rkt")
 
 
-(define-hosted-syntaxes
+(syntax-spec
   (extension-class expr-macro)
 
   (binding-class var #:description "expr language variable")

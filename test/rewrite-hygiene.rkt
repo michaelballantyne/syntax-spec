@@ -3,7 +3,7 @@
 (require "../testing.rkt"
          (for-syntax racket/base (except-in ee-lib racket-var) syntax/parse))
 
-(define-hosted-syntaxes
+(syntax-spec
   (binding-class dsl-name)
   (nonterminal dsl-expr       
     n:dsl-name

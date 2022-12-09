@@ -38,7 +38,7 @@
   "Javascript operators cannot be used directly as Racket expressions"
   (+ * - / < <= > >= ==))
 
-(define-hosted-syntaxes
+(syntax-spec
   (binding-class js-var #:description "Javascript variable")
 
   (extension-class js-macro)
@@ -65,7 +65,7 @@
      
     (e:js-expr e*:js-expr ...))
   
-  (two-pass-nonterminal js-stmt
+  (nonterminal/two-pass js-stmt
     #:description "Javascript statement"
     #:bind-literal-set js-stmts
     #:allow-extension js-macro

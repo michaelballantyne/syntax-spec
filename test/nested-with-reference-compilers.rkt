@@ -7,28 +7,28 @@
 (require "../testing.rkt")
 
 ; blue language
-(define-hosted-syntaxes
+(syntax-spec
   (binding-class blue-var)
   (nonterminal blue-expr
-               ((~literal let) ([x:blue-var e:expr] ...) b:expr)
-               #:binding [(host e) {(bind x) (host b)}]))
+    ((~literal let) ([x:blue-var e:expr] ...) b:expr)
+    #:binding [(host e) {(bind x) (host b)}])
 
-(define-host-interface/expression
-  (blue e:blue-expr)
-  #'(with-reference-compilers ([blue-var immutable-reference-compiler])
-      e))
+  (host-interface/expression
+    (blue e:blue-expr)
+    #'(with-reference-compilers ([blue-var immutable-reference-compiler])
+        e)))
 
 ; red language
-(define-hosted-syntaxes
+(syntax-spec
   (binding-class red-var)
   (nonterminal red-expr
-               ((~literal let) ([x:red-var e:expr] ...) b:expr)
-               #:binding [(host e) {(bind x) (host b)}]))
+    ((~literal let) ([x:red-var e:expr] ...) b:expr)
+    #:binding [(host e) {(bind x) (host b)}])
 
-(define-host-interface/expression
-  (red e:red-expr)
-  #'(with-reference-compilers ([red-var immutable-reference-compiler])
-      e))
+  (host-interface/expression
+    (red e:red-expr)
+    #'(with-reference-compilers ([red-var immutable-reference-compiler])
+        e)))
 
 ; sanity check
 (check-equal? (red (let ([x 2]) x)) 2)

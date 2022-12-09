@@ -3,23 +3,23 @@
 (require "../main.rkt"
          rackunit)
 
-(define-hosted-syntaxes
+(syntax-spec
   (binding-class dsl-var)
   (nonterminal dsl-e
-    n:number))
+    n:number)
 
-(define-host-interface/definition
-  (dsl-def x:dsl-var rhs:dsl-e)
-  #:binding (export x)
-  ->
-  (define
+  (host-interface/definition
+    (dsl-def x:dsl-var rhs:dsl-e)
+    #:binding (export x)
+
+    #:lhs
     [#'x]
-    [#''rhs]))
+    #:rhs
+    [#''rhs])
 
-(define-host-interface/expression
-  (dsl-ref v:dsl-var)
-  #'v)
-
+  (host-interface/expression
+    (dsl-ref v:dsl-var)
+    #'v))
 
 (define f (lambda () (dsl-ref x)))
 (dsl-def x 5)

@@ -2,7 +2,7 @@
 
 (require "../../testing.rkt")
 
-(define-hosted-syntaxes
+(syntax-spec
   (binding-class var #:description "while-language variable")
 
   (extension-class expr-macro)

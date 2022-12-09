@@ -5,8 +5,8 @@
          syntax/macro-testing
          (for-syntax racket/base syntax/parse racket/pretty))
 
-(define-hosted-syntaxes
-  (binding-class var "expr language variable")
+(syntax-spec
+  (binding-class var #:description "expr language variable")
   
   (nonterminal expr
     #:description "simple expr language expression"
@@ -17,7 +17,7 @@
       
     (let ([v:var e:expr] ...) b:expr)
     ;; should be an error; binds should be written first.
-    #:binding [e {b (! v)}]))
+    #:binding [e {b (bind v)}]))
 
 
 (define-syntax exprlang

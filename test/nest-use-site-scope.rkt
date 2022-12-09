@@ -2,23 +2,23 @@
 
 (require "../main.rkt" (for-syntax racket syntax/parse) rackunit)
 
-(define-hosted-syntaxes
+(syntax-spec
   (binding-class var)
   (extension-class pat-macro)
   
   (nonterminal dsl-expr
     v:var)
   
-  (nesting-nonterminal pat (nested)
+  (nonterminal/nesting pat (nested)
     #:allow-extension pat-macro
     
     v:var
-    #:binding {(bind v) nested}))
+    #:binding {(bind v) nested})
 
-(define-host-interface/expression
-  (my-match [p:pat e:dsl-expr])
-  #:binding (nest-one p e)
-  #''success)
+  (host-interface/expression
+    (my-match [p:pat e:dsl-expr])
+    #:binding (nest-one p e)
+    #''success))
 
 ;; I'm not sure why, but the problem didn't occur at the module level. Perhaps
 ;; the racket/base module-begin doing something?
@@ -28,19 +28,20 @@
    (my-match [(m x) x])
    'success))
 
-(define-hosted-syntaxes
+(syntax-spec
   (nonterminal my-expr
-               (block d:my-def ...)
-               #:binding {(recursive d)})
-  (two-pass-nonterminal my-def
-                        ((~literal define-syntax) x:pat-macro e:expr)
-                        #:binding (export-syntax x e)
-                        ((~literal my-match) [p:pat e:dsl-expr])
-                        #:binding (nest-one p e)))
-
-(define-host-interface/expression
-  (eval-my-expr e:my-expr)
-  #''success)
+    (block d:my-def ...)
+    #:binding {(recursive d)})
+ 
+  (nonterminal/two-pass my-def
+    ((~literal define-syntax) x:pat-macro e:expr)
+    #:binding (export-syntax x e)
+    ((~literal my-match) [p:pat e:dsl-expr])
+    #:binding (nest-one p e))
+ 
+  (host-interface/expression
+    (eval-my-expr e:my-expr)
+    #''success))
 
 ; TODO: known bug with bind-syntax and nest.
 #;(check-equal?

@@ -1,14 +1,14 @@
 #lang racket
 
-(require bindingspec (for-syntax syntax/parse))
+(require "../main.rkt" (for-syntax syntax/parse))
 
-(define-hosted-syntaxes
+(syntax-spec
   (binding-class statechart-name)
   (binding-class state-name)
   (binding-class var)
   (binding-class data-name)
   
-  (two-pass-nonterminal state-body
+  (nonterminal/two-pass state-body
     (initial n:state-name)
     #:binding {n}
     
@@ -38,18 +38,18 @@
     (let* (b:binding-group ...) body:action ...)
     #:binding (nest b body))
 
-  (nesting-nonterminal binding-group (tail)
+  (nonterminal/nesting binding-group (tail)
     [v:var e:expr]
-    #:binding [(host e) {(bind v) tail}]))
+    #:binding [(host e) {(bind v) tail}])
 
-#;(define-host-interface/definition
-    (define-statechart n:statechart-name
-      sb:state-body)
-    #:binding [(export n) {(recursive sb)}])
+  #;(host-interface/definition
+      (define-statechart n:statechart-name
+        sb:state-body)
+      #:binding [(export n) {(recursive sb)}])
 
-(define-host-interface/expression
-  (machine st:statechart-name)
-  #''TODO)
+  (host-interface/expression
+    (machine st:statechart-name)
+    #''TODO))
 
 ; (machine, any) -> (machine, (listof any))
 (define (machine-step m event)

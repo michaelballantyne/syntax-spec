@@ -20,7 +20,7 @@
 @require[(for-label bindingspec)]
 @defmodule[bindingspec]
 
-@defform[(define-hosted-syntaxes stx-def ...)]
+@defform[(syntax-spec stx-def ...)]
 
 @subsection{Binding classes}
 
@@ -42,8 +42,8 @@
 @subsection{Nonterminals}
 
 @defsubform[(nonterminal id nonterminal-options production ...)]
-@defsubform[(nesting-nonterminal id (nested-id) nonterminal-options production ...)]
-@defsubform[(two-pass-nonterminal id nonterminal-options production ...)]
+@defsubform[(nonterminal/nesting id (nested-id) nonterminal-options production ...)]
+@defsubform[(nonterminal/two-pass id nonterminal-options production ...)]
 
 @subsubsection{Nonterminal options}
 
@@ -111,28 +111,28 @@
 
 @subsection{Interface macros}
 
-@defform[(define-host-interface/expression
-           (id . syntax-spec)
-           maybe-binding-spec
-           pattern-directive ...
-           body ...+)]
+@defsubform[(host-interface/expression
+              (id . syntax-spec)
+              maybe-binding-spec
+              pattern-directive ...
+              body ...+)]
 
-@defform[#:literals (-> define)
-         (define-host-interface/definition
-           (id . syntax-spec)
-           maybe-binding-spec
-           ->
-           (define
-             [pattern-directive ...
-              body ...+]
-             [pattern-directive ...
-              body ...+]))]
+@defsubform[#:literals (-> define)
+            (host-interface/definition
+              (id . syntax-spec)
+              maybe-binding-spec
+              #:lhs
+              [pattern-directive ...
+               body ...+]
+              #:rhs
+              [pattern-directive ...
+               body ...+])]
 
-@defform[(define-host-interface/definitions
-           (id . syntax-spec)
-           maybe-binding-spec
-           pattern-directive ...
-           body ...+)]
+@defsubform[(host-interface/definitions
+              (id . syntax-spec)
+              maybe-binding-spec
+              pattern-directive ...
+              body ...+)]
 
 @subsection{Compilation}
 
