@@ -2,7 +2,7 @@
 
 (provide machine state on)
 
-(require bindingspec "state-machine-compiler.rkt")
+(require syntax-spec "state-machine-compiler.rkt")
 
 (syntax-spec
   (binding-class state-name)

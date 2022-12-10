@@ -1,11 +1,11 @@
 #lang info
 
-(define name "bindingspec")
+(define name "syntax-spec")
 (define version "0.1")
 (define deps '("ee-lib"
                "paren-shape"
                "rackunit-lib"))
 (define build-deps '("racket-doc" "scribble-lib" "drracket"))
-(define scribblings '(("scribblings/bindingspec.scrbl" () (experimental))))
+(define scribblings '(("scribblings/main.scrbl" () (experimental))))
 (define compile-omit-paths '("design"))
 (define test-omit-paths '("design"))

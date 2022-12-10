@@ -20,7 +20,7 @@
 
 ;; Syntax definition
 
-(require bindingspec)
+(require syntax-spec)
 
 (syntax-spec
   (binding-class term-variable)

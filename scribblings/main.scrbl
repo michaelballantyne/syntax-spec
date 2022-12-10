@@ -17,8 +17,8 @@
 @;-----------------------
 
 @section{Reference}
-@require[(for-label bindingspec)]
-@defmodule[bindingspec]
+@require[(for-label syntax-spec)]
+@defmodule[syntax-spec]
 
 @defform[(syntax-spec stx-def ...)]
 
