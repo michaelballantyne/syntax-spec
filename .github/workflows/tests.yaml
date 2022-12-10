@@ -1,0 +1,14 @@
+name: Tests
+
+on: [push]
+
+jobs:
+  run_tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: Bogdanp/setup-racket@v1.9
+        with:
+          version: 8.7
+      - run: raco pkg install --auto -j 2
+      - run: raco test -c syntax-spec -j 2
