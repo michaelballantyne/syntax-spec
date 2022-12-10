@@ -10,5 +10,7 @@ jobs:
       - uses: Bogdanp/setup-racket@v1.9
         with:
           version: 8.7
-      - run: raco pkg install --auto -j 2
-      - run: raco test -c syntax-spec -j 2
+      - run: raco pkg install -j 2 --auto
+      - working-directory: ./test/dsls/js
+        run: npm install escodegen
+      - run: raco test -j -c syntax-spec
