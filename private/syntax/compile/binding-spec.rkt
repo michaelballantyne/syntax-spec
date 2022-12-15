@@ -59,6 +59,7 @@
 (struct ref [pvar])
 (struct bind with-stx [pvar])
 (struct bind-syntax with-stx [pvar transformer-pvar])
+(struct bind-syntaxes with-stx [pvar transformer-pvar])
 (struct rec with-stx [pvars])
 (struct re-export with-stx [pvars])
 (struct export with-stx [pvar])
@@ -113,7 +114,7 @@
 ; convert surface syntax for a bspec to a structure representation.
 (define elaborate-bspec
   (syntax-parser
-    #:datum-literals (bind bind-syntax recursive export export-syntax re-export nest nest-one host)
+    #:datum-literals (bind bind-syntax bind-syntaxes recursive export export-syntax re-export nest nest-one host)
     [v:nonref-id
      (elaborate-ref (attribute v))]
     [(bind v:nonref-id ...+)
@@ -126,6 +127,15 @@
                          "binding class"))))]
     [(bind-syntax v:nonref-id v-transformer:nonref-id)
      (bind-syntax
+      this-syntax
+      (elaborate-pvar (attribute v)
+                      (s* extclass-rep)
+                      "extension class")
+      (elaborate-pvar (attribute v-transformer)
+                      (? stxclass-rep?)
+                      "syntax class"))]
+    [(bind-syntaxes v:nonref-id v-transformer:nonref-id)
+     (bind-syntaxes
       this-syntax
       (elaborate-pvar (attribute v)
                       (s* extclass-rep)
@@ -256,6 +266,7 @@
               (s* suspend [pvar (pvar v _)]))
           (list v)]
          [(or (s* bind-syntax [pvar (pvar v1 _)] [transformer-pvar (pvar v2 _)])
+              (s* bind-syntaxes [pvar (pvar v1 _)] [transformer-pvar (pvar v2 _)])
               (s* export-syntax [pvar (pvar v1 _)] [transformer-pvar (pvar v2 _)]))
           (list v1 v2)]
          [(or (s* rec [pvars (list (pvar vs _) ...)])
@@ -315,7 +326,7 @@
 ; two-pass-spec: (seq (* (or (export _) (export-syntax _ _))) (* (re-export _)) refs+subexps)
 ; unscoped-spec: refs+subexps
 ; refs+subexps: (* (or (ref _) (nest _ unscoped-spec) (nest-one _ unscoped-spec) (scope scoped-spec)))
-; scoped-spec:   (seq (* (or (bind-syntax _ _) (bind _))) (? (rec _)) refs+subexps)
+; scoped-spec:   (seq (* (or (bind-syntax _ _) (bind-syntaxes _ _) (bind _))) (? (rec _)) refs+subexps)
 ;
 ; The implementation below separately implements refs+subexps for each context in which it occurs to
 ; provide specific error messages.
@@ -343,7 +354,7 @@
   (define (refs+subexps spec)
     (match spec
       [(or (s* ref) (s* suspend)) (void)]
-      [(and (or (s* bind) (s* bind-syntax)) (with-stx stx))
+      [(and (or (s* bind) (s* bind-syntax) (s* bind-syntaxes)) (with-stx stx))
        (binding-scope-error stx)]
       [(and (s* rec) (with-stx stx))
        (wrong-syntax/orig stx "recursive binding groups must occur within a scope")]
@@ -363,7 +374,7 @@
 (define (check-order/scoped-expression spec)
   (define (bindings spec specs)
     (match spec
-      [(or (s* bind) (s* bind-syntax))
+      [(or (s* bind) (s* bind-syntax) (s* bind-syntaxes))
        (check-sequence bindings specs)]
       [(and (or (s* export) (s* export-syntax)) (with-stx stx))
        (export-context-error stx)]
@@ -381,7 +392,7 @@
 
   (define (refs+subexps spec specs)
     (match spec
-      [(and (or (s* bind) (s* bind-syntax)) (with-stx stx))
+      [(and (or (s* bind) (s* bind-syntax) (s* bind-syntaxes)) (with-stx stx))
        (wrong-syntax/orig stx "bindings must appear first within a scope")]
       [(and (or (s* export) (s* export-syntax)) (with-stx stx))
        (export-context-error stx)]
@@ -417,7 +428,7 @@
   
   (define (refs+subexps spec specs)
     (match spec
-      [(and (or (s* bind) (s* bind-syntax)) (with-stx stx))
+      [(and (or (s* bind) (s* bind-syntax) (s* bind-syntaxes)) (with-stx stx))
        (binding-scope-error stx)]
       [(and (or (s* export) (s* export-syntax)) (with-stx stx))
        (wrong-syntax/orig stx "exports must appear first in a two-pass spec")]
@@ -462,6 +473,8 @@
      #`(group (list (bind '#,v '#,space #'#,constr) (rename-bind '#,v '#,space)))]
     [(bind-syntax _ (pvar v (extclass-rep constr _ _ space)) (pvar v-transformer _))
      #`(group (list (bind-syntax '#,v '#,space #'#,constr '#,v-transformer) (rename-bind '#,v '#,space)))]
+    [(bind-syntaxes _ (pvar v (extclass-rep constr _ _ space)) (pvar v-transformer _))
+     #`(group (list (bind-syntaxes '#,v '#,space #'#,constr '#,v-transformer) (rename-bind '#,v '#,space)))]
     [(rec _ pvars)
      (with-syntax ([(s-cp1 ...) (for/list ([pv pvars])
                                   (match-define (pvar v (nonterm-rep (two-pass-nonterm-info pass1-expander _))) pv)
@@ -495,7 +508,7 @@
 
 (define (compile-bspec-term/pass1 spec)
   (match spec
-    [(or (s* bind) (s* bind-syntax))
+    [(or (s* bind) (s* bind-syntax) (s* bind-syntaxes))
      (invariant-error 'compile-bspec-term/pass1)]
     [(group specs)
      (with-syntax ([(spec-c ...) (map compile-bspec-term/pass1 specs)])
@@ -520,7 +533,7 @@
 
 (define (compile-bspec-term/pass2 spec)
   (match spec
-    [(or (s* bind) (s* bind-syntax))
+    [(or (s* bind) (s* bind-syntax) (s* bind-syntaxes))
      (invariant-error 'compile-bspec-term/pass2)]
     [(group specs)
      (with-syntax ([(spec-c ...) (map compile-bspec-term/pass2 specs)])
