@@ -1,0 +1,13 @@
+Most of this repository is distributed under the Apache 2.0 and MIT licenses,
+like Racket. The user can choose the license under which they will be using the
+software.
+
+See the files
+  https://github.com/racket/racket/blob/master/racket/src/LICENSE-APACHE.txt
+and
+  https://github.com/racket/racket/blob/master/racket/src/LICENSE-MIT.txt
+for the full text of the licenses.
+
+Some of the example and test DSL implementations are derivative works of other
+implementations of those DSLs and are thus licensed differently. See the LICENSE
+file in those subdirectories.
