@@ -18,6 +18,9 @@
     ((~literal +) e:racket-expr ...)
     (racket-let-syntax ([v:racket-macro e:expr] ...) b:racket-expr)
     #:binding {(bind-syntax v e) b}
+
+    (racket-let-syntaxes ([(v:racket-macro ...) e:expr] ...) b:racket-expr)
+    #:binding {(bind-syntaxes v e) b}
     e:expr
     #:binding (host e))
 
@@ -30,6 +33,8 @@
     (syntax-parse e
       [((~literal racket-let-syntax) ([v e] ...) b)
        #`(let-syntax ([v e] ...) #,(compile-racket-expr #'b))]
+      [((~literal racket-let-syntaxes) ([(v ...) e] ...) b)
+       #`(let-syntaxes ([(v ...) e] ...) #,(compile-racket-expr #'b))]
       [_ this-syntax])))
 
 ; this dsl doesn't have host expressions. It only has numbers, variables, +, my-let, and my-let-syntax
@@ -51,10 +56,16 @@
     (my-let-syntax ([v:my-macro e:expr] ...) b:my-expr)
     #:binding {(bind-syntax v e) b}
 
+    (my-let-syntaxes ([(v:my-macro ...) e:expr] ...) b:my-expr)
+    #:binding {(bind-syntaxes v e) b}
+
     ; this binds racket-macros, which cannot be used in my-exprs
     ; uses of bound macros should error.
     (bad-my-let-syntax ([v:racket-macro e:expr] ...) b:my-expr)
-    #:binding {(bind-syntax v e) b}))
+    #:binding {(bind-syntax v e) b}
+
+    (bad-my-let-syntaxes ([(v:racket-macro ...) e:expr] ...) b:my-expr)
+    #:binding {(bind-syntaxes v e) b}))
 
 (test-equal?
  "local definition and use of a racket macro in a dsl expression"
@@ -63,6 +74,18 @@
                       (double 1)))
  '(racket-let-syntax ([double (syntax-rules () [(double e) (+ e e)])])
                      (+ 1 1)))
+
+(test-equal?
+ "local definition and use of a racket macro in a dsl expression"
+ (expand-nonterminal/datum racket-expr
+   (racket-let-syntaxes ([(double triple)
+                          (values (syntax-rules () [(double e) (+ e e)])
+                                  (syntax-rules () [(triple e) (+ e e e)]))])
+     (double (triple 1))))
+ '(racket-let-syntaxes ([(double triple)
+                          (values (syntax-rules () [(double e) (+ e e)])
+                                  (syntax-rules () [(triple e) (+ e e e)]))])
+                     (+ (+ 1 1 1) (+ 1 1 1))))
 
 (test-equal?
  "local definition and use of a racket macro in a host expression"
@@ -84,6 +107,21 @@
                  (my-let ([x 1])
                          (+ x x))))
 
+(test-equal?
+ "local definition and use of a dsl macro"
+ ; this tests that regular transformers are wrapped with my-macro automatically
+ (expand-nonterminal/datum my-expr
+                           (my-let-syntaxes ([(double triple)
+                                              (values (syntax-rules () [(double e) (+ e e)])
+                                                      (syntax-rules () [(triple e) (+ e e e)]))])
+                             (my-let ([x 1])
+                               (double (triple x)))))
+ '(my-let-syntaxes ([(double triple)
+                     (values (syntax-rules () [(double e) (+ e e)])
+                             (syntax-rules () [(triple e) (+ e e e)]))])
+    (my-let ([x 1])
+            (+ (+ x x x) (+ x x x)))))
+
 (test-exn
  "using a locally defined racket-macro where it is not allowed"
  #rx"expected my-expr"
@@ -93,3 +131,13 @@
      (bad-my-let-syntax ([double (syntax-rules () [(double e) (+ e e)])])
                         (my-let ([x 1])
                                 (double x))))))
+
+(test-exn
+ "using a locally defined racket-macro where it is not allowed"
+ #rx"expected my-expr"
+ (lambda ()
+   (expand-nonterminal/datum my-expr
+     ; this form binds a racket-macro even though only my-macros are allowed in the body.
+     (bad-my-let-syntaxes ([(double) (syntax-rules () [(double e) (+ e e)])])
+       (my-let ([x 1])
+         (double x))))))

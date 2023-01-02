@@ -10,6 +10,7 @@
  (struct-out rename-bind)
  (struct-out bind)
  (struct-out bind-syntax)
+ (struct-out bind-syntaxes)
  (struct-out scope)    ; {}
  (struct-out group)    ; []
  (struct-out nest)
@@ -55,6 +56,7 @@
 (struct rename-bind [pvar space] #:transparent)
 (struct bind [pvar space bvalc] #:transparent)
 (struct bind-syntax [pvar space bvalc transformer-pvar] #:transparent)
+(struct bind-syntaxes [pvar space bvalc transformer-pvar] #:transparent)
 (struct scope [spec] #:transparent)
 (struct group [specs] #:transparent)
 (struct nest [pvar nonterm spec] #:transparent)
@@ -149,6 +151,10 @@
    (lambda (id val #:space [space #f])
      (error 'do-bind! "internal error: not in a context where do-bind! is defined"))))
 
+(define (map-values proc thnk)
+  (let ([lst (call-with-values thnk list)])
+    (apply values (map proc lst))))
+
 ;; spec, exp-state, (listof scope-tagger) -> exp-state
 (define (simple-expand-internal spec st local-scopes)
   
@@ -186,14 +192,30 @@
          (flip-intro-scope bound-id)))]
 
     [(bind-syntax pv space constr-id transformer-pv)
-     (for/pv-state-tree ([id pv] [transformer-stx transformer-pv])
+     (for/pv-state-tree ([transformer-stx transformer-pv] [id pv])
        (when DEBUG-RENAME
          (displayln 'bind-syntax)
          (pretty-write (syntax-debug-info id)))
+       (unless (identifier? id)
+         (error 'bind-syntax "ellipsis depth mismatch"))
        (define scoped-transformer-stx (add-scopes transformer-stx local-scopes))
        (let ([bound-id ((do-bind!) (flip-intro-scope (add-scopes id local-scopes)) #`(#,constr-id #,(flip-intro-scope scoped-transformer-stx)) #:space space)])
          (compile-binder! ((in-space space) bound-id))
-         (values (flip-intro-scope bound-id) scoped-transformer-stx)))]
+         (values scoped-transformer-stx (flip-intro-scope bound-id))))]
+    [(bind-syntaxes pv space constr-id transformer-pv)
+     (for/pv-state-tree ([transformer-stx transformer-pv] [ids pv])
+       (when DEBUG-RENAME
+         (displayln 'bind-syntaxes)
+         (pretty-write (syntax-debug-info ids)))
+       (unless (and (list? ids) (for/and ([id ids]) (identifier? id)))
+         (error 'bind-syntaxes "ellipsis depth mismatch"))
+       (define scoped-transformer-stx (add-scopes transformer-stx local-scopes))
+       (let ([bound-ids ((do-bind!) (for/list ([id ids]) (flip-intro-scope (add-scopes id local-scopes)))
+                                    #`(map-values #,constr-id (lambda () #,(flip-intro-scope scoped-transformer-stx)))
+                                    #:space space)])
+         (for ([bound-id bound-ids])
+           (compile-binder! ((in-space space) bound-id)))
+         (values scoped-transformer-stx (map flip-intro-scope bound-ids))))]
     [(rename-ref pv space)
      (for/pv-state-tree ([id pv])
        (when DEBUG-RENAME
@@ -344,7 +366,7 @@
 (define (map/trees f trees)
   (cond
     [(null? trees) (error 'map/trees "expected at least one tree")]
-    [(andmap (negate list?) trees) (call-with-values (lambda () (apply f trees)) list)]
+    [(not (list? (car trees))) (call-with-values (lambda () (apply f trees)) list)]
     [(andmap null? trees)
      ; this assumes that the number of output trees is the same as the number of input trees
      trees]
@@ -358,8 +380,12 @@
 (module+ test
   (check-exn #rx"expected at least one tree" (lambda () (map/trees values '())))
   (check-exn #rx"tree shapes are not the same"
-             (lambda () (map/trees values '((1 (2) 3)
-                                            (4 ((5)) 6)))))
+             (lambda () (map/trees values '((1 ((2)) 3)
+                                            (4 (5) 6)))))
+  (check-equal?
+   (map/trees values '((1 (2) 3)
+                         (4 ((5)) 6)))
+   '((1 (2) 3) (4 ((5)) 6)))
   ; the function never gets applied because there are no leaves
   (check-equal? (map/trees error '(()))
                 '(()))
@@ -388,10 +414,20 @@
 (define (transpose v)
   (apply map list v))
 
-(define (trampoline-bind! id rhs-e #:space [space #f])
-  (define pos-id (flip-intro-scope id))
-  (trampoline-lift! #`(define-syntax #,((in-space space) id) #,rhs-e))
-  (flip-intro-scope pos-id))
+#;(-> (listof identifier?) syntax? #:space [(or/c #f symbol?)] (listof identifier?))
+#;(-> identifier? syntax? #:space [(or/c #f symbol?)] identifier?)
+; binds the identifier or identifiers as syntax to the transformer with syntax rhs-e
+; by lifting a define-syntaxes
+(define (trampoline-bind! id-or-ids rhs-e #:space [space #f])
+  (let* ([is-list? (list? id-or-ids)]
+         [ids (if is-list? id-or-ids (list id-or-ids))])
+    (define pos-ids (map flip-intro-scope ids))
+    (trampoline-lift! #`(define-syntaxes #,(for/list ([id ids]) ((in-space space) id))
+                          #,rhs-e))
+    ; flip-intro-scope is an effect that depends on the current macro-introduction scope
+    ; trampoline-lift! will change the current macro-introduction scope between the first and second flips
+    (let ([ids (map flip-intro-scope pos-ids)])
+      (if is-list? ids (car ids)))))
 
 (define (wrap-bind-trampoline transformer)
   (wrap-lift-trampoline
