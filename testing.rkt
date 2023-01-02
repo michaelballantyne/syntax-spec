@@ -21,8 +21,8 @@
     [(_ nonterm:id form)
      (define/syntax-parse ctx this-syntax)
      #'(phase1-eval
-        (parameterize ([current-syntax-context #'ctx])
-          ((nonterminal-expander nonterm) #'form))
+        (parameterize ([current-syntax-context (quote-syntax ctx)])
+          ((nonterminal-expander nonterm) (quote-syntax form)))
         #:catch? #t)]))
 
 (define ((check-formatted-error-matches rx) exn)
