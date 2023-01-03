@@ -7,5 +7,5 @@
                "rackunit-lib"))
 (define build-deps '("racket-doc" "scribble-lib" "drracket"))
 (define scribblings '(("scribblings/main.scrbl" () (experimental))))
-(define compile-omit-paths '("design"))
-(define test-omit-paths '("design"))
+(define compile-omit-paths '("design" "demos"))
+(define test-omit-paths '("design" "demos"))
