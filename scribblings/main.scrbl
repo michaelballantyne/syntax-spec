@@ -47,13 +47,12 @@
 
 @subsubsection{Nonterminal options}
 
-@racketgrammar*[(nonterminal-options (code:line maybe-description
-                                                maybe-bind-literal-set
+@racketgrammar*[(nonterminal-options (code:line maybe-description #;maybe-bind-literal-set
                                                 maybe-allow-extension
                                                 maybe-binding-space))
                 (maybe-description (code:line #:description string-literal)
                                    (code:line))
-                (maybe-bind-literal-set (code:line #:bind-literal-set literal-set-id)
+                #;(maybe-bind-literal-set (code:line #:bind-literal-set literal-set-id)
                                         (code:line))
                 (maybe-allow-extension (code:line #:allow-extension extension-class-spec)
                                        (code:line))
@@ -89,7 +88,8 @@
                              (syntax-spec . syntax-spec)
                              spec-variable-id:binding-class-id
                              spec-variable-id:nonterminal-id
-                             spec-variable-id:syntax-class-id)
+                             spec-variable-id:extension-class-id
+                             #;spec-variable-id:syntax-class-id)
                 (maybe-space (code:line #:space space-name)
                              (code:line))]
 
@@ -152,14 +152,9 @@
 
 @subsubsection{Compiling bindings and references}
 
-@defform[(with-reference-compilers ([binding-class-id reference-compiler-expr] ...) body ...+)]
+@defform[(with-reference-compilers ([binding-class-id reference-compiler-expr] ...)
+           body ...+)]
 
 @defthing[immutable-reference-compiler set!-transformer?]
 
 @defthing[mutable-reference-compiler set!-transformer?]
-
-@subsubsection{Binding spaces}
-
-@defproc[(in-space [space symbol?]) (-> syntax? syntax?)]
-
-@defform[(~space-literal id space-symbol)]

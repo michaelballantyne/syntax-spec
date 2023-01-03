@@ -9,42 +9,37 @@
   
   (define compile-goal
     (syntax-parser
-      [((~space-literal fresh1 mk) (v ...) b)
+      #:datum-literals (fresh1 ==)
+      [(fresh1 (v ...) b)
        #`(let ([v (gensym)] ...)
            #,(compile-goal #'b))]
-      [((~space-literal == mk) t1 t2)
-       #`(displayln (list #,(compile-term #'t1) #,(compile-term #'t2)))]))
+      [(== t1 t2)
+       #`(list #,(compile-term #'t1) #,(compile-term #'t2))]))
   
   (define compile-term
     (syntax-parser
+      #:datum-literals (rkt #%term-ref)
       [n:number
        #'n]
-      [((~space-literal rkt mk) e)
+      [(#%term-ref x)
+       #'x]
+      [(rkt e)
        #'(with-reference-compilers ([term-variable immutable-reference-compiler])
          e)])))
 
 (syntax-spec
   (host-interface/expression
     (run n:expr (qvar:term-variable ...)
-      g:goal ...)
+      g:goal)
     #:binding {(bind qvar) g}
-  
-    (displayln #'(g ...))
-    #'(void))
 
+    #`(let ([qvar (gensym)] ...)
+        #,(compile-goal #'g))))
 
-  (host-interface/expression
-    (mk-compile g:goal)
-
-    (compile-goal #'g)))
-
-
-(mk-compile
- (fresh (x)
-   (== 1 (rkt x))))
-
-(run 3 (q)
-  (fresh (x)
-    (== q x)))
+(check-true
+ (pair?
+  (run 3 (q)
+    (fresh (x)
+      (== q x)))))
 
 

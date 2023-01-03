@@ -7,9 +7,6 @@
           expr
           id
 
-          in-space
-          ~space-literal
-
           mutable-reference-compiler
           immutable-reference-compiler
 
