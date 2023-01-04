@@ -25,21 +25,21 @@ set!-transformers.
 
   (nonterminal mylet-expr
     #:description "mylet expression"
-    (mylet v:var body:expr)
-    #:binding {(bind v) (host body)}
-    (regular-let v:var val:expr body:expr)
-    #:binding [(host val) {(bind v) (host body)}]
-    (rep-let v:var body:expr)
-    #:binding {(bind v) (host body)}
-    (mybegin def:mydef body:expr)
-    #:binding {(recursive def) (host body)})
+    (mylet v:var body:racket-expr)
+    #:binding {(bind v) body}
+    (regular-let v:var val:racket-expr body:racket-expr)
+    #:binding {(bind v) body}
+    (rep-let v:var body:racket-expr)
+    #:binding {(bind v) body}
+    (mybegin def:mydef body:racket-expr)
+    #:binding {(recursive def) body})
  
   (nonterminal/two-pass mydef
     #:description "mylet definition"
     (mydefine-inner v:var)
     #:binding (export v)
-    (regular-define-inner v:var val:expr)
-    #:binding [(export v) (host val)])
+    (regular-define-inner v:var val:racket-expr)
+    #:binding [(export v) val])
 
   (host-interface/expression
     (run le:mylet-expr)
@@ -89,8 +89,8 @@ set!-transformers.
             [x:id #''ref]))]))
  
   (host-interface/definition
-    (regular-define v:var val:expr)
-    #:binding [(export v) (host val)]
+    (regular-define v:var val:racket-expr)
+    #:binding [(export v) val]
   
     #:lhs
     [#'v]
@@ -102,8 +102,7 @@ set!-transformers.
     #'v)
 
   (host-interface/expression
-    (my-set! v:var val:expr)
-    #:binding (host val)
+    (my-set! v:var val:racket-expr)
     #:with val^ #'(with-reference-compilers ([var mutable-reference-compiler]) val)
     #'(set! v val^)))
 

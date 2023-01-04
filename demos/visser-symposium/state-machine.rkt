@@ -19,8 +19,8 @@
     e:event-decl)
   
   (nonterminal event-decl
-    (on-enter e:expr ...)
+    (on-enter e:racket-expr ...)
     (on (evt:id arg:racket-var ...)
-      e:expr ...
+      e:racket-expr ...
       ((~datum ->) s:state-name))
-    #:binding {(bind arg) (host e)}))
+    #:binding {(bind arg) e}))

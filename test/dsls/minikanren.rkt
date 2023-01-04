@@ -27,8 +27,8 @@
    (quote t:quoted)
    (cons t1:term t2:term)
     
-   (rkt e:expr)
-   #:binding (host e)
+   (rkt e:racket-expr)
+   #:binding e
 
    (~> v:id
        (with-syntax ([#%term-ref (datum->syntax this-syntax '#%term-ref)])

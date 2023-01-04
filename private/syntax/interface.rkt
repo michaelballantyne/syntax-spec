@@ -1,8 +1,10 @@
 #lang racket/base
 
 (provide syntax-spec
-         (for-syntax racket-macro
+         (for-syntax racket-expr
                      racket-var
+                     racket-macro
+                     
                      binding-class-predicate
                      binding-class-constructor
                      nonterminal-expander))
@@ -319,16 +321,21 @@
                   (quote-syntax racket-macro-transformer)
                   #f)))
 
-; racket var is not super-special.
-; It's just a binding class that gets an implicit
-; (with-reference-compilers ([racket-var mutable-reference-compiler])).
-; The dsl-writer still has to say (host e) for racket host expressions.
+;; racket var is not super-special.
+;; It's just a binding class that gets an implicit
+;; (with-reference-compilers ([racket-var mutable-reference-compiler])).
 (syntax-spec
   (binding-class racket-var #:description "racket variable"))
 
 (begin-for-syntax
   (define built-in-reference-compilers (list (list #'racket-var mutable-reference-compiler)))
   (setup-default-reference-compilers! built-in-reference-compilers))
+
+;; for now defined in the DSL; later might become primitive and replace `host`.
+(syntax-spec
+  (nonterminal racket-expr #:description "racket expression"
+    e:expr
+    #:binding (host e)))
 
 ;;
 ;; phase 1 accessors

@@ -58,8 +58,7 @@
     (fresh1 (x:term-variable) b:goal)
     #:binding {(bind x) b}
 
-    (project (x:term-variable ...) e:expr ...)
-    #:binding (host e)
+    (project (x:term-variable ...) e:racket-expr ...)
     
     (ifte g1:goal g2:goal g3:goal)
     (once g:goal)

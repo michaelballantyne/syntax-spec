@@ -29,18 +29,16 @@
   (nonterminal action
     (-> s:state-name)
     
-    (set n:data-name e:expr)
-    #:binding (host e)
+    (set n:data-name e:racket-expr)
     
-    (emit (name:id arg:expr ...))
-    #:binding (host arg)
+    (emit (name:id arg:racket-expr ...))
 
     (let* (b:binding-group ...) body:action ...)
     #:binding (nest b body))
 
   (nonterminal/nesting binding-group (tail)
-    [v:var e:expr]
-    #:binding [(host e) {(bind v) tail}])
+    [v:var e:racket-expr]
+    #:binding {(bind v) tail})
 
   #;(host-interface/definition
       (define-statechart n:statechart-name

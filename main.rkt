@@ -4,7 +4,6 @@
          with-reference-compilers
          (for-syntax
           number
-          expr
           id
 
           mutable-reference-compiler

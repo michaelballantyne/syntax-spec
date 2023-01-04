@@ -11,14 +11,13 @@
   (nonterminal/two-pass block-form
     #:allow-extension racket-macro
 
-    ((~literal define-values) (x:racket-var ...) e:expr)
-    #:binding [(export x) (host e)]
+    ((~literal define-values) (x:racket-var ...) e:racket-expr)
+    #:binding (export x)
 
     ((~literal define-syntaxes) (x:racket-macro) e:expr)
     #:binding (export-syntax x e)
 
-    e:expr
-    #:binding (host e))
+    e:racket-expr)
 
   (host-interface/expression
     (block body:block-form ...)

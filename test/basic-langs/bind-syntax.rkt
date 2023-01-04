@@ -10,22 +10,21 @@
 (syntax-spec
   (binding-class racket-var #:description "racket-like variable")
   
-  (nonterminal racket-expr
+  (nonterminal racket-like-expr
     #:description "racket-like expr"
     #:allow-extension racket-macro
 
     n:number
-    ((~literal +) e:racket-expr ...)
-    (racket-letrec-syntax ([v:racket-macro e:expr] ...) b:racket-expr)
+    ((~literal +) e:racket-like-expr ...)
+    (racket-letrec-syntax ([v:racket-macro e:expr] ...) b:racket-like-expr)
     #:binding {(bind-syntax v e) b}
 
-    (racket-letrec-syntaxes ([(v:racket-macro ...) e:expr] ...) b:racket-expr)
+    (racket-letrec-syntaxes ([(v:racket-macro ...) e:expr] ...) b:racket-like-expr)
     #:binding {(bind-syntaxes v e) b}
-    e:expr
-    #:binding (host e))
+    e:racket-expr)
 
   (host-interface/expression
-    (eval-racket-expr e:racket-expr)
+    (eval-racket-expr e:racket-like-expr)
     (compile-racket-expr #'e)))
 
 (begin-for-syntax
@@ -73,7 +72,7 @@
 
 (test-equal?
  "local definition and use of a racket macro in a dsl expression"
- (expand-nonterminal/datum racket-expr
+ (expand-nonterminal/datum racket-like-expr
    (racket-letrec-syntax ([double (syntax-rules () [(double e) (+ e e)])])
                       (double 1)))
  '(racket-letrec-syntax ([double (syntax-rules () [(double e) (+ e e)])])
@@ -81,7 +80,7 @@
 
 (test-equal?
  "local definition and use of a racket macro in a dsl expression"
- (expand-nonterminal/datum racket-expr
+ (expand-nonterminal/datum racket-like-expr
    (racket-letrec-syntaxes ([(double triple)
                           (values (syntax-rules () [(double e) (+ e e)])
                                   (syntax-rules () [(triple e) (+ e e e)]))])

@@ -341,8 +341,8 @@
 
 (syntax-spec
   (host-interface/expression
-    (dsl/let x:dsl-var2 e:expr)
-    #:binding {(bind x) (host e)}
+    (dsl/let x:dsl-var2 e:racket-expr)
+    #:binding {(bind x) e}
     #'e))
 
 ;; When no reference compiler is provided for
@@ -354,8 +354,8 @@
 
 (syntax-spec
   (host-interface/definition
-    (dsl/define x:dsl-var2 e:expr)
-    #:binding [(export x) (host e)]
+    (dsl/define x:dsl-var2 e:racket-expr)
+    #:binding [(export x) e]
 
     #:lhs [#'x]
     #:rhs [#'e]))

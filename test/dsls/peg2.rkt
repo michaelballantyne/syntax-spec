@@ -22,11 +22,10 @@
     (alt e1:peg e2:peg)
     (not e:peg)
 
-    (text e:expr)
-    #:binding (host e)
+    (text e:racket-expr)
     
-    (=> ps:peg-seq e:expr)
-    #:binding (nest-one ps (host e)))
+    (=> ps:peg-seq e:racket-expr)
+    #:binding (nest-one ps e))
 
   (nonterminal/nesting peg-seq (tail)
     #:description "PEG expression"

@@ -27,25 +27,23 @@
     #:binding [(export n) e])
 
   (nonterminal event-spec
-    (on (evt:id arg:local-var ...) #:when guard:expr b:action-spec ... t:transition-spec)
-    #:binding {(bind arg) (host guard) b}
+    (on (evt:id arg:local-var ...) #:when guard:racket-expr b:action-spec ... t:transition-spec)
+    #:binding {(bind arg) guard b}
     
     (on (evt:id arg:local-var ...) b:action-spec ... t:transition-spec)
     #:binding {(bind arg) b})
 
   (nonterminal/nesting binding (nested)    
-    [v:local-var e:expr]
-    #:binding [(host e) {(bind v) nested}])
+    [v:local-var e:racket-expr]
+    #:binding {(bind v) nested})
   
   (nonterminal action-spec
     ((~literal let*) (b:binding ...) a:action-spec ...)
     #:binding (nest b a)
     
-    (set v:data-var e:expr)
-    #:binding (host e)
+    (set v:data-var e:racket-expr)
 
-    (emit e:expr)
-    #:binding (host e))
+    (emit e:racket-expr))
 
   (nonterminal transition-spec
     (-> s:state-name)))

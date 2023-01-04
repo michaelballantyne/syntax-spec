@@ -10,8 +10,8 @@
 (syntax-spec
   (binding-class blue-var)
   (nonterminal blue-expr
-    ((~literal let) ([x:blue-var e:expr] ...) b:expr)
-    #:binding [(host e) {(bind x) (host b)}])
+    ((~literal let) ([x:blue-var e:racket-expr] ...) b:racket-expr)
+    #:binding {(bind x) b})
 
   (host-interface/expression
     (blue e:blue-expr)
@@ -22,8 +22,8 @@
 (syntax-spec
   (binding-class red-var)
   (nonterminal red-expr
-    ((~literal let) ([x:red-var e:expr] ...) b:expr)
-    #:binding [(host e) {(bind x) (host b)}])
+    ((~literal let) ([x:red-var e:racket-expr] ...) b:racket-expr)
+    #:binding {(bind x) b})
 
   (host-interface/expression
     (red e:red-expr)

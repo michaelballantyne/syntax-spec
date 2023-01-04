@@ -97,7 +97,7 @@
 @subsection{Binding specs}
 
 
-@racketgrammar[#:literals (bind recursive re-export export nest nest-one host)
+@racketgrammar[#:literals (bind recursive re-export export nest nest-one)
                binding-spec spec-variable-id
                (bind spec-variable-id ...+)
                {spec ...}
@@ -106,8 +106,7 @@
                (nest-one spec-variable-id binding-spec)
                (recursive spec-variable-id ...+)
                (export spec-variable-id ...+)
-               (re-export spec-variable-id ...+)
-               (host spec-variable-id)]
+               (re-export spec-variable-id ...+)]
 
 @subsection{Interface macros}
 
@@ -136,6 +135,26 @@
 
 @subsection{Compilation}
 
+@subsubsection{Interfacing with Racket}
+
+@defidform[#:kind "nonterminal" racket-expr]
+
+@defidform[#:kind "binding class" racket-var]
+
+@defidform[#:kind "extension class" racket-macro]
+
+
+@subsubsection{Compiling references to DSL bindings within Racket code}
+
+@defform[(with-reference-compilers
+             ([binding-class-id reference-compiler-expr] ...)
+           body ...+)]
+
+@defthing[immutable-reference-compiler set!-transformer?]
+
+@defthing[mutable-reference-compiler set!-transformer?]
+
+
 @subsubsection{Symbol tables}
 
 @defform[(define-persistent-symbol-table id)]
@@ -150,11 +169,3 @@
 
 @defproc[(symbol-table-ref [table any/c] [id identifier?] [failure any/c]) any/c]
 
-@subsubsection{Compiling bindings and references}
-
-@defform[(with-reference-compilers ([binding-class-id reference-compiler-expr] ...)
-           body ...+)]
-
-@defthing[immutable-reference-compiler set!-transformer?]
-
-@defthing[mutable-reference-compiler set!-transformer?]
