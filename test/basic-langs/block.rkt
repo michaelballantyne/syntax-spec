@@ -14,8 +14,8 @@
     ((~literal define-values) (x:racket-var ...) e:racket-expr)
     #:binding (export x)
 
-    ((~literal define-syntaxes) (x:racket-macro) e:expr)
-    #:binding (export-syntax x e)
+    ((~literal define-syntaxes) (x:racket-macro ...) e:expr)
+    #:binding (export-syntaxes x e)
 
     e:racket-expr)
 
@@ -63,3 +63,10 @@
         (define (f) 2)
         (m))
  2)
+
+(check-equal?
+ (block
+  (define-syntaxes (one m) (values (syntax-rules () [(one) 1])
+                                   (syntax-rules () [(m stx) stx])))
+  (m (one)))
+ 1)
