@@ -64,6 +64,7 @@
 (struct re-export with-stx [pvars])
 (struct export with-stx [pvar])
 (struct export-syntax with-stx [pvar transformer-pvar])
+(struct export-syntaxes with-stx [pvar transformer-pvar])
 (struct nest with-stx [pvar spec])
 (struct nest-one with-stx [pvar spec])
 (struct suspend with-stx [pvar])
@@ -114,7 +115,7 @@
 ; convert surface syntax for a bspec to a structure representation.
 (define elaborate-bspec
   (syntax-parser
-    #:datum-literals (bind bind-syntax bind-syntaxes recursive export export-syntax re-export nest nest-one host)
+    #:datum-literals (bind bind-syntax bind-syntaxes recursive export export-syntax export-syntaxes re-export nest nest-one host)
     [v:nonref-id
      (elaborate-ref (attribute v))]
     [(bind v:nonref-id ...+)
@@ -167,6 +168,15 @@
                          "binding class"))))]
     [(export-syntax v:nonref-id v-transformer:nonref-id)
      (export-syntax
+      this-syntax
+      (elaborate-pvar (attribute v)
+                      (s* extclass-rep)
+                      "extension class")
+      (elaborate-pvar (attribute v-transformer)
+                      (? stxclass-rep?)
+                      "syntax class"))]
+    [(export-syntaxes v:nonref-id v-transformer:nonref-id)
+     (export-syntaxes
       this-syntax
       (elaborate-pvar (attribute v)
                       (s* extclass-rep)
@@ -267,7 +277,8 @@
           (list v)]
          [(or (s* bind-syntax [pvar (pvar v1 _)] [transformer-pvar (pvar v2 _)])
               (s* bind-syntaxes [pvar (pvar v1 _)] [transformer-pvar (pvar v2 _)])
-              (s* export-syntax [pvar (pvar v1 _)] [transformer-pvar (pvar v2 _)]))
+              (s* export-syntax [pvar (pvar v1 _)] [transformer-pvar (pvar v2 _)])
+              (s* export-syntaxes [pvar (pvar v1 _)] [transformer-pvar (pvar v2 _)]))
           (list v1 v2)]
          [(or (s* rec [pvars (list (pvar vs _) ...)])
               (s* re-export [pvars (list (pvar vs _) ...)]))
@@ -323,7 +334,7 @@
 ; As a grammar:
 ;
 ; one-pass-spec: unscoped-spec
-; two-pass-spec: (seq (* (or (export _) (export-syntax _ _))) (* (re-export _)) refs+subexps)
+; two-pass-spec: (seq (* (or (export _) (export-syntax _ _) (export-syntaxes _ _))) (* (re-export _)) refs+subexps)
 ; unscoped-spec: refs+subexps
 ; refs+subexps: (* (or (ref _) (nest _ unscoped-spec) (nest-one _ unscoped-spec) (scope scoped-spec)))
 ; scoped-spec:   (seq (* (or (bind-syntax _ _) (bind-syntaxes _ _) (bind _))) (? (rec _)) refs+subexps)
@@ -358,7 +369,7 @@
        (binding-scope-error stx)]
       [(and (s* rec) (with-stx stx))
        (wrong-syntax/orig stx "recursive binding groups must occur within a scope")]
-      [(and (or (s* export) (s* export-syntax)) (with-stx stx))
+      [(and (or (s* export) (s* export-syntax) (s* export-syntaxes)) (with-stx stx))
        (export-context-error stx)]
       [(and (s* re-export) (with-stx stx))
        (re-export-context-error stx)]
@@ -376,7 +387,7 @@
     (match spec
       [(or (s* bind) (s* bind-syntax) (s* bind-syntaxes))
        (check-sequence bindings specs)]
-      [(and (or (s* export) (s* export-syntax)) (with-stx stx))
+      [(and (or (s* export) (s* export-syntax) (s* export-syntaxes)) (with-stx stx))
        (export-context-error stx)]
       [(and (s* re-export) (with-stx stx))
        (re-export-context-error stx)]
@@ -394,7 +405,7 @@
     (match spec
       [(and (or (s* bind) (s* bind-syntax) (s* bind-syntaxes)) (with-stx stx))
        (wrong-syntax/orig stx "bindings must appear first within a scope")]
-      [(and (or (s* export) (s* export-syntax)) (with-stx stx))
+      [(and (or (s* export) (s* export-syntax) (s* export-syntaxes)) (with-stx stx))
        (export-context-error stx)]
       [(and (s* re-export) (with-stx stx))
        (re-export-context-error stx)]
@@ -415,7 +426,7 @@
 (define (check-order/two-pass spec)
   (define (exports spec specs)
     (match spec
-      [(or (s* export) (s* export-syntax))
+      [(or (s* export) (s* export-syntax) (s* export-syntaxes))
        (check-sequence exports specs)]
       [_ (check-sequence re-exports (cons spec specs))]))
 
@@ -430,7 +441,7 @@
     (match spec
       [(and (or (s* bind) (s* bind-syntax) (s* bind-syntaxes)) (with-stx stx))
        (binding-scope-error stx)]
-      [(and (or (s* export) (s* export-syntax)) (with-stx stx))
+      [(and (or (s* export) (s* export-syntax) (s* export-syntaxes)) (with-stx stx))
        (wrong-syntax/orig stx "exports must appear first in a two-pass spec")]
       [(and (s* re-export) (with-stx stx))
        (wrong-syntax/orig stx "re-exports must occur before references and subexpressions")]
@@ -483,7 +494,7 @@
                                   (match-define (pvar v (nonterm-rep (two-pass-nonterm-info _ pass2-expander))) pv)
                                   #`(subexp/no-scope '#,v #,pass2-expander))])
        #`(group (list s-cp1 ... s-cp2 ...)))]
-    [(or (s* export) (s* export-syntax))
+    [(or (s* export) (s* export-syntax) (s* export-syntaxes))
      (invariant-error 'compile-bspec-term/single-pass)]
     [(re-export _ (pvar v _))
      (invariant-error 'compile-bspec-term/single-pass)]
@@ -525,6 +536,8 @@
      #`(group (list (bind '#,v '#,space #'#,constr) (rename-bind '#,v '#,space)))]
     [(export-syntax _ (pvar v (extclass-rep constr _ _ space)) (pvar v-transformer _))
      #`(group (list (bind-syntax '#,v '#,space #'#,constr '#,v-transformer) (rename-bind '#,v '#,space)))]
+    [(export-syntaxes _ (pvar v (extclass-rep constr _ _ space)) (pvar v-transformer _))
+     #`(group (list (bind-syntaxes '#,v '#,space #'#,constr '#,v-transformer) (rename-bind '#,v '#,space)))]
     [(re-export _ pvars)
      (with-syntax ([(s-c ...) (for/list ([pv pvars])
                                 (match-define (pvar v (nonterm-rep (two-pass-nonterm-info pass1-expander _))) pv)
@@ -546,7 +559,7 @@
          (suspend _ _))
      (compile-bspec-term/single-pass spec)]
 
-    [(or (s* export) (s* export-syntax))
+    [(or (s* export) (s* export-syntax) (s* export-syntaxes))
      no-op]
     [(re-export _ pvars)
      (with-syntax ([(s-c ...) (for/list ([pv pvars])
