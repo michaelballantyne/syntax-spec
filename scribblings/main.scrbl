@@ -71,13 +71,15 @@ Here's what using the DSL to define a controller for a subway turnstile looks li
     (check-equal? (machine-state turnstile) '(locked))
     (check-equal? (machine-state unlocked-turnstile) '(unlocked))))
 
-The machine has two states: locked an unlocked. It reacts to two kinds of external events: a coin
+The machine has two states: locked and unlocked. It reacts to two kinds of external events: a coin
 with a given value being inserted, and a person passing through the turnstile. Racket code uses
 the machine via the @racket[machine-state] and @racket[machine-step] functions. Within the machine,
 Racket code is used to implement the guard on the transition to the unlocked state, which checks
 that the given coin is a quarter.
 
 @subsection[#:tag "grammar"]{Grammar}
+
+Our initial specification with the DSL supplies the grammar:
 
 @(racketblock
   (syntax-spec
@@ -100,6 +102,15 @@ that the given coin is a quarter.
       v:id
       n:number
       (= e1:guard-expr e2:guard-expr))))
+
+The @racket[host-interface/expression] declaration specifies that the @racket[machine] syntax extends
+the language of Racket expressions. The first portion is a @emph{syntax specification}. It consists
+of the form name (@racket[machine]), literal syntax like @racket[#:keyword], and named subexpressions
+like @racket[s] together with references to the nonterminals that specify the syntax of the subexpression
+like @racket[state-spec]. The remainder of the host interface declaration is compile-time Racket code.
+Once the DSL syntax is checked and macro-expanded according to the syntax specification, this compile-time
+code is responsible for compiling from the DSL to Racket. For now it's a stub.
+
 
 @subsection[#:tag "binding"]{Simple binding}
 
