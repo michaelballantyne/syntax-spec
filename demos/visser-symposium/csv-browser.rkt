@@ -24,11 +24,11 @@
      #:as url-field
      [label "Data URL"]
      [init-value "https://people.sc.fsu.edu/~jburkardt/data/csv/addresses.csv"]
-     [callback (lambda _ (csv-controller '(url-change)))])
+     [callback (lambda _ (send csv-controller url-change))])
 
     (button%
      [label "Load"]
-     [callback (lambda _ (csv-controller '(load-click)))]))
+     [callback (lambda _ (send csv-controller load-click))]))
 
    (pane%
     #:as data-area
@@ -79,13 +79,13 @@
      (define (on-error e)
        (queue-callback
         (lambda ()
-          (csv-controller '(load-error)))))
+          (send csv-controller load-error))))
      
      (with-handlers ([exn:fail? on-error])                                
        (define data (csv->list (get-pure-port (string->url url))))
        (queue-callback
         (lambda ()
-          (csv-controller (list 'loaded data))))))))
+          (send csv-controller loaded data)))))))
 
 ;;
 ;; Controller via state machine DSL
