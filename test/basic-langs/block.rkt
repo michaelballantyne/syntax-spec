@@ -5,7 +5,8 @@
 ;; TODO: multiple macro definitions with single define-syntaxes.
 ;; TODO: implement begin?
 
-(require "../../testing.rkt")
+(require "../../testing.rkt"
+         drracket/check-syntax)
 
 (syntax-spec
   (nonterminal/two-pass block-form
@@ -70,3 +71,22 @@
                                    (syntax-rules () [(m stx) stx])))
   (m (one)))
  1)
+
+(define-namespace-anchor a)
+(test-case "disappeared props"
+  (define (num-arrows-of check-syntax-result)
+    (length (for/list ([vec check-syntax-result] #:when (equal? (vector-ref vec 0)
+                                                                'syncheck:add-arrow/name-dup/pxpy))
+              vec)))
+  (define ns (namespace-anchor->namespace a))
+  (check-equal? (num-arrows-of
+                 (show-content (quote-syntax (block
+                                               (define-syntax x #'a)
+                                               (define-syntax m
+                                                 (syntax-parser
+                                                   [(_ name:id)
+                                                    (define/syntax-parse actual-name (syntax-local-value #'name))
+                                                    (syntax-property #'(define actual-name 42) 'disappeared-use (list (syntax-local-introduce #'name)))]))
+                                               (m x)))
+                               #:namespace ns))
+                2))

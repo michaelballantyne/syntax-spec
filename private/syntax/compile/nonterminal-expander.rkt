@@ -12,6 +12,8 @@
          "syntax-spec.rkt"
          "binding-spec.rkt"
 
+         (for-meta -2 ee-lib/private/lift-disappeareds)
+
          (for-template racket/base
                        "../syntax-classes.rkt"
                        "../../runtime/binding-spec.rkt"
@@ -35,12 +37,13 @@
                      [description (or (attribute opts.description) (symbol->string (syntax-e (attribute name))))]
                      [stx-a init-stx-id])
          #'(let recur ([stx stx-a])
-             (syntax-parse stx
-               (~@ . macro-clauses)
-               (~@ . prod-clauses)
-               [_ (wrong-syntax/orig
-                   this-syntax
-                   (string-append "expected " (#%datum . description)))]))))
+             (let ([stx-dropped-props (lift-from-properties! stx)])
+               (syntax-parse stx-dropped-props
+                 (~@ . macro-clauses)
+                 (~@ . prod-clauses)
+                 [_ (wrong-syntax/orig
+                     this-syntax
+                     (string-append "expected " (#%datum . description)))])))))
 
      (define (generate-header)
        (syntax-parse (attribute variant)
