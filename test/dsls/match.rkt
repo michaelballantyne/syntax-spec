@@ -25,7 +25,6 @@
    (match target:racket-expr c:clause ...)
    #'(with-reference-compilers ([pat-var immutable-reference-compiler])
        (let ([target-pv target])
-         ; TODO this leads to duplicate (let ([target-pv ...
          (match-clauses target-pv c ...)))))
 
 (define-syntax match-clauses
