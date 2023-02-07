@@ -279,6 +279,11 @@
                 clause)]))])))
 
 (begin-for-syntax
+  (define (check-lhs-result stx)
+    (syntax-parse stx
+      [name:id #'(name)]
+      [(name:id ...) this-syntax]))
+
   (define-syntax generate-host-interface-transformer/definition-pass1
     (syntax-parser
       [(_ sspec-arg ((~optional (~seq bspec-arg))) [name-parse-body ...+] pass2-macro)
@@ -287,10 +292,11 @@
          (define bspec (and (attribute bspec-arg) (add-scope (attribute bspec-arg) sc)))
          
          (define (generate-body)
-           #`(with-syntax ([compiled-name (syntax-parse #f
-                                            [_
-                                             #,@(add-scope #'[name-parse-body ...] sc)])])
-               (trampoline-lift! #'(define compiled-name (pass2-macro . #,(compile-sspec-to-template sspec))))
+           #`(with-syntax ([compiled-names (check-lhs-result
+                                           (syntax-parse #f
+                                             [_
+                                              #,@(add-scope #'[name-parse-body ...] sc)]))])
+               (trampoline-lift! #'(define-values compiled-names (pass2-macro . #,(compile-sspec-to-template sspec))))
                #'(begin)))
 
          (define/syntax-parse clause
