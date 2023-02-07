@@ -6,21 +6,24 @@
 (syntax-spec
   (binding-class pat-var)
   (extension-class pat-macro #:binding-space pm)
-  (nonterminal/nesting pat (tail)
+  (nonterminal/two-pass pat
     #:allow-extension pat-macro
     #:binding-space pm
     x:pat-var
-    #:binding {(bind x) tail}
+    #:binding (export x)
+    (var x:pat-var)
+    #:binding (export x)
     (and2 p1:pat p2:pat)
-    #:binding (nest-one p1 (nest-one p2 tail))
+    #:binding [(re-export p1) (re-export p2)]
     (? pred:racket-expr)
     (app proc:racket-expr p:pat)
-    #:binding (nest-one p tail)
+    #:binding (re-export p)
     (not p:pat)
-    #:binding (nest-one p []))
+    ; you don't want to export from a `not`
+    #:binding {(recursive p)})
   (nonterminal clause
     [p:pat body:racket-expr ...+]
-    #:binding (nest-one p body))
+    #:binding {(recursive p) body})
   (host-interface/expression
    (match target:racket-expr c:clause ...)
    #'(with-reference-compilers ([pat-var immutable-reference-compiler])
@@ -40,8 +43,9 @@
     [(_ target:id pat on-success on-fail)
      (syntax-parse #'pat
        ; TODO something better then datum
-       #:datum-literals (and2 ? app)
+       #:datum-literals (var and2 ? app)
        [x:id #'(let ([x target]) on-success)]
+       [(var x:id) #'(let ([x target]) on-success)]
        [(and2 p1 p2)
         #'(do-match target p1 (do-match target p2 on-success on-fail) on-fail)]
        [(? pred)
@@ -119,3 +123,6 @@
 (check-equal? (match '(1 2)
                 [(list a b) (list b a)])
               '(2 1))
+(check-equal? (match '(1) [(var cons) cons]) '(1))
+; currently an ambiguity error
+;(check-equal? (match '(1) [(and (var cons) (cons a b)) (cons a b)]) '(1))
