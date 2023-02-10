@@ -51,6 +51,7 @@
     (multi init:expr f:flag ...+))
 
   (nonterminal flag
+    #:allow-extension flag-macro
     ((~literal begin) f:flag ...+)
     [names:flag-names arg:arg-spec ... desc:string-stx e:racket-expr]
     #:binding {(recursive arg) e})
@@ -102,7 +103,7 @@
     [(_ (~optional (~seq #:program name-expr))
         (~optional (~seq #:argv argv-expr))
         (~optional (~seq #:options option-bindings ...))
-        (~optional (~seq #:arguments positional-bindings ...))
+        (~optional (~seq #:arguments (positional-bindings ...)))
         (~optional (~seq #:rest rest-arg)))
      #'(define/command-line-options
          (~? name-expr (find-system-path 'run-file))
@@ -110,6 +111,13 @@
          (~? (option-bindings ...) ())
          (~? (positional-bindings ...) ())
          (~? rest-arg #f))]))
+
+(define-syntax-rule
+  (define-option-syntax name trans)
+  (define-syntax name (option-macro trans)))
+(define-syntax-rule
+  (define-flag-syntax name trans)
+  (define-syntax name (flag-macro trans)))
 
 ; compiler
 
@@ -142,12 +150,20 @@
                (lambda (acc) (hash-op acc '#,key e)))))
        #``[(name ...) ,fn (desc #,@(stx-map identifier->string-literal #'(arg ...)))]]))
 
+  (define (splice-begins exprs)
+    (foldr (lambda (expr acc)
+             (syntax-parse expr
+               [((~literal begin) e ...) (append (attribute e) acc)]
+               [_ (cons this-syntax acc)]))
+           '()
+           exprs))
+
   (define (compile-option option-stx key)
     (syntax-parse option-stx
       [((~literal choice) (~or #:required (~seq #:default default-expr)) flag ...)
-       #`(list 'once-any #,@(stx-map (compile-flag key 'choice) #'(flag ...)))]
+       #`(list 'once-any #,@(map (compile-flag key 'choice) (splice-begins (attribute flag))))]
       [((~literal multi) init-expr flag ...)
-       #`(list 'multi #,@(stx-map (compile-flag key 'multi) #'(flag ...)))]))
+       #`(list 'multi #,@(map (compile-flag key 'multi) (splice-begins (attribute flag))))]))
 
   (define (compile-table-expr option-specs option-keys)
     #`(list #,@(map compile-option option-specs option-keys)))
@@ -236,6 +252,53 @@
        (arity-at-least (+ 1 (length arg-parsers)))
        (+ 1 (length arg-parsers)))))
 
+; sugar
+(begin-for-syntax
+  (define-syntax-class arg-spec-cls
+    #:attributes [name parser]
+    (pattern name:id
+             #:attr parser #'identity/p)
+    (pattern [name:id parser])))
+
+(define-option-syntax switch/o
+  (syntax-parser
+    [(_ flags:flag-names desc:string)
+     #'(choice #:default #f [flags desc #t])]))
+
+(define-option-syntax list/o
+  (syntax-parser
+    [(_ names:flag-names arg:arg-spec-cls desc:string)
+     #'(multi '()
+              [names arg desc (lambda (acc) (append acc (list arg.name)))])]))
+
+(define (int-range/p min max)
+  (lambda (s)
+    (define n (string->number s))
+    (unless (and (integer? n) (>= n min) (<= n max))
+      (raise-user-error (format "expected integer between ~a and ~a" min max)))
+    n))
+
+(define-option-syntax optional/o
+  (syntax-parser
+    [(_ #:default default-expr rest ...)
+     #'(choice #:default default-expr [rest ...])]))
+
+(define-option-syntax required/o
+  (syntax-parser
+    [(_ rest ...)
+     #'(choice #:required [rest ...])]))
+
+(define-flag-syntax numbered-flags/f
+  (syntax-parser
+    [(_ flags:flag-names [min:number max:number] desc:string)
+     (def/stx (f ...)
+       (for/list ([n (in-range (syntax-e #'min) (+ 1 (syntax-e #'max)))])
+         (def/stx names (for/list ([s (syntax->datum #'flags.names)]) (format "~a~a" s n)))
+         (def/stx this-desc (format "set ~a to ~a" (syntax-e #'desc) n))
+         #`[names this-desc #,n]))
+     #'(begin f ...)]))
+
+; testing
 (check-equal?
  (let ()
    (define/command-line-options/surface
@@ -245,3 +308,128 @@
      [b (choice #:required ["-b" v "the b flag" v])])
    (list a b))
  '("A" "B"))
+
+; simple arguments
+(let ()
+  (define/command-line-options/surface
+    #:argv (list "1" "2")
+    #:arguments (x y))
+  (check-equal? x "1")
+  (check-equal? y "2"))
+
+; checked arguments
+(let ()
+  (define/command-line-options/surface
+    #:argv (list "1")
+    #:arguments
+    ([x (int-range/p 0 100)]))
+  (check-equal? x 1))
+
+; checked rest arguments
+(let ()
+  (define/command-line-options/surface
+    #:argv (list "1" "2" "3")
+    #:arguments
+    ([initial-value (int-range/p 0 100)])
+    #:rest
+    [adds (int-range/p 0 100)])
+  (check-equal? initial-value 1)
+  (check-equal? adds '(2 3)))
+
+(define-syntax test-option
+  (syntax-parser
+    [(_ option-stx case ...)
+     (define (gen-case stx)
+       (syntax-parse stx
+         [[args-e expected-e]
+          (syntax/loc this-syntax (check-equal? (f args-e) expected-e))]))
+     #`(let ()
+         (define (f args)
+           (define/command-line-options/surface
+             #:argv args
+             #:options
+             [opt option-stx])
+           opt)
+         #,@(stx-map gen-case #'(case ...)))]))
+
+; choice, no argument
+(test-option
+ (choice #:default #f ["-o" "enable optimizations" #t])
+ ['() #f] ['("-o") #t])
+
+; multi, simple argument
+(test-option
+ (multi '() [["-l" "--lf"] lf "add link flag <lf>" (lambda (acc) (append acc (list lf)))])
+ ['() '()]
+ ['("--lf" "a" "-l" "b") '("a" "b")])
+
+; multi, checked arguments
+(test-option
+ (multi '() ["--c" [x (int-range/p 0 100)]
+                   [y (int-range/p 0 100)]
+                   "add coordinate (<x>, <y>)"
+                   (lambda (acc) (append acc (list (cons x y))))])
+ ['() '()]
+ ['("--c" "0" "0" "--c" "1" "2") '((0 . 0) (1 . 2))])
+
+; option macros
+(test-option
+ (switch/o ["-v" "--verbose"] "enable verbose output")
+ ['() #f] ['("--verbose") #t] ['("-v") #t])
+
+(test-option
+ (list/o ["--lf" "-l"] lf "add a link flag")
+ ['() '()]
+ ['("--lf" "a" "-l" "b") '("a" "b")])
+
+(test-option
+ (choice #:default 0
+         ["--optimize-level" [lvl (int-range/p 0 3)]
+                             "set optimization level to <lvl>" lvl]
+         (numbered-flags/f "--o" [0 3] "optimization level"))
+ ['() 0] ['("--optimize-level" "1") 1]
+ ['("--o1") 1] ['("--o2") 2])
+
+; argument type syntaxes
+(test-option
+ (choice #:required ["--coord" [x (int-range/p 0 100)] [y (int-range/p 0 100)]
+                               "set coordinate" (cons x y)])
+ ['("--coord" "0" "1") '(0 . 1)])
+
+; argument errors
+(define ((correct-user-exn? msg) e)
+  (and (exn:fail:user? e)
+       (equal?
+        msg
+        (exn-message e))))
+
+(check-exn
+ (correct-user-exn? "foo: expected integer between 0 and 100\n  in positional argument <x>")
+ (lambda ()
+   (define/command-line-options/surface
+     #:program "foo"
+     #:argv (list "bar")
+     #:arguments
+     ([x (int-range/p 0 100)]))
+   x))
+
+(check-exn
+ (correct-user-exn? "foo: expected integer between 0 and 100\n  in variadic arguments")
+ (lambda ()
+   (define/command-line-options/surface
+     #:program "foo"
+     #:argv (list "bar")
+     #:rest
+     [xs (int-range/p 0 100)])
+   xs))
+
+(check-exn
+ (correct-user-exn? "foo: expected integer between 0 and 100\n  in <x> argument to flag --flag")
+ (lambda ()
+   (define/command-line-options/surface
+     #:program "foo"
+     #:argv (list "--flag" "bar")
+     #:options
+     [x (choice #:required
+                ["--flag" [x (int-range/p 0 100)] "set x" x])])
+   x))
