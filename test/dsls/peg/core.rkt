@@ -109,7 +109,9 @@
   (host-interface/definitions
    (define-pegs [name:nonterm p:peg] ...)
    #:binding (export name)
-   ; TODO leftrec check
+   (for ([name (attribute name)]
+         [p (attribute p)])
+     (lift-leftrec-check! name p))
    #'(begin (define name (lambda (in) (with-reference-compilers ([var immutable-reference-compiler])
                                         (compile-peg/macro p in))))
             ...))

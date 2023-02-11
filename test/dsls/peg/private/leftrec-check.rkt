@@ -8,11 +8,13 @@
   syntax/id-table
   syntax/parse
   ee-lib/persistent-id-table
+  (except-in ee-lib racket-var)
 
   (for-template
-   "forms.rkt"))
+   "forms.rkt"
+   syntax-spec))
 
-(define expanded-defs (make-free-id-table))
+(define-persistent-symbol-table expanded-defs)
 (define checked-leftrec #f)
 (define-persistent-free-id-table def-nullable?)
 (define entered (make-free-id-table))
@@ -53,13 +55,14 @@
     [(entered) (raise-syntax-error #f "left recursion through nonterminal" id)]
     [(unvisited)
      (free-id-table-set! entered id 'entered)
-     (define res (nullable? (free-id-table-ref expanded-defs id)))
+     (define res (nullable? (symbol-table-ref expanded-defs id)))
      (persistent-free-id-table-set! def-nullable? id (if res 'nullable 'not-nullable))
      res]))
 
 (define (check-leftrec)
+  (displayln 'check)
   (when (not checked-leftrec)
-    (for ([(k v) (in-free-id-table expanded-defs)])
+    (for ([(k v) (in-symbol-table expanded-defs)])
       (nullable-nonterminal? k))))
 
 
@@ -75,7 +78,8 @@
 (require (for-template 'apply-for-syntax))
 
 (define (lift-leftrec-check! name rhs)
-  (free-id-table-set!
+  (displayln (list 'lift! name))
+  (symbol-table-set!
    expanded-defs
    (syntax-local-introduce name)
    (syntax-local-introduce rhs))
