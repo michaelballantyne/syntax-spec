@@ -164,7 +164,7 @@
   (define (splice-begins exprs)
     (foldr (lambda (expr acc)
              (syntax-parse expr
-               [((~literal begin) e ...) (append (attribute e) acc)]
+               [((~literal begin) e ...) (append (splice-begins (attribute e)) acc)]
                [_ (cons this-syntax acc)]))
            '()
            exprs))
