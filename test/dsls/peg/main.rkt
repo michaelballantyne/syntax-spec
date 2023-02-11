@@ -31,17 +31,17 @@
         clause ...))))
 
 (define-peg-syntax-parser seq*
-  [(_ p:peg) #'p]
-  [(_ p1:peg p+:peg ...+)
+  [(_ p:expr) #'p]
+  [(_ p1:expr p+:expr ...+)
    #'(seq p1 (seq* p+ ...))])
 
 (define-peg-syntax-parser alt*
-  [(_ p:peg) #'p]
-  [(_ p1:peg p+:peg ...+)
+  [(_ p:expr) #'p]
+  [(_ p1:expr p+:expr ...+)
    #'(alt p1 (alt* p+ ...))])
 
 (define-peg-syntax-parser ?
-  [(_ p:peg) #'(alt p eps)])
+  [(_ p:expr) #'(alt p eps)])
 
 (define-peg-syntax-parser any-char
   [_:id #'(char (lambda (x) #t))])
