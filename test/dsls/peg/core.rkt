@@ -27,7 +27,7 @@
 
  ; interfaces for macro definitions and local-expansion
  (for-syntax
-  local-expand-peg
+  ;local-expand-peg
   peg-macro
   gen:peg-macro
   peg-macro?
@@ -42,21 +42,84 @@
   (for-syntax
    "private/env-reps.rkt"
    "private/syntax-classes.rkt"
-   "private/expand.rkt"
    "private/leftrec-check.rkt"
    "private/compile.rkt"))
 
 (require
+  syntax-spec
   (for-syntax
    racket/base
    syntax/parse
    racket/syntax
-   ee-lib
    syntax/id-table
    (rename-in syntax/parse [define/syntax-parse def/stx])))
 
+(syntax-spec
+  (binding-class var #:description "PEG variable")
+  (binding-class nonterm #:description "PEG nonterminal")
+  (extension-class peg-macro #:description "PEG macro")
+
+  (nonterminal peg-el
+    #:description "PEG expression"
+    #:allow-extension peg-macro
+
+    n:nonterm
+    ((~literal eps))
+    ((~literal char) e:expr)
+    ((~literal token) e:expr)
+    ((~literal alt) e1:peg e2:peg)
+    ((~literal !) e:peg)
+
+    ((~literal text) e:racket-expr)
+
+    ((~literal =>) ps:peg-seq e:racket-expr)
+    #:binding (nest-one ps e))
+
+  (nonterminal/nesting peg-seq (tail)
+    #:description "PEG expression"
+    #:allow-extension peg-macro
+
+    ((~literal bind) v:var ps:peg-seq)
+    ; TODO doesn't this mean the var is in scope for ps? that doesn't make sense
+    #:binding {(bind v) (nest-one ps tail)}
+    ; I feel like it should be
+    #;[{(bind v) tail} (nest-one ps tail)]
+    ; but then you have non-linear use of tail
+
+    ((~literal seq) ps1:peg-seq ps2:peg-seq)
+    #:binding (nest-one ps1 (nest-one ps2 tail))
+
+    ((~literal repeat) ps:peg-seq)
+    #:binding (nest-one ps tail)
+
+    ((~literal src-span) v:var ps:peg-seq)
+    #:binding {(bind v) (nest-one ps tail)}
+
+    pe:peg-el)
+
+  (nonterminal peg
+    ps:peg-seq
+    #:binding (nest-one ps []))
+
+  (host-interface/definitions
+   (define-pegs [name:nonterm p:peg] ...)
+   #:binding (export name)
+   ; TODO leftrec check
+   #'(begin (define name (lambda (in) (compile-peg/macro p in))) ...))
+
+  (host-interface/expression
+   (parse name:nonterm in-e:expr)
+   (compile-parse #'name #'in-e)))
+
+; needed to make this a macro for ellipsis depth stuff
+(define-syntax compile-peg/macro
+  (syntax-parser
+    [(_ p in) (compile-peg #'p #'in)]))
+
 ; Interface macros
 
+(define-syntax-rule (define-peg name peg) (define-pegs [name peg]))
+#;
 (define-syntax define-peg
   (module-macro
     (syntax-parser
@@ -72,6 +135,7 @@
              (record-compiled-id! #'name #'impl))
            (define-syntax name (peg-non-terminal-rep)))])))
 
+#;
 (define-syntax define-peg-pass2
   (syntax-parser
     [(_ name peg-e)
@@ -79,6 +143,7 @@
      (lift-leftrec-check! #'name peg-e^)
      #'(begin)]))
 
+#;
 (define-syntax define-peg-rhs
   (syntax-parser
     [(_ name)
@@ -86,6 +151,7 @@
      (define e^ (compile-peg e #'in))
      #`(lambda (in) #,e^)]))
 
+#;
 (define-syntax parse
   (expression-macro
     (syntax-parser
