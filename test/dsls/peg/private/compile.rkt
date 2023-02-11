@@ -25,7 +25,7 @@
 (define (bound-vars e)
   (syntax-parse e
     #:literal-sets (peg-literals)
-    [(: v rhs)
+    [(bind v rhs)
      (list #'v)]
     [(seq e1 e2)
      (append (bound-vars #'e1) (bound-vars #'e2))]
@@ -33,7 +33,7 @@
      (append (bound-vars #'e1) (bound-vars #'e2))]
     [(* e)
      (bound-vars #'e)]
-    [(:src-span v e)
+    [(src-span v e)
      (cons #'v (bound-vars #'e))]
     [_ '()]))
 
@@ -95,7 +95,7 @@
              (values #,in (void))
              (fail)))]
     ; TODO use a runtime helper?
-    [(: x e)
+    [(bind x e)
      (def/stx c (compile-peg #'e in))
      #`(let-values ([(in^ res) c])
          (if (failure? in^)
@@ -121,19 +121,14 @@
                (fail)
                (let ([res e])
                  (values in res)))))]
-    [(text s:string)
+    [(text s:expr)
      #`(string-rt s #,in)]
     [(char f)
      #`(char-pred-rt f #,in)]
     [(token f) ; TODO probably needs a contract check
      #`(token-pred-rt f #,in)]
-    [name:id
-     (def/stx f (syntax-local-introduce
-                 (free-id-table-ref
-                  compiled-ids #'name
-                  (lambda () (error 'compile-peg "no compiled id for: ~a" #'name)))))
-     #`(f #,in)]
-    [(:src-span v e)
+    [name:id #`(name #,in)]
+    [(src-span v e)
      (def/stx c (compile-peg #'e in))
      #`(let-values ([(in^ res tmp) (src-span-rt (lambda (in) c) #,in)])
          (set! #,(syntax-local-introduce (free-id-table-ref (v-tmps) #'v))
@@ -143,7 +138,7 @@
     ))
 
 (define (compile-parse peg-name in-e-arg)
-  (def/stx f (syntax-local-introduce (free-id-table-ref compiled-ids peg-name)))
+  (def/stx f peg-name)
   (def/stx in-e in-e-arg)
   #'(let ([in (wrap-input in-e)])
       (let-values ([(in^ res) (f in)])

@@ -7,12 +7,12 @@
  alt
  *
  !
- :
  =>
  token
  text
  char
- :src-span
+ (rename-out [bind :]
+             [src-span :src-span])
 
  ; interface macros
  define-peg
@@ -63,13 +63,13 @@
     #:description "PEG expression"
     #:allow-extension peg-macro
 
+    (~literal eps)
     n:nonterm
-    ((~literal eps))
     ((~literal char) e:expr)
     ((~literal token) e:expr)
-    ((~literal alt) e1:peg e2:peg)
     ((~literal !) e:peg)
 
+    (~> s:string #'(text s))
     ((~literal text) e:racket-expr)
 
     ((~literal =>) ps:peg-seq e:racket-expr)
@@ -89,7 +89,12 @@
     ((~literal seq) ps1:peg-seq ps2:peg-seq)
     #:binding (nest-one ps1 (nest-one ps2 tail))
 
-    ((~literal repeat) ps:peg-seq)
+    ; this originally didn't bind anything, but tests expect it to bind everything
+    ; failed alts bind vars to #f
+    ((~literal alt) e1:peg-seq e2:peg-seq)
+    #:binding (nest-one e1 (nest-one e2 tail))
+
+    ((~literal *) ps:peg-seq)
     #:binding (nest-one ps tail)
 
     ((~literal src-span) v:var ps:peg-seq)
@@ -105,7 +110,9 @@
    (define-pegs [name:nonterm p:peg] ...)
    #:binding (export name)
    ; TODO leftrec check
-   #'(begin (define name (lambda (in) (compile-peg/macro p in))) ...))
+   #'(begin (define name (lambda (in) (with-reference-compilers ([var immutable-reference-compiler])
+                                        (compile-peg/macro p in))))
+            ...))
 
   (host-interface/expression
    (parse name:nonterm in-e:expr)
