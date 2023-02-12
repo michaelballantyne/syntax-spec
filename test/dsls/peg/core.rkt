@@ -16,6 +16,7 @@
 
  ; interface macros
  define-peg
+ define-pegs
  parse
 
  ; default #%peg-datum implementation

@@ -11,10 +11,9 @@
   (except-in ee-lib racket-var)
 
   (for-template
-   "forms.rkt"
-   syntax-spec))
+   "forms.rkt"))
 
-(define-persistent-symbol-table expanded-defs)
+(define-persistent-free-id-table expanded-defs)
 (define checked-leftrec #f)
 (define-persistent-free-id-table def-nullable?)
 (define entered (make-free-id-table))
@@ -35,7 +34,7 @@
     [(* e) #t]
     [(! e)
      (not (nullable? #'e))]
-    [(: x e)
+    [(bind x e)
      (nullable? #'e)]
     [(=> pe e)
      (nullable? #'pe)]
@@ -55,14 +54,13 @@
     [(entered) (raise-syntax-error #f "left recursion through nonterminal" id)]
     [(unvisited)
      (free-id-table-set! entered id 'entered)
-     (define res (nullable? (symbol-table-ref expanded-defs id)))
+     (define res (nullable? (persistent-free-id-table-ref expanded-defs id)))
      (persistent-free-id-table-set! def-nullable? id (if res 'nullable 'not-nullable))
      res]))
 
 (define (check-leftrec)
-  (displayln 'check)
   (when (not checked-leftrec)
-    (for ([(k v) (in-symbol-table expanded-defs)])
+    (for ([(k v) (in-persistent-free-id-table expanded-defs)])
       (nullable-nonterminal? k))))
 
 
@@ -78,10 +76,9 @@
 (require (for-template 'apply-for-syntax))
 
 (define (lift-leftrec-check! name rhs)
-  (displayln (list 'lift! name))
-  (symbol-table-set!
+  (persistent-free-id-table-set!
    expanded-defs
-   (syntax-local-introduce name)
+   (compiled-from (syntax-local-introduce name))
    (syntax-local-introduce rhs))
   
   (syntax-local-lift-module-end-declaration
