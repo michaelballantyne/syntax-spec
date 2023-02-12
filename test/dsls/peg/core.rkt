@@ -110,6 +110,7 @@
   (host-interface/definitions
    (define-pegs [name:nonterm p:peg] ...)
    #:binding (export name)
+   #;(run-leftrec-check! (map cons (attribute name) (attribute p)))
    (for ([name (attribute name)]
          [p (attribute p)])
      (lift-leftrec-check! name p))

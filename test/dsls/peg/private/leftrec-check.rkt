@@ -2,6 +2,7 @@
 
 (provide
  lift-leftrec-check!
+ run-leftrec-check!
  expanded-defs)
 
 (require
@@ -54,13 +55,23 @@
     [(entered) (raise-syntax-error #f "left recursion through nonterminal" id)]
     [(unvisited)
      (free-id-table-set! entered id 'entered)
-     (define res (nullable? (persistent-free-id-table-ref expanded-defs id)))
+     (displayln (list 'before id))
+     (define rhs (persistent-free-id-table-ref expanded-defs id (lambda ()
+                                                                  (displayln (list 'boom id))
+                                                                  (for ([(k v) (in-persistent-free-id-table expanded-defs)])
+                                                                    (displayln k)
+                                                                    (displayln (free-identifier=? k id)))
+                                                                  (error "boom"))))
+     (displayln 'after)
+     (define res (nullable? rhs))
      (persistent-free-id-table-set! def-nullable? id (if res 'nullable 'not-nullable))
      res]))
 
 (define (check-leftrec)
+  (displayln 'check)
   (when (not checked-leftrec)
     (for ([(k v) (in-persistent-free-id-table expanded-defs)])
+      (displayln (list 'checking k))
       (nullable-nonterminal? k))))
 
 
@@ -75,7 +86,20 @@
          #'(begin)]))))
 (require (for-template 'apply-for-syntax))
 
+#;((listof (cons/c identifier? syntax?)) -> void?)
+; run a leftrec check on the given block of mutually recursive peg defs
+(define (run-leftrec-check! defs)
+  (for ([def defs])
+    (define name (car def))
+    (define rhs (cdr def))
+    (persistent-free-id-table-set!
+     expanded-defs
+     (compiled-from (syntax-local-introduce name))
+     (syntax-local-introduce rhs)))
+  (check-leftrec))
+
 (define (lift-leftrec-check! name rhs)
+  (displayln (list 'lift name))
   (persistent-free-id-table-set!
    expanded-defs
    (compiled-from (syntax-local-introduce name))
