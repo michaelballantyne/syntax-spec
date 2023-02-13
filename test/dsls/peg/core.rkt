@@ -28,21 +28,13 @@
 
  ; interfaces for macro definitions and local-expansion
  (for-syntax
-  ;local-expand-peg
-  peg-macro
-  gen:peg-macro
-  peg-macro?
-  peg-macro/c
-  peg-macro-transform
-  peg
-  peg-literals))
+  local-expand-peg
+  peg-macro))
 
 (require
   "private/forms.rkt"
   "private/runtime.rkt"
   (for-syntax
-   "private/env-reps.rkt"
-   "private/syntax-classes.rkt"
    "private/leftrec-check.rkt"
    "private/compile.rkt"))
 
@@ -51,9 +43,11 @@
   (for-syntax
    racket/base
    syntax/parse
-   racket/syntax
-   syntax/id-table
    (rename-in syntax/parse [define/syntax-parse def/stx])))
+
+(begin-for-syntax
+  (define-syntax-class string-stx
+    (pattern _:string)))
 
 (syntax-spec
   (binding-class var #:description "PEG variable")
@@ -65,16 +59,25 @@
     #:allow-extension peg-macro
 
     (~literal eps)
-    n:nonterm
     ((~literal char) e:expr)
     ((~literal token) e:expr)
     ((~literal !) e:peg)
 
-    (~> s:string #'(text s))
-    ((~literal text) e:racket-expr)
+    (~> (~or s:string s:char s:number s:regexp)
+        #:with #%peg-datum (datum->syntax #'s '#%peg-datum)
+        #'(#%peg-datum s))
+
+    ((~literal text) e:text-expr)
 
     ((~literal =>) ps:peg-seq e:racket-expr)
-    #:binding (nest-one ps e))
+    #:binding (nest-one ps e)
+
+    (~> n:id #'(#%nonterm-ref n))
+    (#%nonterm-ref n:nonterm))
+
+  (nonterminal text-expr
+    s:string-stx
+    e:racket-expr)
 
   (nonterminal/nesting peg-seq (tail)
     #:description "PEG expression"
@@ -110,10 +113,7 @@
   (host-interface/definitions
    (define-pegs [name:nonterm p:peg] ...)
    #:binding (export name)
-   #;(run-leftrec-check! (map cons (attribute name) (attribute p)))
-   (for ([name (attribute name)]
-         [p (attribute p)])
-     (lift-leftrec-check! name p))
+   (run-leftrec-check! (attribute name) (attribute p))
    #'(begin (define name (lambda (in) (with-reference-compilers ([var immutable-reference-compiler])
                                         (compile-peg/macro p in))))
             ...))
@@ -130,44 +130,6 @@
 ; Interface macros
 
 (define-syntax-rule (define-peg name peg) (define-pegs [name peg]))
-#;
-(define-syntax define-peg
-  (module-macro
-    (syntax-parser
-      [(_ name:id peg-e:peg)
-       (when (not (eq? 'module (syntax-local-context)))
-         (raise-syntax-error #f "define-peg only works in module context" this-syntax))
-       (def/stx impl (generate-temporary #'name))
-       (syntax-local-lift-module-end-declaration
-        #'(define-peg-pass2 name peg-e))
-       #'(begin
-           (define impl (define-peg-rhs name))
-           (begin-for-syntax
-             (record-compiled-id! #'name #'impl))
-           (define-syntax name (peg-non-terminal-rep)))])))
-
-#;
-(define-syntax define-peg-pass2
-  (syntax-parser
-    [(_ name peg-e)
-     (define-values (peg-e^) (expand-peg #'peg-e))
-     (lift-leftrec-check! #'name peg-e^)
-     #'(begin)]))
-
-#;
-(define-syntax define-peg-rhs
-  (syntax-parser
-    [(_ name)
-     (define e (free-id-table-ref expanded-defs (syntax-local-introduce #'name)))
-     (define e^ (compile-peg e #'in))
-     #`(lambda (in) #,e^)]))
-
-#;
-(define-syntax parse
-  (expression-macro
-    (syntax-parser
-      [(_ peg-name:nonterm-id in-e:expr)
-       (compile-parse #'peg-name #'in-e)])))
 
 ; Default implementation of #%peg-datum interposition point
 
@@ -175,3 +137,6 @@
   (peg-macro
    (syntax-parser
      [(_ (~or* v:char v:string)) #'(text v)])))
+
+(begin-for-syntax
+  (define local-expand-peg (nonterminal-expander peg)))
