@@ -5,6 +5,7 @@
  eps
  seq
  alt
+ plain-alt
  *
  !
  =>
@@ -96,6 +97,9 @@
     ; this originally didn't bind anything, but tests expect it to bind everything
     ; failed alts bind vars to #f
     (alt e1:peg-seq e2:peg-seq)
+    #:binding (nest-one e1 (nest-one e2 tail))
+
+    (plain-alt e1:peg-seq e2:peg-seq)
     #:binding (nest-one e1 (nest-one e2 tail))
 
     (* ps:peg-seq)

@@ -1,7 +1,6 @@
 #lang racket
 
-(require "../main.rkt"
-         (only-in "../private/forms.rkt" plain-alt))
+(require "../main.rkt")
 
 (define-peg p1
   (plain-alt "==" (plain-alt ">=" (plain-alt "<=" (plain-alt "<" (plain-alt ">" (plain-alt "!=" (plain-alt "in" (seq "not" " " "in")))))))))
