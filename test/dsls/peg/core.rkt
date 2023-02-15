@@ -58,18 +58,18 @@
     #:description "PEG expression"
     #:allow-extension peg-macro
 
-    (~literal eps)
-    ((~literal char) e:expr)
-    ((~literal token) e:expr)
-    ((~literal !) e:peg)
+    eps
+    (char e:expr)
+    (token e:expr)
+    (! e:peg)
 
     (~> (~or s:string s:char s:number s:regexp)
         #:with #%peg-datum (datum->syntax #'s '#%peg-datum)
         #'(#%peg-datum s))
 
-    ((~literal text) e:text-expr)
+    (text e:text-expr)
 
-    ((~literal =>) ps:peg-seq e:racket-expr)
+    (=> ps:peg-seq e:racket-expr)
     #:binding (nest-one ps e)
 
     (~> n:id #'(#%nonterm-ref n))
@@ -83,25 +83,25 @@
     #:description "PEG expression"
     #:allow-extension peg-macro
 
-    ((~literal bind) v:var ps:peg-seq)
+    (bind v:var ps:peg-seq)
     ; TODO doesn't this mean the var is in scope for ps? that doesn't make sense
     #:binding {(bind v) (nest-one ps tail)}
     ; I feel like it should be
     #;[{(bind v) tail} (nest-one ps tail)]
     ; but then you have non-linear use of tail
 
-    ((~literal seq) ps1:peg-seq ps2:peg-seq)
+    (seq ps1:peg-seq ps2:peg-seq)
     #:binding (nest-one ps1 (nest-one ps2 tail))
 
     ; this originally didn't bind anything, but tests expect it to bind everything
     ; failed alts bind vars to #f
-    ((~literal alt) e1:peg-seq e2:peg-seq)
+    (alt e1:peg-seq e2:peg-seq)
     #:binding (nest-one e1 (nest-one e2 tail))
 
-    ((~literal *) ps:peg-seq)
+    (* ps:peg-seq)
     #:binding (nest-one ps tail)
 
-    ((~literal src-span) v:var ps:peg-seq)
+    (src-span v:var ps:peg-seq)
     #:binding {(bind v) (nest-one ps tail)}
 
     pe:peg-el)
