@@ -127,7 +127,7 @@
      #`(char-pred-rt f #,in)]
     [(token f) ; TODO probably needs a contract check
      #`(token-pred-rt f #,in)]
-    [((~datum #%nonterm-ref) name:id) #`(name #,in)]
+    [(#%nonterm-ref name:id) #`(name #,in)]
     [(src-span v e)
      (def/stx c (compile-peg #'e in))
      #`(let-values ([(in^ res tmp) (src-span-rt (lambda (in) c) #,in)])

@@ -42,7 +42,7 @@
     [(char f) #f]
     [((~datum #%nonterm-ref) name:id)
      (nullable-nonterminal? #'name)]
-    [(:src-span v e)
+    [(src-span v e)
      (nullable? #'e)]
     [_ (raise-syntax-error #f "not a core peg form" this-syntax)]))
 

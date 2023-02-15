@@ -26,5 +26,6 @@
      token
      :src-span
      src-span
+     #%nonterm-ref
      )
     ()))
