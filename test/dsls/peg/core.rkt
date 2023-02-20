@@ -85,11 +85,7 @@
     #:allow-extension peg-macro
 
     (bind v:var ps:peg-seq)
-    ; TODO doesn't this mean the var is in scope for ps? that doesn't make sense
-    #:binding {(bind v) (nest-one ps tail)}
-    ; I feel like it should be
-    #;[{(bind v) tail} (nest-one ps tail)]
-    ; but then you have non-linear use of tail
+    #:binding (nest-one ps {(bind v) tail})
 
     (seq ps1:peg-seq ps2:peg-seq)
     #:binding (nest-one ps1 (nest-one ps2 tail))
