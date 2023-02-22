@@ -18,9 +18,12 @@
  (struct-out nested)
  (struct-out suspend)
 
+ ; used by interface macros
  expand-top
+ ; used in clauses of nonterminal expanders
  expand-function-return
- simple-expand-single-exp
+ ; used to generate a local-expand function for some nonterminal
+ make-local-expand-entry-point
 
  wrap-bind-trampoline)
 
@@ -130,6 +133,11 @@
   (match-define (list spec) spec-list)
   (exp-f-ret spec (flip-intro-scope/env pvar-vals) reconstruct-f (current-syntax-context)))
 
+#;(-> (-> syntax? any?) (-> syntax? any?))
+; apply the procedure with renaming disabled
+(define ((make-local-expand-entry-point f) stx)
+  (parameterize ([should-rename? #f])
+    (expand-top (list (subexp 'inject f)) (hash 'inject stx) (lambda (env^) (hash-ref env^ 'inject)))))
 
 ;; Use only for the initial call at an interface macro.
 ;; spec, env -> env
@@ -142,14 +150,21 @@
         (exp-state-pvar-vals (simple-expand-internal pass-spec (exp-state env #f) '()))))
     (k (flip-intro-scope/env res))))
 
-(define (simple-expand-single-exp f stx)
-  (expand-top (list (subexp 'inject f)) (hash 'inject stx) (lambda (env^) (hash-ref env^ 'inject))))
-
 ; Note: expects negative-space id, just like ee-lib `bind!`
 (define do-bind!
   (make-parameter
    (lambda (id val #:space [space #f])
      (error 'do-bind! "internal error: not in a context where do-bind! is defined"))))
+
+; expects and returns a positive space id (or list of ids)
+(define (bind-and-record-rename! ids val space)
+  (if (identifier? ids)
+      (car (bind-and-record-rename! (list ids) val space))
+      (let ([bound-ids ((do-bind!) (for/list ([id ids]) (flip-intro-scope id)) val #:space space)])
+        (when (should-rename?) (for ([bound-id bound-ids]) (compile-binder! ((in-space space) bound-id))))
+        (for/list ([bound-id bound-ids]) (flip-intro-scope bound-id)))))
+
+(define should-rename? (make-parameter #t))
 
 (define (map-values proc thnk)
   (let ([lst (call-with-values thnk list)])
@@ -187,9 +202,7 @@
        (when DEBUG-RENAME
          (displayln 'bind)
          (pretty-write (syntax-debug-info id)))
-       (let ([bound-id ((do-bind!) (flip-intro-scope (add-scopes id local-scopes)) #`(#,constr-id) #:space space)])
-         (compile-binder! ((in-space space) bound-id))
-         (flip-intro-scope bound-id)))]
+       (bind-and-record-rename! (add-scopes id local-scopes) #`(#,constr-id) space))]
 
     [(bind-syntax pv space constr-id transformer-pv)
      (for/pv-state-tree ([transformer-stx transformer-pv] [id pv])
@@ -199,9 +212,8 @@
        (unless (identifier? id)
          (error 'bind-syntax "ellipsis depth mismatch"))
        (define scoped-transformer-stx (add-scopes transformer-stx local-scopes))
-       (let ([bound-id ((do-bind!) (flip-intro-scope (add-scopes id local-scopes)) #`(#,constr-id #,(flip-intro-scope scoped-transformer-stx)) #:space space)])
-         (compile-binder! ((in-space space) bound-id))
-         (values scoped-transformer-stx (flip-intro-scope bound-id))))]
+       (let ([bound-id (bind-and-record-rename! (add-scopes id local-scopes) #`(#,constr-id #,(flip-intro-scope scoped-transformer-stx)) space)])
+         (values scoped-transformer-stx bound-id)))]
     [(bind-syntaxes pv space constr-id transformer-pv)
      (for/pv-state-tree ([transformer-stx transformer-pv] [ids pv])
        (when DEBUG-RENAME
@@ -210,25 +222,26 @@
        (unless (and (list? ids) (for/and ([id ids]) (identifier? id)))
          (error 'bind-syntaxes "ellipsis depth mismatch"))
        (define scoped-transformer-stx (add-scopes transformer-stx local-scopes))
-       (let ([bound-ids ((do-bind!) (for/list ([id ids]) (flip-intro-scope (add-scopes id local-scopes)))
-                                    #`(map-values #,constr-id (lambda () #,(flip-intro-scope scoped-transformer-stx)))
-                                    #:space space)])
-         (for ([bound-id bound-ids])
-           (compile-binder! ((in-space space) bound-id)))
-         (values scoped-transformer-stx (map flip-intro-scope bound-ids))))]
+       (let ([bound-ids (bind-and-record-rename! (for/list ([id ids]) (add-scopes id local-scopes))
+                                                 #`(map-values #,constr-id (lambda () #,(flip-intro-scope scoped-transformer-stx)))
+                                                 space)])
+         (values scoped-transformer-stx bound-ids)))]
     [(rename-ref pv space)
      (for/pv-state-tree ([id pv])
        (when DEBUG-RENAME
          (displayln 'rename-ref/spaced)
          (pretty-write (syntax-debug-info ((in-space space) id))))
-       (flip-intro-scope (compile-reference (flip-intro-scope ((in-space space) id)))))]
-
+       (if (should-rename?)
+           (flip-intro-scope (compile-reference (flip-intro-scope ((in-space space) id))))
+           ((in-space space) id)))]
     [(rename-bind pv space)
      (for/pv-state-tree ([id pv])
        (when DEBUG-RENAME
          (displayln 'rename-bind/spaced)
          (pretty-write (syntax-debug-info ((in-space space) id))))
-       (flip-intro-scope (compile-binder! (flip-intro-scope ((in-space space) id)) #:reuse? #t)))]
+       (if (should-rename?)
+           (flip-intro-scope (compile-binder! (flip-intro-scope ((in-space space) id)) #:reuse? #t))
+           ((in-space space) id)))]
 
     [(subexp/no-scope pv f)
      (for/pv-state-tree ([stx pv])

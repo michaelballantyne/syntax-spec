@@ -357,10 +357,8 @@
        (define variant-info (nonterm-rep-variant-info binding))
        (when (not (simple-nonterm-info? variant-info))
          (wrong-syntax #'ref "only simple non-terminals may be used as entry points"))
-       #`(lambda (stx)
-           (simple-expand-single-exp
-            #,(simple-nonterm-info-expander variant-info)
-            stx))]))
+       #`(make-local-expand-entry-point
+          #,(simple-nonterm-info-expander variant-info))]))
   
   (begin-for-syntax
     (define (accessor-macro predicate error-message accessor)

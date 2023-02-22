@@ -51,7 +51,7 @@
 (define-syntax (mylang stx)
   (syntax-parse stx
     [(_ e)
-     #`#'#,(simple-expand-single-exp mylang-expand-expr #'e)]))
+     #`#'#,(expand-top (list (subexp 'e mylang-expand-expr)) (hash 'e #'e) (lambda (env^) (hash-ref env^ 'e)))]))
 
 (require rackunit syntax/macro-testing)
 

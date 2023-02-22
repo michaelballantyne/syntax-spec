@@ -9,7 +9,7 @@
 (define-peg test (alt "e1" "e2"))
 
 (define-peg-ast raise raise-ast
-  (seq "raise" (alt eps (seq (: exn test) (alt eps (seq "from" (: from test)))))))
+  (seq "raise" (? (seq (: exn test) (? (seq "from" (: from test)))))))
 
 (module+ test
   (require rackunit racket/list syntax/srcloc)
