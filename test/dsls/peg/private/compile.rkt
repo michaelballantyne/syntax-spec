@@ -1,7 +1,6 @@
 #lang racket/base
 
 (provide
- record-compiled-id!
  compile-peg
  compile-parse)
 
@@ -14,13 +13,6 @@
   (for-template "forms.rkt")
   (for-template "runtime.rkt")
   "compile-alt-str.rkt")
-
-(define compiled-ids (make-free-id-table))
-
-(define (record-compiled-id! name compiled-id)
-  (free-id-table-set! compiled-ids
-                      (syntax-local-introduce name)
-                      (syntax-local-introduce compiled-id)))
 
 (define (bound-vars e)
   (syntax-parse e
