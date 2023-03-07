@@ -40,86 +40,100 @@
              c2
              (values in^ res)))]))
 
+#|
+you have the PEG and input coming in
+you need the result and the updated input out
+
+|#
+
 (define-syntax compile-peg
   (syntax-parser
-    [(_ stx in)
-     (syntax-parse #'stx
+    ; parses `pe` on input stream `in`. If the parse succeeds, binds `result` to the result and `in^` to the updated
+    ; input stream in `on-success`. Otherwise, evaluates to `on-fail`.
+     ; assume `result` is not the same as `in^`
+    [(_ pe in:id result:id in^:id on-success on-fail)
+     (syntax-parse #'pe
        #:literal-sets (peg-literals)
-       [eps
-        #'(values in (void))]
-       [(seq e1 e2)
-        #'(let-values ([(in^ res) (compile-peg e1 in)])
-            (if (failure? in^)
-                (fail)
-                (compile-peg e2 in^)))]
-       [(plain-alt e1 e2)
-        #'(generate-plain-alt (compile-peg e1 in) (compile-peg e2 in))]
-       [(alt e1 e2)
-        (optimize+compile-alts this-syntax #'in #'compile-peg #'generate-plain-alt)]
-       [(? e)
-        #'(generate-plain-alt (compile-peg e in) (compile-peg eps in))]
-       [(* e)
-        (def/stx (v* ...) (bound-vars #'e))
-        (def/stx (iter-v* ...) (generate-temporaries (attribute v*)))
-        (def/stx (inner-v* ...) (generate-temporaries (attribute v*)))
-        #'(let ([iter-v* '()] ...)
-            (letrec ([f (lambda (in)
-                          (let ([inner-v* #f] ...)
-                            (let-values ([(in^ res^)
-                                          (syntax-parameterize ([v* (make-rename-transformer #'inner-v*)] ...)
-                                            (compile-peg e in))])
-                              (if (failure? in^)
-                                  (begin
-                                    (set! v* (reverse iter-v*)) ...
-                                    (values in (void)))
-                                  (begin
-                                    (set! iter-v* (cons inner-v* iter-v*)) ...
-                                    (f in^))))))])
-              (f in)))]
-       [(! e)
-        #'(let-values ([(in^ res) (compile-peg e in)])
-            (if (failure? in^)
-                (values in (void))
-                (fail)))]
-       ; TODO use a runtime helper?
-       [(bind x e)
-        #'(let-values ([(in^ res) (compile-peg e in)])
-            (if (failure? in^)
-                (fail)
-                (if (and (void? res) (not (text-rep? in^)))
-                    (error ': "missing semantic value")
-                    (begin
-                      (set! x
-                            (if (not (void? res))
-                                res
-                                (substring (text-rep-str in) (text-rep-ix in) (text-rep-ix in^))))
-                      (values in^ (void))))))]
+       ; start with =>, :, char, seq
+       [eps #'(let ([result (void)] [in^ in]) on-success)]
        [(=> pe e)
-        #:with (v* ...) (bound-vars #'pe)
-        #:with (v^* ...) (generate-temporaries (attribute v*))
-        ;(def/stx (v* ...) (bound-vars #'pe))
-        ; these temps are necessary because
-        ; (define-syntax-parameter v* (make-rename-transformer #'v*)) ...
-        ; would be recursive
-        ;(def/stx (x ...) (generate-temporaries (attribute v*)))
-        #'(let ([v^* #f] ...)
-            (define-syntax-parameter v* (make-rename-transformer #'v^*)) ...
-            (let-values ([(in _) (compile-peg pe in)])
-              (if (failure? in)
-                  (fail)
-                  (let ([res e])
-                    (values in res)))))]
-       [(text s:expr)
-        #'(string-rt s in)]
-       [(char f)
-        #'(char-pred-rt f in)]
-       [(token f) ; TODO probably needs a contract check
-        #'(token-pred-rt f in)]
-       [(#%nonterm-ref name:id) #'(name in)]
+        #'(compile-peg pe in ignored in^ (let ([result e]) on-success) on-fail)]
+       [(bind x:id pe)
+        ; assume `x` is not the same as `result`
+        #'(compile-peg pe in x in^
+                       (if (and (void? x) (not (text-rep? in^)))
+                           (error ': "missing semantic value")
+                           (let ([x (if (not (void? x))
+                                        x
+                                        (substring (text-rep-str in) (text-rep-ix in) (text-rep-ix in^)))]
+                                 [result (void)])
+                             on-success))
+                       on-fail)]
+       [(seq pe1 pe2)
+        #'(compile-peg pe1 in ignored in-tmp
+                       (compile-peg pe2 in-tmp result in^ on-success on-fail)
+                       on-fail)]
+       [(plain-alt pe1 pe2)
+        ; TODO deduplicate on-success?
+        #'(compile-peg pe1 in result in^ on-success (compile-peg pe2 in result in^ on-success on-fail))]
+       ; TODO optimization
+       [(alt pe1 pe2) #'(compile-peg (plain-alt pe1 pe2) in result in^ on-success on-fail)]
+       [(? pe)
+        (def/stx (v* ...) (bound-vars #'pe))
+        ; assume result is not the same as any v*
+        ; assume in^ is not the same as any v*
+        ; TODO could this happen if src-span and ? are used together?
+        #'(compile-peg pe in result in^
+                       on-success
+                       (let ([v* #f] ... [in^ in] [result (void)]) on-success))]
+       [(* pe)
+        (def/stx (v* ...) (bound-vars #'pe))
+        ; bound to the list of values of its corresponding variable
+        (def/stx (iter-v* ...) (generate-temporaries (attribute v*)))
+        #'(let ([iter-v* '()] ...)
+            (let loop ([in in])
+              (compile-peg pe in ignored in-tmp
+                           (begin (set! iter-v* (cons v* iter-v*)) ...
+                                  (loop in-tmp))
+                           ; assume result is not the same as any v*
+                           ; assume in^ is not the same as any v*
+                           ; TODO could this happen if src-span and * are used together?
+                           (let ([v* (reverse iter-v*)]
+                                 ...
+                                 [in^ in]
+                                 [result (void)])
+                             on-success))))]
        [(src-span v e)
-        #'(let-values ([(in^ res tmp) (src-span-rt (lambda (in) (compile-peg e in)) in)])
-            (set! v tmp)
-            (values in^ res))]
+        ; TODO should in^ #f #f be treated as a failure?
+        #'(let-values ([(in^ result v) (src-span-rt (lambda (in) (compile-peg e in)) in)])
+            on-success)]
+       [(! pe)
+        #'(compile-peg pe in ignored-result ignored-in^
+                       on-fail
+                       (let ([result (void)] [in^ in]) on-success))]
+       [(#%nonterm-ref name)
+        #'(let-values ([(in^-tmp result-tmp) (name in)])
+            (if (failure? in^-tmp)
+                on-fail
+                (let ([in^ in^-tmp] [result result-tmp])
+                  on-success)))]
+       [(char f)
+        ; TODO this tmp stuff probably isn't necessary
+        ; TODO deduplicate. maybe make runtime cps?
+        #'(let-values ([(in^-tmp result-tmp) (char-pred-rt f in)])
+            (if (failure? in^-tmp)
+                on-fail
+                (let ([in^ in^-tmp] [result result-tmp]) on-success)))]
+       [(text s:expr)
+        #'(let-values ([(in^-tmp result-tmp) (string-rt s in)])
+            (if (failure? in^-tmp)
+                on-fail
+                (let ([in^ in^-tmp] [result result-tmp]) on-success)))]
+       [(token f) ; TODO probably needs a contract check
+        #'(let-values ([(in^-tmp result-tmp) (token-pred-rt f in)])
+            (if (failure? in^-tmp)
+                on-fail
+                (let ([in^ in^-tmp] [result result-tmp]) on-success)))]
        [_ (raise-syntax-error #f "not a core peg form" this-syntax)])]))
 
 (define-syntax compile-parse

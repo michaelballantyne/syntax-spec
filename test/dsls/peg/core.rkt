@@ -119,7 +119,7 @@
    #:binding (export name)
    (run-leftrec-check! (attribute name) (attribute p))
    #'(begin (define name (lambda (in) (with-reference-compilers ([var immutable-reference-compiler])
-                                        (compile-peg p in))))
+                                        (compile-peg p in result in^ (values in^ result) (fail)))))
             ...))
 
   (host-interface/expression
