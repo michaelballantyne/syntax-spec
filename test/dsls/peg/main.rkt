@@ -12,7 +12,6 @@
   (rename-out
     [seq* seq]
     [alt* alt])
-  ?
   any-char
   char-range
 
@@ -39,9 +38,6 @@
   [(_ p:expr) #'p]
   [(_ p1:expr p+:expr ...+)
    #'(alt p1 (alt* p+ ...))])
-
-(define-peg-syntax-parser ?
-  [(_ p:expr) #'(alt p eps)])
 
 (define-peg-syntax-parser any-char
   [_:id #'(char (lambda (x) #t))])

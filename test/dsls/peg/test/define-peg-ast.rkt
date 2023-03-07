@@ -16,9 +16,8 @@
     [(seq e1 e2)
      (append (find-parse-var-bindings #'e1)
              (find-parse-var-bindings #'e2))]
-    [(alt e1 e2)
-     (append (find-parse-var-bindings #'e1)
-             (find-parse-var-bindings #'e2))]
+    [(alt e1 e2) '()]
+    [(? e) (find-parse-var-bindings #'e)]
     [(* e) (find-parse-var-bindings #'e)]
     [(! e) '()]
     [(bind x e) (list #'x)]

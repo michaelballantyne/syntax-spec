@@ -15,6 +15,7 @@
      seq
      alt
      plain-alt
+     ?
      *
      repeat
      !

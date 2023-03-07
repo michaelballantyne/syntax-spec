@@ -45,11 +45,11 @@
 
   (define other-peg
     (and (not (null? other-alternatives))
-         (compile (generate-right-associative-plain-alt other-alternatives) in-id)))
+         #`(#,compile #,(generate-right-associative-plain-alt other-alternatives) #,in-id)))
 
   (cond
     [(and text-peg other-peg)
-     (generate-plain-alt text-peg other-peg)]
+     #`(#,generate-plain-alt #,text-peg #,other-peg)]
     [text-peg text-peg]
     [else other-peg]))
 

@@ -52,6 +52,7 @@
 (require
   racket/string
   racket/list
+  racket/match
   syntax/parse
   syntax/srcloc
   racket/syntax)
@@ -139,11 +140,13 @@
   #:description "syntax spec"
   (pattern _))
 
-  
+; Is id a colon-separated pair of identifiers?
 (define (has:? id)
-  (string-contains?
-   (symbol->string (syntax-e id))
-   ":"))
+  (define str (symbol->string (syntax-e id)))
+  (match (string-split str ":" #:trim? #f)
+    [(list before after)
+     (and (non-empty-string? before) (non-empty-string? after))]
+    [_ #f]))
   
 (define (split: id)
   (define str (symbol->string (syntax-e id)))

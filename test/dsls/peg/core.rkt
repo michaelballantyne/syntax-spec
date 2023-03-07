@@ -6,6 +6,7 @@
  seq
  alt
  plain-alt
+ ?
  *
  !
  =>
@@ -35,13 +36,14 @@
 (require
   "private/forms.rkt"
   "private/runtime.rkt"
+  "private/compile.rkt"
   (for-syntax
-   "private/leftrec-check.rkt"
-   "private/compile.rkt"))
+   "private/leftrec-check.rkt"))
 
 (require
   syntax-spec
   (for-syntax
+   syntax-spec/private/syntax/syntax-classes
    racket/base
    syntax/parse
    (rename-in syntax/parse [define/syntax-parse def/stx])))
@@ -84,16 +86,18 @@
     #:description "PEG expression"
     #:allow-extension peg-macro
 
+    (~> p:ref-id #'(bind p.var p.ref))
+
     (bind v:var ps:peg-seq)
     #:binding (nest-one ps {(bind v) tail})
 
     (seq ps1:peg-seq ps2:peg-seq)
     #:binding (nest-one ps1 (nest-one ps2 tail))
 
-    ; this originally didn't bind anything, but tests expect it to bind everything
-    ; failed alts bind vars to #f
-    (alt e1:peg-seq e2:peg-seq)
-    #:binding (nest-one e1 (nest-one e2 tail))
+    (alt e1:peg e2:peg)
+
+    (? e:peg-seq)
+    #:binding (nest-one e tail)
 
     (plain-alt e1:peg-seq e2:peg-seq)
     #:binding (nest-one e1 (nest-one e2 tail))
@@ -115,17 +119,12 @@
    #:binding (export name)
    (run-leftrec-check! (attribute name) (attribute p))
    #'(begin (define name (lambda (in) (with-reference-compilers ([var immutable-reference-compiler])
-                                        (compile-peg/macro p in))))
+                                        (compile-peg p in))))
             ...))
 
   (host-interface/expression
    (parse name:nonterm in-e:expr)
-   (compile-parse #'name #'in-e)))
-
-; needed to make this a macro for ellipsis depth stuff
-(define-syntax compile-peg/macro
-  (syntax-parser
-    [(_ p in) (compile-peg #'p #'in)]))
+   #'(compile-parse name in-e)))
 
 ; Interface macros
 

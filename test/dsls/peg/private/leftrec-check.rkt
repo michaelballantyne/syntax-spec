@@ -30,6 +30,7 @@
     [(alt e1 e2)
      (or (nullable? #'e1)
          (nullable? #'e2))]
+    [(? e) #t]
     [(* e) #t]
     [(! e)
      (not (nullable? #'e))]

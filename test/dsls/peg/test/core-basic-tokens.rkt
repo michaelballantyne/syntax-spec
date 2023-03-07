@@ -17,8 +17,7 @@
       r))
 
 (define-peg t4
-  (=> (alt (: a "a") (: b "b"))
-      (list a b)))
+  (alt (=> (: a "a") a) (=> (: b "b") b)))
 
 (define-peg t5
   (=> (* (seq (seq (! "b") (: c (token (lambda (t) (values t #f))))) eps))
@@ -50,7 +49,7 @@
 
   (check-equal?
    (parse t4 '(b))
-   (parse-result '() '(#f b)))
+   (parse-result '() 'b))
 
   (check-equal?
    (parse t5 '(a a a b))

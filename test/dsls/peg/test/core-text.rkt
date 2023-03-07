@@ -16,8 +16,7 @@
       r))
 
 (define-peg t4
-  (=> (alt (: a "a") (: b "b"))
-      (list a b)))
+  (alt (=> (: a "a") a) (=> (: b "b") b)))
 
 (define-peg t5
   (=> (* (seq (seq (! "b") (: c (char (lambda (c) #t)))) eps))
@@ -49,7 +48,7 @@
 
   (check-equal?
    (parse-result-value (parse t4 "b"))
-   '(#f "b"))
+   "b")
 
   (check-equal?
    (parse-result-value (parse t5 "aaab"))
