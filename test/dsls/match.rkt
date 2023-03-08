@@ -97,7 +97,6 @@
     [(_) #''()]
     [(_ p0 p ...)
      #'(cons p0 (list p ...))]))
-
 (check-equal? (match 2 [x x]) 2)
 (check-equal? (match 2 [(? odd?) 'bad] [(? even?) 'good]) 'good)
 (check-equal? (match 2
@@ -133,3 +132,13 @@
 ;(check-equal? (match '(1) [(and (var cons) (cons a b)) (cons a b)]) '(1))
 (check-equal? (match '(1 a 2) [`(,a a ,b) (list a b)])
               '(1 2))
+; pattern variables should not be in scope in expression positions of other patterns
+; TODO this shouldn't work, but I don't think preventing that can be expressed in ss
+(check-equal? (match 2 [(and2 x (app (lambda (y) x) z)) (list x z)])
+              '(2 2))
+; TODO this fails, but in the racket expander, not the DSL expander.
+; ss thinks it's ok because vars are exported in a recursive def ctx
+; nesting would make it catch this, but the previous test would still wrongly work
+#;
+(check-equal? (match 2 [(and2 (app (lambda (y) x) z) x) (list x z)])
+              '(2 2))
