@@ -50,8 +50,8 @@
         #'(do-match target p1 (do-match target p2 on-success on-fail) on-fail)]
        [(? pred)
         #'(if (pred target)
-            on-success
-            on-fail)]
+              on-success
+              on-fail)]
        [(app proc p)
         #'(let ([new-target (proc target)])
             (do-match new-target p on-success on-fail))]
@@ -87,6 +87,11 @@
   (syntax-parser
     [(_ lit)
      #'(equal? 'lit)]))
+(define-match-expander quasiquote
+  (syntax-parser
+    [(_ x:id) #''x]
+    [(_ ((~datum unquote) p)) #'p]
+    [(_ (qp ...)) #'(list (quasiquote qp) ...)]))
 (define-match-expander list
   (syntax-parser
     [(_) #''()]
@@ -126,3 +131,5 @@
 (check-equal? (match '(1) [(var cons) cons]) '(1))
 ; currently an ambiguity error
 ;(check-equal? (match '(1) [(and (var cons) (cons a b)) (cons a b)]) '(1))
+(check-equal? (match '(1 a 2) [`(,a a ,b) (list a b)])
+              '(1 2))
