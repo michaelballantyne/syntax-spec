@@ -15,7 +15,7 @@
   (=> (seq (: e1 term) (* (seq (: op* (alt "+" "-")) (: e* term))))
       (left-associate-binops e1 op* e*)))
 
-(parse arith-expr '(1 "+" 2 "-" 3))
+;; (parse arith-expr '(1 "+" 2 "-" 3))
 ;; evaluates to:
 ;; (binop-ast (binop-ast 1 "+" 2) "-" 3)
 

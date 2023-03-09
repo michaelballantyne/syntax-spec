@@ -1,12 +1,13 @@
 #lang racket/base
 
 (provide
- compile-peg
+ (rename-out [compile-peg-top compile-peg])
  compile-parse)
 
 (require
   racket/stxparam
   syntax/id-table
+  syntax/srcloc
   (except-in racket/base => *)
   "forms.rkt"
   "runtime.rkt"
@@ -46,6 +47,8 @@ you need the result and the updated input out
 
 |#
 
+(define-syntax-rule (compile-peg-top pe in) (let ([in-v in]) (compile-peg pe in-v result in^ (values in^ result) (fail))))
+
 (define-syntax compile-peg
   (syntax-parser
     ; parses `pe` on input stream `in`. If the parse succeeds, binds `result` to the result and `in^` to the updated
@@ -76,8 +79,11 @@ you need the result and the updated input out
        [(plain-alt pe1 pe2)
         ; TODO deduplicate on-success?
         #'(compile-peg pe1 in result in^ on-success (compile-peg pe2 in result in^ on-success on-fail))]
-       ; TODO optimization
-       [(alt pe1 pe2) #'(compile-peg (plain-alt pe1 pe2) in result in^ on-success on-fail)]
+       [(alt pe1 pe2)
+        #`(let-values ([(in^-tmp result-tmp) #,(optimize+compile-alts this-syntax #'in #'compile-peg-top #'generate-plain-alt)])
+            (if (failure? in^-tmp)
+                on-fail
+                (let ([in^ in^-tmp] [result result-tmp]) on-success)))]
        [(? pe)
         (def/stx (v* ...) (bound-vars #'pe))
         ; assume result is not the same as any v*
@@ -104,9 +110,28 @@ you need the result and the updated input out
                                  [result (void)])
                              on-success))))]
        [(src-span v e)
-        ; TODO should in^ #f #f be treated as a failure?
-        #'(let-values ([(in^ result v) (src-span-rt (lambda (in) (compile-peg e in)) in)])
-            on-success)]
+        ; TODO figure out how to pull some of this back into rt
+        ; trickier now since bindings in e must escape and we do nesting let style
+        ; can't just do a remote set! anymore
+        #'(if (text-rep? in)
+              (let ([source (text-rep-source in)]
+                    [init-pos (text-rep-ix in)]
+                    [init-ln (text-rep-ln in)]
+                    [init-col (text-rep-col in)])
+                (compile-peg e in result in^
+                             (let ([v (srcloc source
+                                              init-ln init-col
+                                              init-pos (- (text-rep-ix in^) init-pos))])
+                               on-success)
+                             ; TODO what is the desired semantics of e failing?
+                             on-fail))
+              (parameterize ([first-token-srcloc #f]
+                             [last-token-srcloc #f])
+                (compile-peg e in result in^
+                             (let ([v (build-source-location (first-token-srcloc)
+                                                             (last-token-srcloc))])
+                               on-success)
+                             on-fail)))]
        [(! pe)
         #'(compile-peg pe in ignored-result ignored-in^
                        on-fail
