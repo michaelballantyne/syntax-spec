@@ -72,8 +72,9 @@
   (m (one)))
  1)
 
-(define-namespace-anchor a)
-(test-case "disappeared props"
+;; TODO this test only works when run without already having built with raco make. Disable for now.
+#;(define-namespace-anchor a)
+#;(test-case "disappeared props"
   (define (num-arrows-of check-syntax-result)
     (length (for/list ([vec check-syntax-result] #:when (equal? (vector-ref vec 0)
                                                                 'syncheck:add-arrow/name-dup/pxpy))
