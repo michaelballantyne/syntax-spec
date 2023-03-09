@@ -13,7 +13,10 @@
           define-local-symbol-table
           syntax-datum?
           symbol-table-set!
-          symbol-table-ref))
+          symbol-table-ref
+
+          get-bound-vars
+          get-free-vars))
 
 (require "private/syntax/interface.rkt"
          "private/runtime/compile.rkt"
@@ -21,4 +24,5 @@
                      (except-in ee-lib racket-var)
                      ee-lib/persistent-id-table
                      ee-lib/private/binding
+                     "private/runtime/binding-operations.rkt"
                      "private/runtime/syntax-classes.rkt"))
