@@ -86,7 +86,7 @@
 #; (values (list #'(a) #'(a e:expr)) (list #'(b)))
 ;;
 (define (gather-group prods)
-  (let loop ([prods prods]
+  (let loop ([prods (cdr prods)]
              [group (list (car prods))])
     (if (and (pair? prods)
              (identifier? (form-name (car prods)))
@@ -149,7 +149,7 @@
             sspec maybe-bspec (and maybe-nested-id (add-scope maybe-nested-id sc)) variant binding-space-stx
             (lambda () #`(syntax/loc this-syntax #,(compile-sspec-to-template sspec)))))])
       (syntax-parse (car prod-group)
-        [(p:form-production)
+        [(~or (p:form-production) (p:form-rewrite-production))
          #`[(~or #,(generate-pattern-literal #'p.form-name binding-space-stx)
                  (#,(generate-pattern-literal #'p.form-name binding-space-stx) . _))
             #,(generate-form-production-body prod-group maybe-nested-id variant recur-id binding-space-stx)]])))
