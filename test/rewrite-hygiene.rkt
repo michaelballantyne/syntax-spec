@@ -18,13 +18,16 @@
 
     ;; ... particularly references introduced by another ~>.
     (~> ((~datum b))
-        #'(dsl-let x (a x)))))
+        #'(dsl-let x (a x))))
+
+  (host-interface/expression
+    (check-test e:dsl-expr)
+    (syntax-case #'e (dsl-let)
+      [(dsl-let b1 (dsl-let b2 r))
+       #`(list #,(same-binding? (compiled-from #'b1) (compiled-from #'r))
+               #,(same-binding? (compiled-from #'b2) (compiled-from #'r)))])))
 
 (check-equal?
- (phase1-eval
-  (syntax-case ((nonterminal-expander dsl-expr) #'(b)) (dsl-let)
-    [(dsl-let b1 (dsl-let b2 r))
-     (list (same-binding? (compiled-from #'b1) (compiled-from #'r))
-           (same-binding? (compiled-from #'b2) (compiled-from #'r)))]))
+ (check-test (b))
  (list #t #f))
 
