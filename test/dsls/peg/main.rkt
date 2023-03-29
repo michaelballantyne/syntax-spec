@@ -55,7 +55,7 @@
 
 (define-peg-syntax-parser string-token
   [(_ s:string)
-   #'(token (lambda (t) (values (and (eq? t 's) t) #f)))])
+   #'(token (lambda (t) (values (and (equal? t 's) t) #f)))])
 
 (define-peg-syntax-parser syntax-token
   [(_ x:string)
