@@ -45,7 +45,8 @@
          (check-order/two-pass spec)
          (compile-bspec-term/pass1 spec))]
       [#:pass2
-       compile-bspec-term/pass2]))
+       (lambda (spec)
+         #`(fresh-env-expr-ctx #,(compile-bspec-term/pass2 spec)))]))
 
   (variant-compiler bspec-flattened))
 

@@ -117,7 +117,7 @@
         (syntax-parse (car prods)
           [(~or (p:form-production) (p:form-rewrite-production))
            (when (free-id-table-ref seen-forms #'p.form-name #f)
-             (wrong-syntax/orig #'p.fspec "all variants of the same-named form must occur together"))
+             (wrong-syntax/orig #'p.form-name "all variants of the same-named form must occur together"))
            (define-values (group remaining-prods) (gather-group prods))
            (loop remaining-prods (free-id-table-set seen-forms #'p.form-name #t) (cons group res))]
           [_ (loop (cdr prods) seen-forms (cons (car prods) res))]))))

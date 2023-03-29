@@ -182,6 +182,22 @@
      (begin e1:expr e2:expr)
      #:binding [e1 e1])))
 
+(check-decl-error
+ #rx"nonterminal: all variants of the same-named form must occur together"
+ (syntax-spec
+   (nonterminal expr
+     (foo)
+     (baz)
+     (foo #:bar))))
+
+(check-decl-error
+ #rx"nonterminal: all variants of the same-named form must occur together"
+ (syntax-spec
+   (nonterminal expr
+     (foo)
+     (baz)
+     (~>/form (foo #:bar) #'(foo)))))
+
 ;;
 ;; Valid definitions used to exercise errors
 ;;

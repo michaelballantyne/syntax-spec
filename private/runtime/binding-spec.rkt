@@ -17,6 +17,7 @@
  (struct-out nest-one)
  (struct-out nested)
  (struct-out suspend)
+ (struct-out fresh-env-expr-ctx)
 
  ; used by interface macros
  expand-top
@@ -66,6 +67,7 @@
 (struct nest-one [pvar nonterm spec] #:transparent)
 (struct nested [] #:transparent)
 (struct suspend [pvar] #:transparent)
+(struct fresh-env-expr-ctx [spec] #:transparent)
 
 ;;
 ;; Expansion
@@ -185,7 +187,15 @@
                            b ...)))]))
                   
   (match spec
-    
+    [(fresh-env-expr-ctx spec)
+     (syntax-local-apply-transformer
+      (lambda ()
+        (with-scope sc
+          (simple-expand-internal spec st (cons sc local-scopes))))
+      #f
+      'expression
+      #f)]
+   
     [(ref pv space pred msg)
      (for/pv-state-tree ([id pv])
        (when DEBUG-RENAME
