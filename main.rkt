@@ -15,8 +15,7 @@
           symbol-table-set!
           symbol-table-ref
 
-          get-bound-vars
-          get-free-vars))
+          free-identifiers))
 
 (require "private/syntax/interface.rkt"
          "private/runtime/compile.rkt"
