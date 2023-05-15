@@ -1,6 +1,6 @@
 **/compiled
 *~
 **/.DS_Store
-test/dsls/js/package-lock.json
-test/dsls/js/node_modules
+tests/dsls/js/package-lock.json
+tests/dsls/js/node_modules
 doc/

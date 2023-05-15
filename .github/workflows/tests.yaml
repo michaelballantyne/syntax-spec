@@ -11,6 +11,6 @@ jobs:
         with:
           version: 8.7
       - run: raco pkg install -j 2 --auto
-      - working-directory: ./test/dsls/js
+      - working-directory: ./tests/dsls/js
         run: npm install escodegen
       - run: raco test -j 2 -c syntax-spec

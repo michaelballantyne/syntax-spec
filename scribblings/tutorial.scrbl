@@ -178,5 +178,5 @@ For now it's a stub.
 @section[#:tag "macros"]{Macros}
 
 The full code for the state machine example is available at
-@url{https://github.com/michaelballantyne/syntax-spec/blob/main/test/dsls/state-machine-oo}.
+@url{https://github.com/michaelballantyne/syntax-spec/blob/main/tests/dsls/state-machine-oo}.
 

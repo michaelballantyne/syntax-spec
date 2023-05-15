@@ -4,7 +4,7 @@ A metalanguage for creating sophisticated DSLs in Racket. You provide a grammar 
 
 This is still a prototype: it is not yet stable, and the documentation is incomplete.
 
-There are a few relatively-complete example DSL implementations: [miniKanren](test/dsls/minikanren-rs2e), [miniclass](test/dsls/miniclass), and [TinyHDL](test/dsls/tiny-hdl). There is also a small [state machine DSL](demos/visser-symposium).
+There are a few relatively-complete example DSL implementations: [miniKanren](tests/dsls/minikanren-rs2e), [miniclass](tests/dsls/miniclass), and [TinyHDL](tests/dsls/tiny-hdl). There is also a small [state machine DSL](demos/visser-symposium).
 
 The package is not yet available on the Racket package server. You can install it by checking out the Git repository, changing directory into it, and running:
 
