@@ -57,9 +57,36 @@
   (binding-class nonterm #:description "PEG nonterminal")
   (extension-class peg-macro #:description "PEG macro")
 
-  (nonterminal peg-el
+  (nonterminal text-expr
+    s:string-stx
+    e:racket-expr)
+
+  (nonterminal/nesting peg (tail)
     #:description "PEG expression"
     #:allow-extension peg-macro
+    
+    (~> p:ref-id #'(bind p.var p.ref))
+
+    (bind v:var ps:peg)
+    #:binding (nest-one ps {(bind v) tail})
+
+    (seq ps1:peg ps2:peg)
+    #:binding (nest-one ps1 (nest-one ps2 tail))
+
+    (alt e1:peg e2:peg)
+
+    (? e:peg)
+    #:binding (nest-one e tail)
+
+    (plain-alt e1:peg e2:peg)
+    ;; TODO: why is plain alt different than alt?
+    #:binding (nest-one e1 (nest-one e2 tail))
+
+    (* ps:peg)
+    #:binding (nest-one ps tail)
+
+    (src-span v:var ps:peg)
+    #:binding {(bind v) (nest-one ps tail)}
 
     eps
     (char e:expr)
@@ -72,47 +99,11 @@
 
     (text e:text-expr)
 
-    (=> ps:peg-seq e:racket-expr)
+    (=> ps:peg e:racket-expr)
     #:binding (nest-one ps e)
 
     (~> n:id #'(#%nonterm-ref n))
     (#%nonterm-ref n:nonterm))
-
-  (nonterminal text-expr
-    s:string-stx
-    e:racket-expr)
-
-  (nonterminal/nesting peg-seq (tail)
-    #:description "PEG expression"
-    #:allow-extension peg-macro
-
-    (~> p:ref-id #'(bind p.var p.ref))
-
-    (bind v:var ps:peg-seq)
-    #:binding (nest-one ps {(bind v) tail})
-
-    (seq ps1:peg-seq ps2:peg-seq)
-    #:binding (nest-one ps1 (nest-one ps2 tail))
-
-    (alt e1:peg e2:peg)
-
-    (? e:peg-seq)
-    #:binding (nest-one e tail)
-
-    (plain-alt e1:peg-seq e2:peg-seq)
-    #:binding (nest-one e1 (nest-one e2 tail))
-
-    (* ps:peg-seq)
-    #:binding (nest-one ps tail)
-
-    (src-span v:var ps:peg-seq)
-    #:binding {(bind v) (nest-one ps tail)}
-
-    pe:peg-el)
-
-  (nonterminal peg
-    ps:peg-seq
-    #:binding (nest-one ps []))
 
   (host-interface/definitions
    (define-pegs [name:nonterm p:peg] ...)

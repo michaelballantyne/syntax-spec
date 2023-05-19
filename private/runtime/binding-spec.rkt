@@ -354,15 +354,20 @@
   (define acc-scopes^ (append acc-scopes new-local-scopes))
 
   (match seq
-    [(cons stx rest)
+    ;; TODO: this match can fail if there were too few ellipses in the pattern for the
+    ;; pvar associated with the nesting nonterminal.
+    [(cons stxs rest)
      (define-values
        (stx^ nest-st^)
        ;; Original:
-       (call-expand-function/nest
-        f
-        (add-scopes stx acc-scopes^)
-        (nest-call f rest acc-scopes^ inner-spec-st inner-spec)))
-
+       (for/tree ([stx stxs])
+         (call-expand-function/nest
+          f
+          ;; TODO: this can fail if there are too many ellipses in the pattern for the pvar
+          ;; associated with the nesting nonterminal.
+          (add-scopes stx acc-scopes^)
+          (nest-call f rest acc-scopes^ inner-spec-st inner-spec))))
+     
      (match-define (nest-ret done-seq inner-spec-st^) nest-st^)
      (nest-ret (cons stx^ done-seq) inner-spec-st^)]
     ['()

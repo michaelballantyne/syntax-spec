@@ -473,8 +473,9 @@
         #`(group (list (ref '#,v '#,space #,pred #,(string-append "not bound as " description)) (rename-ref '#,v '#,space)))]
        [(nested-binding)
         #`(nested)]
-       [(nonterm-rep (nesting-nonterm-info _))
-        (wrong-syntax/orig v "nesting nonterminals may only be used with `nest`")]
+       [(nonterm-rep (nesting-nonterm-info expander))
+        #;(wrong-syntax/orig v "nesting nonterminals may only be used with `nest`")
+        #`(nest-one '#,v #,expander (group '()))]
        [(nonterm-rep (two-pass-nonterm-info _ _))
         (wrong-syntax/orig v "two-pass nonterminals may only be used with `recursive` and `re-export`")]
        [(or (? stxclass?) (? has-stxclass-prop?))

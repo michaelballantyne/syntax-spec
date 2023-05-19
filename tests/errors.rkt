@@ -64,16 +64,6 @@
      #:binding {(bind y)})))
 
 (check-decl-error
- #rx"nonterminal: nesting nonterminals may only be used with `nest`"
- (syntax-spec
-   (binding-class dsl-var #:description "DSL variable")
-   (nonterminal expr
-     b:binding-group
-     #:binding b)
-   (nonterminal/nesting binding-group (nested)
-     [])))
-
-(check-decl-error
  #rx"nest: expected pattern variable associated with a nesting nonterminal"
  (syntax-spec
    (nonterminal expr
@@ -219,7 +209,9 @@
     n:number)
   (nonterminal/nesting binding-group (tail)
     [v:dsl-var2 e:expr1]
-    #:binding {(bind v) tail}))
+    #:binding {(bind v) tail})
+  (nonterminal/two-pass def
+    (dsl-define v:dsl-var1 e:expr1)))
 
 (define-syntax m1
   (dsl-macro1
@@ -274,8 +266,8 @@
  (nonterminal-expander unbound-name))
 
 (check-phase1-error
- #rx"nonterminal-expander: only simple non-terminals may be used as entry points"
- (nonterminal-expander binding-group))
+ #rx"nonterminal-expander: two-pass non-terminals may not be used as entry points"
+ (nonterminal-expander def))
 
 ;;
 ;; Runtime (wrt the meta-DSL) errors

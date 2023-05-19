@@ -34,6 +34,7 @@
             racket/base
             syntax/parse
             racket/syntax
+            racket/match
             ee-lib
             "env-reps.rkt"
             "syntax-classes.rkt"
@@ -355,10 +356,13 @@
        (when (not binding)
          (wrong-syntax #'ref  "expected a nonterminal name"))
        (define variant-info (nonterm-rep-variant-info binding))
-       (when (not (simple-nonterm-info? variant-info))
-         (wrong-syntax #'ref "only simple non-terminals may be used as entry points"))
-       #`(make-local-expand-entry-point
-          #,(simple-nonterm-info-expander variant-info))]))
+       (match variant-info
+         [(or (simple-nonterm-info expander)
+              (nesting-nonterm-info expander))
+          #`(make-local-expand-entry-point
+             #,expander)]
+         [(? two-pass-nonterm-info?)
+          (wrong-syntax #'ref "two-pass non-terminals may not be used as entry points")])]))
   
   (begin-for-syntax
     (define (accessor-macro predicate error-message accessor)
