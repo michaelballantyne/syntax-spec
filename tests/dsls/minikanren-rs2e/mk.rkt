@@ -2,6 +2,7 @@
 
 (provide (all-defined-out)
          quote cons
+         (for-syntax term-macro goal-macro)
          (for-space mk quasiquote))
 
 (require "../../../main.rkt"
@@ -18,6 +19,10 @@
 ;; Core syntax
 ;;
 
+(begin-for-syntax
+  (define-syntax-class string/c
+    (pattern s:string)))
+
 (syntax-spec
   (binding-class term-variable #:description "miniKanren term variable")
   (binding-class relation-name #:description "miniKanren relation name")
@@ -29,6 +34,7 @@
   
   (nonterminal quoted
     #:description "quoted value"
+    s:string/c
     n:number
     s:id
     ()
@@ -39,7 +45,9 @@
     #:allow-extension term-macro
     
     n:number
+    s:string/c
     x:term-variable
+    (rkt-term e:racket-expr)
     ((~literal quote) t:quoted)
     ((~literal cons) t1:term t2:term))
 
@@ -246,11 +254,15 @@
   
 (define-syntax compile-term
   (syntax-parser
-    #:literals (quote cons)
+    #:literals (quote cons rkt-term)
+    [(_ s:string)
+     #''s]
     [(_ n:number)
      #''n]
     [(_ x:id)
      #'x]
+    [(_ (rkt-term e))
+     #'e]
     [(_ (quote t))
      #''t]
     [(_ (cons t1 t2))
@@ -295,7 +307,7 @@
 (define (unify u v s)
   (let ((u (walk u s)) (v (walk v s)))
     (cond
-      ((eqv? u v) s)
+      ((equal? u v) s)
       ((var? u) (ext-s u v s))
       ((var? v) (ext-s v u s))
       ((and (pair? u) (pair? v))
