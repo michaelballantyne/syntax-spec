@@ -14,12 +14,13 @@
        (edge scope2 (-> parent) scope)
        (eval-bspec spec2 env scope2))]
     ;; binding
-    [`(bind ,v) #:when (variable? (lookup v env))
-     (edge s (-> binding) (lookup v env))]
+    [`(bind ,v) #:when (binding-class? (lookup-type v env))
+     ;; TODO: how to encode binding class in scope graphs?
+     (edge s (-> binding) (lookup-syntax v env))]
     ;; variable reference
-    [v          #:when (variable? (lookup v env))
-     (edge (lookup v env) (-> reference) s)]
+    [v #:when (binding-class? (lookup-type v env))
+     ;; TODO: how to encode binding class check?
+     (edge (lookup-syntax v env) (-> reference) s)]
     ;; simple subexpression
-    [v          #:when (subexpression? (lookup v env))
-     (let-values ([(stx nonterminal) (lookup v env)])
-       (apply-nonterminal nonterminal stx scope))]))
+    [v #:when (nonterminal? (lookup-type v env))
+     (apply-nonterminal (lookup-type v env) (lookup-syntax v env) scope)]))
