@@ -4,7 +4,7 @@
 
 @title[#:style '(toc)]{Reference}
 
-@require[(for-label syntax-spec)]
+@require[(for-label "../../main.rkt")]
 @defmodule[syntax-spec-v1]
 
 @local-table-of-contents[]
