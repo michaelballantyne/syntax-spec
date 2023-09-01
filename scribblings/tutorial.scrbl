@@ -1,6 +1,6 @@
 #lang scribble/manual
 
-@(require (for-label racket syntax-spec))
+@(require (for-label racket "../main.rkt"))
 
 @title{Tutorial}
 
