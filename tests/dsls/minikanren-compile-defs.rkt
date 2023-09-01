@@ -14,7 +14,7 @@
        #`(let ([v (gensym)] ...)
            #,(compile-goal #'b))]
       [(== t1 t2)
-       #`(displayln (list #,(compile-term #'t1) #,(compile-term #'t2)))]))
+       #`(list #,(compile-term #'t1) #,(compile-term #'t2))]))
   
   (define compile-term
     (syntax-parser
@@ -31,7 +31,6 @@
       g:goal ...)
     #:binding {(bind qvar) g}
   
-    (displayln #'(g ...))
     #'(void))
 
   (host-interface/expression
