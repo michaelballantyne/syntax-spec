@@ -1,7 +1,7 @@
 #lang info
 
-(define name "syntax-spec")
-(define version "0.1")
+(define name "syntax-spec-v1")
+(define version "1.0")
 (define deps '("base"
                "ee-lib"
                "paren-shape"

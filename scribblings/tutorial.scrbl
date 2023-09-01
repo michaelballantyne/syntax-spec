@@ -65,7 +65,7 @@ Our initial specification with @racket[syntax-spec] supplies the grammar:
 @codeblock|{
   #lang racket
 
-  (require syntax-spec)
+  (require syntax-spec-v1)
   
   (syntax-spec
     (host-interface/expression

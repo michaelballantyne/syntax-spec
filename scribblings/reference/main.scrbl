@@ -5,7 +5,7 @@
 @title[#:style '(toc)]{Reference}
 
 @require[(for-label syntax-spec)]
-@defmodule[syntax-spec]
+@defmodule[syntax-spec-v1]
 
 @local-table-of-contents[]
 
