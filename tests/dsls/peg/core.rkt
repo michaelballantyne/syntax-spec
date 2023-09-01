@@ -41,9 +41,9 @@
    "private/leftrec-check.rkt"))
 
 (require
-  syntax-spec
+  "../../../main.rkt"
   (for-syntax
-   syntax-spec/private/syntax/syntax-classes
+   "../../../private/syntax/syntax-classes.rkt"
    racket/base
    syntax/parse
    (rename-in syntax/parse [define/syntax-parse def/stx])))
