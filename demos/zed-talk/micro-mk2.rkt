@@ -20,7 +20,7 @@
 
 ;; Syntax definition
 
-(require syntax-spec)
+(require "../../main.rkt")
 
 (syntax-spec
   (binding-class term-variable)

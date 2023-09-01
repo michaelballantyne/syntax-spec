@@ -2,7 +2,7 @@
 
 (provide machine state on on-enter)
 
-(require syntax-spec "state-machine-compiler.rkt")
+(require "../../../main.rkt" "state-machine-compiler.rkt")
 
 (syntax-spec
   (binding-class state-name)

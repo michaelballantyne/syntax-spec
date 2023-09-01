@@ -2,20 +2,20 @@
 
 (provide machine state on)
 
-(require syntax-spec "state-machine-compiler.rkt")
+(require "../../../main.rkt" "state-machine-compiler.rkt")
 
 (syntax-spec
   (binding-class state-name)
   
   (nonterminal/two-pass state-spec
     (state name:state-name
-      ((~datum on-enter) action:expr ...)
+      ((~datum on-enter) action:racket-expr ...)
       e:event-spec ...)
     #:binding (export name))
   
   (nonterminal event-spec
     (on (name:id arg:id ...)
-      action:expr ...
+      action:racket-expr ...
       ((~datum ->) new-name:state-name)))
 
   (host-interface/expression
