@@ -2,7 +2,8 @@
 
 (define name "syntax-spec")
 (define version "0.1")
-(define deps '("ee-lib"
+(define deps '("base"
+               "ee-lib"
                "paren-shape"
                "rackunit-lib"))
 (define build-deps '("racket-doc" "scribble-lib" "drracket"))
