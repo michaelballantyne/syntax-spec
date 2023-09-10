@@ -46,10 +46,7 @@
     (pattern s:flag-name
              #:attr names #'(s))
     (pattern (s:flag-name ...+)
-             #:attr names #'(s ...)))
-
-  (define-syntax-class string-stx
-    (pattern _:string)))
+             #:attr names #'(s ...))))
 
 (syntax-spec
   (extension-class option-macro)
@@ -64,7 +61,7 @@
   (nonterminal flag
     #:allow-extension flag-macro
     ((~literal begin) f:flag ...+)
-    [names:flag-names arg:arg-spec ... desc:string-stx e:racket-expr]
+    [names:flag-names arg:arg-spec ... desc:string e:racket-expr]
     #:binding {(recursive arg) e})
 
   (nonterminal/two-pass arg-spec

@@ -21,6 +21,12 @@
                 [binding-space binding-space-stx])
     #'(~var _ (literal-in-space (quote-syntax name) (quote binding-space)))))
 
+(define-syntax-class special-syntax-class
+  (pattern (~or (~literal string)
+                (~literal bytes)
+                (~literal regexp)
+                (~literal byte-regexp))))
+
 (define (compile-sspec-to-pattern stx binding-space-stx)
   (define generate-pattern-form
     (syntax-parser
@@ -59,6 +65,9 @@
       [r:ref-id
        #:do [(define binding (lookup #'r.ref (lambda (v) (nonterm-rep? v))))]
        #:when binding
+       #'r.var]
+      [r:ref-id
+       #:with c:special-syntax-class #'r.ref
        #'r.var]
       [r:ref-id
        #:do [(define binding (lookup #'r.ref (lambda (v) (or (stxclass? v)
@@ -108,6 +117,9 @@
        #:when binding
        #'r.var]
       [r:ref-id
+       #:with c:special-syntax-class #'r.ref
+       #'r.var]
+      [r:ref-id
        #:do [(define binding (lookup #'r.ref (lambda (v) (or (stxclass? v)
                                                              (has-stxclass-prop? v)))))]
        #:when binding
@@ -132,6 +144,12 @@
        (rec #'a)
        (rec #'d)]
       [r:ref-id
+       #:with c:special-syntax-class #'r.ref
+       (when (member #'r.var res bound-identifier=?)
+         (wrong-syntax/orig #'r.ref "duplicate pattern variable"))
+       (bind! #'r.var (pvar-rep (special-syntax-class-binding)))
+       (set! res (cons #'r.var res))]
+      [r:ref-id
        (define binding (lookup #'r.ref
                                (lambda (v)
                                  (or (bindclass-rep? v)
@@ -143,7 +161,6 @@
        (when (member #'r.var res bound-identifier=?)
          (wrong-syntax/orig #'r.ref "duplicate pattern variable"))
        (bind! #'r.var (pvar-rep binding))
-       
        (set! res (cons #'r.var res))]
       [_ (void)]))
   

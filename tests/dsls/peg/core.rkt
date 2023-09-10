@@ -48,10 +48,6 @@
    syntax/parse
    (rename-in syntax/parse [define/syntax-parse def/stx])))
 
-(begin-for-syntax
-  (define-syntax-class string-stx
-    (pattern _:string)))
-
 (syntax-spec
   (binding-class var #:description "PEG variable")
   (binding-class nonterm #:description "PEG nonterminal")
@@ -79,7 +75,7 @@
     (#%nonterm-ref n:nonterm))
 
   (nonterminal text-expr
-    s:string-stx
+    s:string
     e:racket-expr)
 
   (nonterminal/nesting peg-seq (tail)

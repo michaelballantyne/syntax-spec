@@ -216,7 +216,8 @@
 #;(identifier? -> BSpec)
 (define (elaborate-ref v)
   (ref (elaborate-pvar v
-                       (or (s* bindclass-rep) (s* nonterm-rep) (? stxclass-rep?) (s* nested-binding))
+                       (or (s* bindclass-rep) (s* nonterm-rep) (? stxclass-rep?) (s* nested-binding)
+                           (s* special-syntax-class-binding))
                        "binding class, syntax class, or nonterminal")))
 
 (define-syntax-rule
@@ -477,7 +478,7 @@
         (wrong-syntax/orig v "nesting nonterminals may only be used with `nest`")]
        [(nonterm-rep (two-pass-nonterm-info _ _))
         (wrong-syntax/orig v "two-pass nonterminals may only be used with `recursive` and `re-export`")]
-       [(or (? stxclass?) (? has-stxclass-prop?))
+       [(or (? stxclass?) (? has-stxclass-prop?) (? special-syntax-class-binding?))
         #`(group (list))])]
     [(suspend _ (pvar v info))
      #`(suspend '#,v)]
