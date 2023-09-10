@@ -3,6 +3,7 @@
 (define name "syntax-spec")
 (define version "0.1")
 (define deps '("base"
+               "version-case"
                "ee-lib"
                "paren-shape"
                "rackunit-lib"))

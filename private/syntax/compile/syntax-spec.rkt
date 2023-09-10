@@ -11,7 +11,6 @@
          "../syntax-classes.rkt"
          "../env-reps.rkt"
          ee-lib
-         (only-in syntax/parse/private/residual-ct stxclass? has-stxclass-prop?)
          (for-template racket/base
                        syntax/parse
                        "../../runtime/syntax-classes.rkt"))
@@ -70,8 +69,7 @@
        #:with c:special-syntax-class #'r.ref
        #'r.var]
       [r:ref-id
-       #:do [(define binding (lookup #'r.ref (lambda (v) (or (stxclass? v)
-                                                             (has-stxclass-prop? v)))))]
+       #:do [(define binding (lookup #'r.ref stxclass-rep?))]
        #:when binding
        #'(~var r.var r.ref)]
       [_ (wrong-syntax/orig this-syntax "expected a syntax spec term")]))
@@ -120,8 +118,7 @@
        #:with c:special-syntax-class #'r.ref
        #'r.var]
       [r:ref-id
-       #:do [(define binding (lookup #'r.ref (lambda (v) (or (stxclass? v)
-                                                             (has-stxclass-prop? v)))))]
+       #:do [(define binding (lookup #'r.ref stxclass-rep?))]
        #:when binding
        #'r.var]))
       
