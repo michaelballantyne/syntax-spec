@@ -12,7 +12,6 @@
          racket/syntax
          syntax/parse/class/paren-shape
          racket/list
-         (only-in syntax/parse/private/residual-ct stxclass? has-stxclass-prop?)
          ee-lib
          "../env-reps.rkt"
          "../syntax-classes.rkt"
@@ -478,7 +477,7 @@
         (wrong-syntax/orig v "nesting nonterminals may only be used with `nest`")]
        [(nonterm-rep (two-pass-nonterm-info _ _))
         (wrong-syntax/orig v "two-pass nonterminals may only be used with `recursive` and `re-export`")]
-       [(or (? stxclass?) (? has-stxclass-prop?) (? special-syntax-class-binding?))
+       [(or (? stxclass-rep?) (? special-syntax-class-binding?))
         #`(group (list))])]
     [(suspend _ (pvar v info))
      #`(suspend '#,v)]

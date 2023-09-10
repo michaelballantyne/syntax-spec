@@ -15,11 +15,18 @@
          stxclass-rep?)
 
 (require syntax/parse
+         version-case
          "../runtime/errors.rkt"
          racket/syntax
          ee-lib/syntax-category
-         (only-in syntax/parse/private/residual-ct stxclass? has-stxclass-prop?)
+         (for-syntax racket/base)
          (for-template racket/base))
+
+(version-case
+ [(version< (version) "8.10")
+  (require (only-in syntax/parse/private/residual-ct stxclass? has-stxclass-prop?))]
+ [else
+  (require (only-in (submod syntax/parse/private/residual ct) stxclass? has-stxclass-prop?))])
 
 (define (nonterm-lang-error-as-expression type)
   (struct-error-as-expression
