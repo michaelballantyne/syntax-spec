@@ -9,6 +9,7 @@
          (struct-out two-pass-nonterm-info)
          
          (struct-out nested-binding)
+         (struct-out special-syntax-class-binding)
          (struct-out pvar-rep)
 
          stxclass-rep?)
@@ -70,3 +71,4 @@
 (struct pvar-rep (var-info))
 
 (struct nested-binding [])
+(struct special-syntax-class-binding [])

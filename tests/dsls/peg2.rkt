@@ -2,10 +2,6 @@
 
 (require "../../testing.rkt")
 
-(begin-for-syntax
-  (define-syntax-class string
-    (pattern val #:when (string? (syntax-e #'val)))))
-
 (syntax-spec
   (binding-class var #:description "PEG variable")
   (binding-class nonterm #:description "PEG nonterminal")
