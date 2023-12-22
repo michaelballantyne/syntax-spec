@@ -17,6 +17,7 @@
          (for-template racket/base
                        "../syntax-classes.rkt"
                        "../../runtime/binding-spec.rkt"
+                       "../../runtime/surface-stx.rkt"
                        "pattern-var-reflection.rkt"
                        syntax/parse
                        racket/syntax
@@ -223,10 +224,12 @@
       #'[(~or m:id (m:id . _))
          #:do [(define binding (lookup #'m m-pred #:space 'm-space))]
          #:when binding
-         (recur (syntax-track-origin
-                 (apply-as-transformer (m-acc binding)
-                                       ((in-space 'm-space) #'m)
-                                       'definition
-                                       this-syntax)
-                 this-syntax
-                 #'m))])))
+         (recur (annotate-surface-stx
+                 (syntax-track-origin
+                  (apply-as-transformer (m-acc binding)
+                                        ((in-space 'm-space) #'m)
+                                        'definition
+                                        this-syntax)
+                  this-syntax
+                  #'m)
+                 this-syntax))])))

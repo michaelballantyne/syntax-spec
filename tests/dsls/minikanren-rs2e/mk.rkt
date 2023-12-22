@@ -93,10 +93,10 @@
 
 (define-syntax disj
   (goal-macro
-   (syntax-rules ()
-     ((disj) fail)
-     ((disj g) g)
-     ((disj g0 g ...) (disj2 g0 (disj g ...))))))
+   (syntax-parser
+     ((_) (syntax/loc this-syntax #'fail))
+     ((_ g) #'g)
+     ((_ g0 g ...) (syntax/loc this-syntax (disj2 g0 (disj g ...)))))))
 
 (define-syntax conj
   (goal-macro
@@ -204,7 +204,11 @@
      #'fail-rt]
     [(_ (== t1 t2))
      #`(==-rt (compile-term t1) (compile-term t2))]
-    [(_ (disj2 g1 g2))
+    [(_ (~and stx (disj2 g1 g2)))
+     (syntax-parse #'g1
+       [((~literal disj2) g11 g12)
+        (raise-syntax-error 'compile-goal "nested g1 disj" (syntax-surface-stx #'stx))]
+       [_ (void)])
      #`(disj2-rt (compile-goal g1) (compile-goal g2))]
     [(_ (conj2 g1 g2))
      #`(conj2-rt (compile-goal g1) (compile-goal g2))]
@@ -417,3 +421,7 @@
          (cons (car s-inf) '()))
         (else (lambda ()
                 (loop (s-inf))))))))
+
+;(run 1 (q) (disj (disj succeed succeed) succeed))
+
+(run 1 (q) (conde [(conde [succeed] [succeed])] [succeed]))

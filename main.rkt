@@ -15,6 +15,8 @@
           symbol-table-set!
           symbol-table-ref
 
+          syntax-surface-stx
+
           free-identifiers))
 
 (require "private/syntax/interface.rkt"
@@ -24,4 +26,5 @@
                      ee-lib/persistent-id-table
                      ee-lib/private/binding
                      "private/runtime/binding-operations.rkt"
+                     "private/runtime/surface-stx.rkt"
                      "private/runtime/syntax-classes.rkt"))
