@@ -31,7 +31,7 @@
       prod-arg ...)
      (define (generate-loop prods-stx maybe-nested-id init-stx-id)
        (define/syntax-parse ((prod:production) ...) prods-stx)
-       (with-syntax ([prod-clauses (generate-prod-clauses (attribute prod) maybe-nested-id (attribute variant) #'recur (attribute opts.space-stx))]
+       (with-syntax ([prod-clauses (generate-prod-clauses (attribute prod) maybe-nested-id (attribute variant) #'recur (attribute opts.space-stx) (attribute name))]
                      [macro-clauses (for/list ([extclass (attribute opts.ext-classes)])
                                       (generate-macro-clause extclass #'recur))]
                      [description (or (attribute opts.description) (symbol->string (syntax-e (attribute name))))]
@@ -122,12 +122,12 @@
            (loop remaining-prods (free-id-table-set seen-forms #'p.form-name #t) (cons group res))]
           [_ (loop (cdr prods) seen-forms (cons (car prods) res))]))))
 
-(define (generate-prod-clauses prod-stxs maybe-nested-id variant recur-id binding-space-stx)
+(define (generate-prod-clauses prod-stxs maybe-nested-id variant recur-id binding-space-stx nt-name)
   (define grouped (group-form-productions prod-stxs))
   (for/list ([prod-or-group grouped])
-    (generate-prod-group-clause prod-or-group maybe-nested-id variant recur-id binding-space-stx)))
+    (generate-prod-group-clause prod-or-group maybe-nested-id variant recur-id binding-space-stx nt-name)))
 
-(define (generate-prod-group-clause prod-group maybe-nested-id variant recur-id binding-space-stx)
+(define (generate-prod-group-clause prod-group maybe-nested-id variant recur-id binding-space-stx nt-name)
   (if (syntax? prod-group)
       (syntax-parse prod-group
         [(p:rewrite-production)
@@ -152,9 +152,9 @@
         [(~or (p:form-production) (p:form-rewrite-production))
          #`[(~or #,(generate-pattern-literal #'p.form-name binding-space-stx)
                  (#,(generate-pattern-literal #'p.form-name binding-space-stx) . _))
-            #,(generate-form-production-body prod-group maybe-nested-id variant recur-id binding-space-stx)]])))
+            #,(generate-form-production-body prod-group maybe-nested-id variant recur-id binding-space-stx nt-name)]])))
 
-(define (generate-form-production-body prod-group maybe-nested-id variant recur-id binding-space-stx)
+(define (generate-form-production-body prod-group maybe-nested-id variant recur-id binding-space-stx nt-name)
   #`(syntax-parse this-syntax
       #,@(for/list ([prod prod-group])
            (syntax-parse prod
@@ -171,7 +171,7 @@
                    ;; in place of those on the syntax in the pvar. So, detect that case and just use plain `syntax`.
                    (if (sspec-template-single-pvar? sspec)
                        #`(syntax #,(compile-sspec-to-template sspec))
-                       #`(stx/lp this-syntax #,(compile-sspec-to-template sspec))))))]
+                       #`(syntax-property (stx/lp this-syntax #,(compile-sspec-to-template sspec)) 'nonterminal '#,nt-name)))))]
              [(p:form-rewrite-production)
               ;; Hygiene for rewrite productions only uses a macro introduction
               ;; scope applied to the input and flipped on the output. 
