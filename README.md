@@ -6,7 +6,9 @@ This is still a prototype: it is not yet stable, and the documentation is incomp
 
 There are a few relatively-complete example DSL implementations: [miniKanren](tests/dsls/minikanren-rs2e), [miniclass](tests/dsls/miniclass), and [TinyHDL](tests/dsls/tiny-hdl). There is also a small [state machine DSL](demos/visser-symposium).
 
-The package is not yet available on the Racket package server. You can install it by checking out the Git repository, changing directory into it, and running:
+The package **is available** on the Racket package server: https://pkgs.racket-lang.org/package/syntax-spec-v1
+
+You can also install it by checking out the Git repository, changing directory into it, and running:
 
 ```
 raco pkg install
