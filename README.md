@@ -8,7 +8,7 @@ There are a few relatively-complete example DSL implementations: [miniKanren](te
 
 The package **is available** on the Racket package server: https://pkgs.racket-lang.org/package/syntax-spec-v1
 
-You can also install it by checking out the Git repository, changing directory into it, and running:
+You can also install it by checking out the Git repository, change into the directory and run:
 
 ```
 raco pkg install
