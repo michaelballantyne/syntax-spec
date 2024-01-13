@@ -5,6 +5,7 @@
 (define deps '("base"
                "version-case"
                "ee-lib"
+               "syntax-classes-lib"
                "paren-shape"
                "rackunit-lib"))
 (define build-deps '("racket-doc" "scribble-lib" "drracket"))
