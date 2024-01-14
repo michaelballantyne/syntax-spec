@@ -6,7 +6,7 @@
 (define deps '("base"
                "version-case"
                "ee-lib"
-               "paren-shape"
+               "syntax-classes-lib"
                "rackunit-lib"))
 (define build-deps '("racket-doc" "scribble-lib" "drracket"))
 (define scribblings '(("scribblings/main.scrbl" (multi-page) (experimental))))
