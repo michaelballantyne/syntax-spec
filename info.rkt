@@ -10,6 +10,6 @@
                "syntax-classes-lib"
                "rackunit-lib"))
 (define build-deps '("racket-doc" "scribble-lib" "drracket"))
-(define scribblings '(("scribblings/main.scrbl" (multi-page) (experimental))))
+(define scribblings '(("scribblings/main.scrbl" (multi-page) (experimental) "syntax-spec")))
 (define compile-omit-paths '("design" "demos"))
 (define test-omit-paths '("design" "demos"))
