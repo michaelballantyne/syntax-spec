@@ -318,7 +318,11 @@
  ;; TODO: I should generate syntax classes corresponding to non-terminals
  ;; to improve errors like this. Ideally the message would be
  ;; "dsl-begin: expected more terms starting with dslexpr1"
- #rx"dsl-begin: expected more terms starting with any term"
+ ;;
+ ;; Note: more recent versions of Racket just say "expected more terms";
+ ;; earlier versions said "expected more terms starting with any term";
+ ;; this test should work for both.
+ #rx"dsl-begin: expected more terms"
  (dsl-expr1 (dsl-begin)))
 
 ;; No terms in ...+ position in syntax
