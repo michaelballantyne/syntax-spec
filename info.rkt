@@ -1,6 +1,7 @@
 #lang info
 
 (define name "syntax-spec")
+(define collection "syntax-spec")
 (define version "0.1")
 (define deps '("base"
                "version-case"
