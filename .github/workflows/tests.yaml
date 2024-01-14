@@ -13,4 +13,4 @@ jobs:
       - run: raco pkg install -j 2 --auto
       - working-directory: ./tests/dsls/js
         run: npm install escodegen
-      - run: raco test -j 2 -c syntax-spec
+      - run: raco test -j 2 -c syntax-spec-v1
