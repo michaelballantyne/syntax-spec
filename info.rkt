@@ -3,6 +3,7 @@
 (define name "syntax-spec")
 (define collection "syntax-spec")
 (define version "0.1")
+(define license '(Apache-2.0 OR MIT))
 (define deps '("base"
                "version-case"
                "ee-lib"
