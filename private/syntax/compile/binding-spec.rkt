@@ -493,6 +493,7 @@
                                   #`(subexp '#,v #,pass1-expander))]
                    [(s-cp2 ...) (for/list ([pv pvars])
                                   (match-define (pvar v (nonterm-rep (two-pass-nonterm-info _ pass2-expander))) pv)
+                                  ;; avoid adding the local-scopes to syntax moved in by first pass expansion
                                   #`(subexp/no-scope '#,v #,pass2-expander))])
        #`(group (list s-cp1 ... s-cp2 ...)))]
     [(or (s* export) (s* export-syntax) (s* export-syntaxes))
@@ -565,5 +566,6 @@
     [(re-export _ pvars)
      (with-syntax ([(s-c ...) (for/list ([pv pvars])
                                 (match-define (pvar v (nonterm-rep (two-pass-nonterm-info _ pass2-expander))) pv)
+                                ;; avoid adding the local-scopes to syntax moved in by first pass expansion
                                 #`(subexp/no-scope '#,v #,pass2-expander))])
        #`(group (list s-c ...)))]))
