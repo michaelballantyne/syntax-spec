@@ -206,6 +206,10 @@
      #`(==-rt (compile-term t1) (compile-term t2))]
     [(_ (disj2 g1 g2))
      #`(disj2-rt (compile-goal g1) (compile-goal g2))]
+    [(_ (~and stx (conj2 (fresh1 (x) b) g2)))
+     (displayln #'stx)
+     (raise-syntax-error #f "fresh disallowed inside conj"
+                         (syntax-surface-stx #'stx))]
     [(_ (conj2 g1 g2))
      #`(conj2-rt (compile-goal g1) (compile-goal g2))]
     [(_ (fresh1 (x) b))

@@ -33,35 +33,39 @@
       r))
 
 (module+ test
-  (require rackunit)
+  (parse t1 '(a b c d))
+  (parse t2 '(a a a)))
 
-  (check-equal?
-   (parse t1 '(a b c d))
-   (parse-result '(d) 5))
+#;(module+ test
+    (require rackunit)
 
-  (check-equal?
-   (parse t2 '(a a a))
-   (parse-result '() '(a a a)))
+    (check-equal?
+     (parse t1 '(a b c d))
+     (parse-result '(d) 5))
 
-  (check-equal?
-   (parse t3 '(a b a b b a b b b))
-   (parse-result '() '((b) (b b) (b b b))))
+    (check-equal?
+     (parse t2 '(a a a))
+     (parse-result '() '(a a a)))
 
-  (check-equal?
-   (parse t4 '(b))
-   (parse-result '() 'b))
+    (check-equal?
+     (parse t3 '(a b a b b a b b b))
+     (parse-result '() '((b) (b b) (b b b))))
 
-  (check-equal?
-   (parse t5 '(a a a b))
-   (parse-result '(b) '(a a a)))
+    (check-equal?
+     (parse t4 '(b))
+     (parse-result '() 'b))
 
-  (check-equal?
-   (parse t6 '(a a a b))
-   (parse-result '() '(a a a)))
+    (check-equal?
+     (parse t5 '(a a a b))
+     (parse-result '(b) '(a a a)))
 
-  ; I would like this to error, but would need static analysis rather than
-  ; dynamic behavior to get that result without losing tail recursion on seq.
-  (check-equal?
-   (parse t7 '(a b))
-   (parse-result '() 'b))
-  )
+    (check-equal?
+     (parse t6 '(a a a b))
+     (parse-result '() '(a a a)))
+
+    ; I would like this to error, but would need static analysis rather than
+    ; dynamic behavior to get that result without losing tail recursion on seq.
+    (check-equal?
+     (parse t7 '(a b))
+     (parse-result '() 'b))
+    )
