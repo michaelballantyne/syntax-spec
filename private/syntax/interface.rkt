@@ -1,6 +1,7 @@
 #lang racket/base
 
 (provide syntax-spec
+         define-extension
          (for-syntax racket-expr
                      racket-var
                      racket-macro
@@ -375,3 +376,7 @@
   (define-syntax binding-class-predicate
     (accessor-macro bindclass-rep? "expected a binding class name" bindclass-rep-pred))
   )
+
+(define-syntax-rule
+  (define-extension name class transformer)
+  (define-syntax name (class transformer)))
