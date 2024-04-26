@@ -41,7 +41,7 @@
  '(x z))
 
 (check-exn
- #rx"free-identifiers: can't compute the free identifiers of a #%host-expression"
+ #rx"free-identifiers: can't enter a #%host-expression"
  (lambda ()
    (convert-compile-time-error
     (expr/free-vars-as-symbols
@@ -62,3 +62,66 @@
    z))
  '(z))
 
+(syntax-spec
+ (host-interface/expression
+  (expr/alpha-equivalent? a:expr b:expr)
+  #`#,(alpha-equivalent? #'a #'b #:allow-host? #f)))
+
+(check-true
+ (expr/alpha-equivalent?
+  1
+  1))
+
+(check-false
+ (expr/alpha-equivalent?
+  1
+  2))
+
+(check-true
+ (expr/alpha-equivalent?
+  x
+  x))
+
+(check-false
+ (expr/alpha-equivalent?
+  x
+  y))
+
+(check-true
+ (expr/alpha-equivalent?
+  (+ x y)
+  (+ x y)))
+
+(check-false
+ (expr/alpha-equivalent?
+  (+ x y)
+  (+ x z)))
+
+(check-true
+ (expr/alpha-equivalent?
+  (lambda (a) (+ x a))
+  (lambda (b) (+ x b))))
+
+(check-false
+ (expr/alpha-equivalent?
+  (lambda (a) x)
+  (lambda (x) x)))
+
+(check-exn
+ ; for some reason, including "alpha-equivalent?: " causes the test to fail
+ #rx"can't enter a #%host-expression"
+ (lambda ()
+   (convert-compile-time-error
+    (expr/alpha-equivalent?
+     (+ x (host PI))
+     (+ x (host PI))))))
+
+(syntax-spec
+ (host-interface/expression
+  (expr/alpha-equivalent?/ignore-host a:expr b:expr)
+  #`#,(alpha-equivalent? #'a #'b #:allow-host? #t)))
+
+(check-false
+ (expr/alpha-equivalent?/ignore-host
+  (+ x (host PI))
+  (+ x (host PI))))

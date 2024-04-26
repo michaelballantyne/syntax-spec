@@ -1,9 +1,11 @@
 #lang racket/base
 
-(provide free-identifiers)
+(provide free-identifiers
+         alpha-equivalent?)
 
 (require racket/list
          syntax/parse
+         syntax/id-table
          ee-lib
          (for-template "./compile.rkt"))
 
@@ -49,6 +51,7 @@
   (syntax-parse stx
     [((~literal #%host-expression) . _)
      (raise-host-expression-error-or-value
+      'free-identifiers
       allow-host?
       (list))]
     [(a . b) (append (all-references #'a allow-host?)
@@ -64,6 +67,7 @@
   (syntax-parse stx
     [((~literal #%host-expression) . _)
      (raise-host-expression-error-or-value
+      'free-identifiers
       allow-host?
       (list))]
     [(a . b)
@@ -74,10 +78,10 @@
               (list))]
     [_ (list)]))
 
-(define (raise-host-expression-error-or-value allow-host? value-if-allowed)
+(define (raise-host-expression-error-or-value who-sym allow-host? value-if-allowed)
   (if allow-host?
       value-if-allowed
-      (error 'free-identifiers "can't compute the free identifiers of a #%host-expression")))
+      (error who-sym "can't enter a #%host-expression")))
 
 (define (deduplicate-references ids)
   (remove-duplicates ids identifier=?))
@@ -86,3 +90,42 @@
   (for/list ([x xs]
              #:unless (member x ys identifier=?))
     x))
+
+; Syntax, Syntax [#:allow-host? Boolean] -> Boolean
+; Are the two expressions alpha-equivalent?
+(define (alpha-equivalent? stx-a stx-b #:allow-host? [allow-host? #f])
+  (define table-a (make-free-id-table))
+  (define table-b (make-free-id-table))
+  (define (bind! identifier-a identifier-b)
+    (define x (gensym))
+    (free-id-table-set! table-a identifier-a x)
+    (free-id-table-set! table-b identifier-b x))
+  (define (reference=? identifier-a identifier-b)
+    (eq? (free-id-table-ref table-a identifier-a (gensym))
+         (free-id-table-ref table-b identifier-b (gensym))))
+  (let loop ([stx-a stx-a] [stx-b stx-b])
+    (syntax-parse (list stx-a stx-b)
+      [(~or (((~literal #%host-expression) . _) _)
+            (_ ((~literal #%host-expression) . _)))
+       (raise-host-expression-error-or-value
+        'alpha-equivalent?
+        allow-host?
+        #f)]
+      [(a:id b:id)
+       (cond
+         [(and (compiled-binder? #'a)
+               (compiled-binder? #'b))
+          (bind! #'a #'b)
+          #t]
+         [(and (compiled-reference? #'a)
+               (compiled-reference? #'b))
+          (or (reference=? #'a #'b)
+              ; if they're free references
+              (identifier=? #'a #'b))]
+         [else (free-identifier=? #'a #'b)])]
+      [(() ()) #t]
+      [((a-car . a-cdr) (b-car . b-cdr))
+       (and (loop #'a-car #'b-car)
+            (loop #'a-cdr #'b-cdr))]
+      [(a b) (equal? (syntax->datum #'a)
+                     (syntax->datum #'b))])))
