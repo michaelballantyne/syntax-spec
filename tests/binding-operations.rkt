@@ -12,7 +12,10 @@
    (host e:racket-expr)
    
    (lambda (x:var) e:expr)
-   #:binding (scope (bind x) e))
+   #:binding (scope (bind x) e)
+
+   (letrec ([x:var e:expr] ...) body:expr)
+   #:binding (scope (bind x) e (scope body)))
 
  (host-interface/definition
   (define-var v:var)
@@ -106,6 +109,15 @@
  (expr/alpha-equivalent?
   (lambda (a) x)
   (lambda (x) x)))
+
+(check-true
+ (expr/alpha-equivalent?
+  (letrec ([f g]
+           [g f])
+    f)
+  (letrec ([g f]
+           [f g])
+    g)))
 
 (check-exn
  ; for some reason, including "alpha-equivalent?: " causes the test to fail

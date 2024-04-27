@@ -4,6 +4,7 @@
          alpha-equivalent?)
 
 (require racket/list
+         racket/dict
          syntax/parse
          syntax/id-table
          ee-lib
@@ -101,31 +102,45 @@
     (free-id-table-set! table-a identifier-a x)
     (free-id-table-set! table-b identifier-b x))
   (define (reference=? identifier-a identifier-b)
-    (eq? (free-id-table-ref table-a identifier-a (gensym))
-         (free-id-table-ref table-b identifier-b (gensym))))
-  (let loop ([stx-a stx-a] [stx-b stx-b])
-    (syntax-parse (list stx-a stx-b)
-      [(~or (((~literal #%host-expression) . _) _)
-            (_ ((~literal #%host-expression) . _)))
-       (raise-host-expression-error-or-value
-        'alpha-equivalent?
-        allow-host?
-        #f)]
-      [(a:id b:id)
-       (cond
-         [(and (compiled-binder? #'a)
-               (compiled-binder? #'b))
-          (bind! #'a #'b)
-          #t]
-         [(and (compiled-reference? #'a)
-               (compiled-reference? #'b))
-          (or (reference=? #'a #'b)
-              ; if they're free references
-              (identifier=? #'a #'b))]
-         [else (free-identifier=? #'a #'b)])]
-      [(() ()) #t]
-      [((a-car . a-cdr) (b-car . b-cdr))
-       (and (loop #'a-car #'b-car)
-            (loop #'a-cdr #'b-cdr))]
-      [(a b) (equal? (syntax->datum #'a)
-                     (syntax->datum #'b))])))
+    (and (dict-has-key? table-a identifier-a)
+         (dict-has-key? table-b identifier-b)
+         (eq? (free-id-table-ref table-a identifier-a)
+              (free-id-table-ref table-b identifier-b))))
+  (define binders-a (all-binders stx-a allow-host?))
+  (define binders-b (all-binders stx-b allow-host?))
+  (cond
+    [(not (= (length binders-a) (length binders-b)))
+     #f]
+    [else
+     ; must traverse binders before references
+     ; in case a variable is referenced before it is bound,
+     ; like mutual recursion
+     (for ([binder-a binders-a]
+           [binder-b binders-b])
+       (bind! binder-a binder-b))
+     (let loop ([stx-a stx-a] [stx-b stx-b])
+       (syntax-parse (list stx-a stx-b)
+         [(~or (((~literal #%host-expression) . _) _)
+               (_ ((~literal #%host-expression) . _)))
+          (raise-host-expression-error-or-value
+           'alpha-equivalent?
+           allow-host?
+           #f)]
+         [(a:id b:id)
+          (cond
+            [(and (compiled-binder? #'a)
+                  (compiled-binder? #'b))
+             ; no need to bind, already done in advance
+             #t]
+            [(and (compiled-reference? #'a)
+                  (compiled-reference? #'b))
+             (or (reference=? #'a #'b)
+                 ; if they're free references
+                 (identifier=? #'a #'b))]
+            [else (free-identifier=? #'a #'b)])]
+         [(() ()) #t]
+         [((a-car . a-cdr) (b-car . b-cdr))
+          (and (loop #'a-car #'b-car)
+               (loop #'a-cdr #'b-cdr))]
+         [(a b) (equal? (syntax->datum #'a)
+                        (syntax->datum #'b))]))]))
