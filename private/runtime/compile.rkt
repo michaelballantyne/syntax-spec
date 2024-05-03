@@ -41,22 +41,25 @@
   (define (make-variable-like-reference-compiler reference-stx [setter-stx #f])
     ; TODO does this need datum->syntax like binding-as-rkt?
     (define transformer
-      (make-set!-transformer
-       (syntax-parser
-         [v:id
-          (if (procedure? reference-stx)
-              (reference-stx #'v)
-              reference-stx)]
-         [((~and set! (~literal set!)) v:id new-val)
-          (cond
-            [(procedure? setter-stx)
-             (setter-stx this-syntax)]
-            [(syntax? setter-stx)
-             #'(setter-stx new-val)]
-            [else (raise-syntax-error (syntax-e #'set!) "cannot mutate identifier" this-syntax #'v)])]
-         [(v:id . args)
-          #`((#%expression (call-3d-syntax #,(lambda (v) ((set!-transformer-procedure transformer) (compile-reference v))) #,(compiled-from #'v))) . args)])))
-    transformer)
+      (syntax-parser
+        [v:id
+         (if (procedure? reference-stx)
+             (reference-stx #'v)
+             reference-stx)]
+        [((~and set! (~literal set!)) v:id new-val)
+         (cond
+           [(procedure? setter-stx)
+            (setter-stx this-syntax)]
+           [(syntax? setter-stx)
+            #'(setter-stx new-val)]
+           [else (raise-syntax-error (syntax-e #'set!) "cannot mutate identifier" this-syntax #'v)])]
+        [(v:id . args)
+         #`((#%expression (call-3d-syntax #,transformer
+                                          ; compiled name
+                                          v))
+            .
+            args)]))
+    (make-set!-transformer transformer))
 
 
   (define mutable-reference-compiler
