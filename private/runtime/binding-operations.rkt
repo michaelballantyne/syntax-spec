@@ -95,52 +95,62 @@
 ; Syntax, Syntax [#:allow-host? Boolean] -> Boolean
 ; Are the two expressions alpha-equivalent?
 (define (alpha-equivalent? stx-a stx-b #:allow-host? [allow-host? #f])
+  (define bound-reference=? (alpha-equivalent?/bindings stx-a stx-b allow-host?))
+  (and bound-reference=?
+       (alpha-equivalent?/refrences stx-a stx-b bound-reference=? allow-host?)))
+
+; Syntax Syntax Boolean -> (or/c #f (Identifier Identifier -> Boolean))
+; check that the bindings of both expressions can be alpha-equivalent.
+; returns bound-reference=?, or #f if the binding check fails.
+(define (alpha-equivalent?/bindings stx-a stx-b allow-host?)
   (define table-a (make-free-id-table))
   (define table-b (make-free-id-table))
   (define (bind! identifier-a identifier-b)
     (define x (gensym))
     (free-id-table-set! table-a identifier-a x)
     (free-id-table-set! table-b identifier-b x))
-  (define (reference=? identifier-a identifier-b)
+  (define (bound-reference=? identifier-a identifier-b)
     (and (dict-has-key? table-a identifier-a)
          (dict-has-key? table-b identifier-b)
          (eq? (free-id-table-ref table-a identifier-a)
               (free-id-table-ref table-b identifier-b))))
   (define binders-a (all-binders stx-a allow-host?))
   (define binders-b (all-binders stx-b allow-host?))
-  (cond
-    [(not (= (length binders-a) (length binders-b)))
-     #f]
-    [else
-     ; must traverse binders before references
-     ; in case a variable is referenced before it is bound,
-     ; like mutual recursion
-     (for ([binder-a binders-a]
-           [binder-b binders-b])
-       (bind! binder-a binder-b))
-     (let loop ([stx-a stx-a] [stx-b stx-b])
-       (syntax-parse (list stx-a stx-b)
-         [(~or (((~literal #%host-expression) . _) _)
-               (_ ((~literal #%host-expression) . _)))
-          (raise-host-expression-error-or-value
-           'alpha-equivalent?
-           allow-host?
-           #f)]
-         [(a:id b:id)
-          (cond
-            [(and (compiled-binder? #'a)
-                  (compiled-binder? #'b))
-             ; no need to bind, already done in advance
-             #t]
-            [(and (compiled-reference? #'a)
-                  (compiled-reference? #'b))
-             (or (reference=? #'a #'b)
-                 ; if they're free references
-                 (identifier=? #'a #'b))]
-            [else (free-identifier=? #'a #'b)])]
-         [(() ()) #t]
-         [((a-car . a-cdr) (b-car . b-cdr))
-          (and (loop #'a-car #'b-car)
-               (loop #'a-cdr #'b-cdr))]
-         [(a b) (equal? (syntax->datum #'a)
-                        (syntax->datum #'b))]))]))
+  ; must traverse binders before references
+  ; in case a variable is referenced before it is bound,
+  ; like mutual recursion
+  (for ([binder-a binders-a]
+        [binder-b binders-b])
+    (bind! binder-a binder-b))
+  (and (= (length binders-a) (length binders-b))
+       bound-reference=?))
+
+; Syntax Syntax (Identifier Identifier -> Boolean) Boolean -> Boolean
+; check that the references are alpha-equivalent.
+(define (alpha-equivalent?/refrences stx-a stx-b bound-reference=? allow-host?)
+  (let loop ([stx-a stx-a] [stx-b stx-b])
+    (syntax-parse (list stx-a stx-b)
+      [(~or (((~literal #%host-expression) . _) _)
+            (_ ((~literal #%host-expression) . _)))
+       (raise-host-expression-error-or-value
+        'alpha-equivalent?
+        allow-host?
+        #f)]
+      [(a:id b:id)
+       (cond
+         [(and (compiled-binder? #'a)
+               (compiled-binder? #'b))
+          ; bindings assumed to be equivalent
+          #t]
+         [(and (compiled-reference? #'a)
+               (compiled-reference? #'b))
+          (or (bound-reference=? #'a #'b)
+              ; if they're free references
+              (identifier=? #'a #'b))]
+         [else (free-identifier=? #'a #'b)])]
+      [(() ()) #t]
+      [((a-car . a-cdr) (b-car . b-cdr))
+       (and (loop #'a-car #'b-car)
+            (loop #'a-cdr #'b-cdr))]
+      [(a b) (equal? (syntax->datum #'a)
+                     (syntax->datum #'b))])))
