@@ -37,7 +37,16 @@
        ((syntax-e #'proc) #'arg)]))
 
 (begin-for-syntax
-  ; like make-variable-like-transformer
+  ; (Syntax | (Identifier -> Syntax)) {Syntax | (Syntax -> Syntax)}
+  ; Like make-variable-like-transformer.
+  ; If reference-stx is Syntax, replace references with it.
+  ; If reference-stx is a procedure, apply it to the reference syntax.
+  ; If setter-stx is Syntax, it should be syntax for a procedure accepting
+  ; the new value for the variable.
+  ; If setter-stx is a procedure, apply it to the entire set! expression.
+  ; When the identifier is used in an application position,
+  ; wrap the reference in a #%expression.
+  ; Expects syntax with a compiled name.
   (define (make-variable-like-reference-compiler reference-stx [setter-stx #f])
     ; TODO does this need datum->syntax like binding-as-rkt?
     (define transformer
@@ -51,14 +60,15 @@
            [(procedure? setter-stx)
             (setter-stx this-syntax)]
            [(syntax? setter-stx)
-            #'(setter-stx new-val)]
+            (syntax/loc this-syntax (setter-stx new-val))]
            [else (raise-syntax-error (syntax-e #'set!) "cannot mutate identifier" this-syntax #'v)])]
         [(v:id . args)
-         #`((#%expression (call-3d-syntax #,transformer
-                                          ; compiled name
-                                          v))
-            .
-            args)]))
+         (datum->syntax
+          this-syntax
+          #`((#%expression (call-3d-syntax #,transformer v))
+             .
+             args)
+          this-syntax)]))
     (make-set!-transformer transformer))
 
 
