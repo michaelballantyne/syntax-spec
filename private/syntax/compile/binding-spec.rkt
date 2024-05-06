@@ -56,20 +56,20 @@
 (struct with-stx [stx])
 
 ;; A BSpec is one of
-(struct ref [pvar])
-(struct bind with-stx [pvar])
-(struct bind-syntax with-stx [pvar transformer-pvar])
-(struct bind-syntaxes with-stx [pvar transformer-pvar])
-(struct rec with-stx [pvars])
-(struct re-export with-stx [pvars])
-(struct export with-stx [pvar])
-(struct export-syntax with-stx [pvar transformer-pvar])
-(struct export-syntaxes with-stx [pvar transformer-pvar])
-(struct nest with-stx [pvar spec])
-(struct nest-one with-stx [pvar spec])
-(struct suspend with-stx [pvar])
-(struct scope with-stx [spec])
-(struct group [specs])
+(struct ref [pvar] #:transparent)
+(struct bind with-stx [pvar] #:transparent)
+(struct bind-syntax with-stx [pvar transformer-pvar] #:transparent)
+(struct bind-syntaxes with-stx [pvar transformer-pvar] #:transparent)
+(struct rec with-stx [pvars] #:transparent)
+(struct re-export with-stx [pvars] #:transparent)
+(struct export with-stx [pvar] #:transparent)
+(struct export-syntax with-stx [pvar transformer-pvar] #:transparent)
+(struct export-syntaxes with-stx [pvar transformer-pvar] #:transparent)
+(struct nest with-stx [pvar spec] #:transparent)
+(struct nest-one with-stx [pvar spec] #:transparent) 
+(struct suspend with-stx [pvar] #:transparent)
+(struct scope with-stx [spec] #:transparent)
+(struct group [specs] #:transparent)
 
 (define-match-expander s*
   (syntax-parser
@@ -382,7 +382,7 @@
   (map refs+subexps (flat-bspec-top-elements spec)))
 
 #;(BSpec -> void?)
-; enforces the aboev grammar for a scoped expression
+; enforces the above grammar for a scoped expression
 (define (check-order/scoped-expression spec)
   (define (bindings spec specs)
     (match spec
