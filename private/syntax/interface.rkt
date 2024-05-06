@@ -209,16 +209,19 @@
         #f
         #f
         #'(begin
-            (define-syntax pass2-macro
-              (expression-macro
-               (generate-host-interface-transformer
-                name sspec (~? (bspec) ()) (#:pass2) rhs-parse-body ...)))
+            ;; Define this macro first, because the syntax check for exporting bspecs
+            ;; happens when compiling the pass1 version.
             (define-syntax name
               (definition-macro
                 (wrap-bind-trampoline
                  (wrap-persist
                   (generate-host-interface-transformer/definition-pass1
-                   sspec (~? (bspec) ()) [name-parse-body ...] pass2-macro)))))))])))
+                   sspec (~? (bspec) ()) [name-parse-body ...] pass2-macro)))))
+            ;; (before this one)
+            (define-syntax pass2-macro
+              (expression-macro
+               (generate-host-interface-transformer
+                name sspec (~? (bspec) ()) (#:pass2) rhs-parse-body ...)))))])))
 
 (begin-for-syntax
   (define (generate-nonterminal-declarations name-stx opts-stx form-names variant-info-stx)
