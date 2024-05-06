@@ -12,13 +12,13 @@
     x:racket-var
     ; need to use ~literal because you can't re-use let in the other non-terminals
     ((~literal let) ([x:racket-var e:expr]) body:expr)
-    #:binding {(bind x) body}
+    #:binding (scope (bind x) body)
     ((~literal +) a:expr b:expr)
     ((~literal *) a:expr b:expr)
     ((~literal /) a:expr b:expr))
   (nonterminal anf-expr
     ((~literal let) ([x:racket-var e:rhs-expr]) body:anf-expr)
-    #:binding {(bind x) body}
+    #:binding (scope (bind x) body)
     e:rhs-expr)
   (nonterminal rhs-expr
     ((~literal +) a:immediate-expr b:immediate-expr)
