@@ -19,7 +19,7 @@
 
     (state n:state-name
       sb:state-body ...)
-    #:binding [(export n) {(recursive sb)}]
+    #:binding [(export n) {(import sb)}]
 
     (use scn:statechart-name #:as sn:state-name
          e:event ...))
@@ -49,7 +49,7 @@
   #;(host-interface/definition
       (define-statechart n:statechart-name
         sb:state-body)
-      #:binding [(export n) {(recursive sb)}])
+      #:binding [(export n) {(import sb)}])
 
   (host-interface/expression
     (machine st:statechart-name)

@@ -115,7 +115,7 @@
 ; convert surface syntax for a bspec to a structure representation.
 (define elaborate-bspec
   (syntax-parser
-    #:datum-literals (bind bind-syntax bind-syntaxes recursive export export-syntax export-syntaxes re-export nest nest-one host)
+    #:datum-literals (bind bind-syntax bind-syntaxes import export export-syntax export-syntaxes re-export nest nest-one host)
     [v:nonref-id
      (elaborate-ref (attribute v))]
     [(bind v:nonref-id ...+)
@@ -144,7 +144,7 @@
       (elaborate-pvar (attribute v-transformer)
                       (? stxclass-rep?)
                       "syntax class"))]
-    [(recursive v:nonref-id ...+)
+    [(import v:nonref-id ...+)
      (rec
          this-syntax
        (for/list ([v (attribute v)])
@@ -316,14 +316,14 @@
 ;   - Bindings should come before rec and references within a scope
 ;   - Exports may only occur at the top-level of a exporting non-terminal,
 ;     and appear before rec and references
-;   - Only one `recursive` group should appear in a scope, after bindings and before
+;   - Only one `import` group should appear in a scope, after bindings and before
 ;     references.
 ;
 ; Resulting contexts:
 ;   - Unscoped expression context; references only.
 ;   - Scoped expression context
 ;       - Bindings
-;       - Then one recursive
+;       - Then one import
 ;       - Then references
 ;   - Exporting context
 ;       - Exports
@@ -369,7 +369,7 @@
       [(and (or (s* bind) (s* bind-syntax) (s* bind-syntaxes)) (with-stx stx))
        (binding-scope-error stx)]
       [(and (s* rec) (with-stx stx))
-       (wrong-syntax/orig stx "recursive binding groups must occur within a scope")]
+       (wrong-syntax/orig stx "import binding groups must occur within a scope")]
       [(and (or (s* export) (s* export-syntax) (s* export-syntaxes)) (with-stx stx))
        (export-context-error stx)]
       [(and (s* re-export) (with-stx stx))
@@ -399,7 +399,7 @@
   (define (no-more-recs spec specs)
     (match spec
       [(and (s* rec) (with-stx stx))
-       (wrong-syntax/orig stx "only one recursive binding group may appear in a scope")]
+       (wrong-syntax/orig stx "only one import binding group may appear in a scope")]
       [_ (check-sequence refs+subexps (cons spec specs))]))
 
   (define (refs+subexps spec specs)
@@ -411,7 +411,7 @@
       [(and (s* re-export) (with-stx stx))
        (re-export-context-error stx)]
       [(and (s* rec) (with-stx stx))
-       (wrong-syntax/orig stx "a recursive binding group must appear before references and subexpressions")]
+       (wrong-syntax/orig stx "an import binding group must appear before references and subexpressions")]
       [(or (s* ref) (s* suspend))
        (check-sequence refs+subexps specs)]
       [(or (s* nest [spec s])
@@ -447,7 +447,7 @@
       [(and (s* re-export) (with-stx stx))
        (wrong-syntax/orig stx "re-exports must occur before references and subexpressions")]
       [(and (s* rec) (with-stx stx))
-       (wrong-syntax/orig stx "recursively-bound subexpressions must occur within a scope")]
+       (wrong-syntax/orig stx "import must occur within a scope")]
       [(or (s* ref) (s* suspend))
        (check-sequence refs+subexps specs)]
       [(or (s* nest [spec s])
@@ -476,7 +476,7 @@
        [(nonterm-rep (nesting-nonterm-info _))
         (wrong-syntax/orig v "nesting nonterminals may only be used with `nest`")]
        [(nonterm-rep (exporting-nonterm-info _ _))
-        (wrong-syntax/orig v "exporting nonterminals may only be used with `recursive` and `re-export`")]
+        (wrong-syntax/orig v "exporting nonterminals may only be used with `import` and `re-export`")]
        [(or (? stxclass-rep?) (? special-syntax-class-binding?))
         #`(group (list))])]
     [(suspend _ (pvar v info))

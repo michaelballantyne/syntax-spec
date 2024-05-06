@@ -141,7 +141,7 @@ For now it's a stub.
 
 @(racketblock
   (machine #:initial inital-state:state-name s:state-spec ...)
-  #:binding {(recursive s) initial-state})
+  #:binding {(import s) initial-state})
 
 @(racketblock
   (nonterminal/exporting state-spec

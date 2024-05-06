@@ -55,7 +55,7 @@
 
   (host-interface/expression
     (class e:class-form ...)
-    #:binding {(recursive e)}
+    #:binding {(import e)}
     (define-values (defns fields exprs) (group-class-decls (splice-begins (attribute e))))
     (compile-class-body defns fields exprs)))
 

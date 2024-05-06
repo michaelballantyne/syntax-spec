@@ -22,7 +22,7 @@
 
   (host-interface/expression
     (block body:block-form ...)
-    #:binding {(recursive body)}
+    #:binding {(import body)}
     #'(compile-block body ...)))
 
 (define-syntax compile-block

@@ -16,10 +16,10 @@
     (dsl-+ e1:expr e2:expr)
                
     (dsl-lambda (v:var ...) d:def-or-expr ...)
-    #:binding {(bind v) {(recursive d)}}
+    #:binding {(bind v) {(import d)}}
 
     (dsl-letrec-values ([(v:var ...) rhs:expr] ...) d:def-or-expr)
-    #:binding {(bind v) rhs {(recursive d)}}
+    #:binding {(bind v) rhs {(import d)}}
 
     (dsl-let* (b:binding ...) e:expr)
     #:binding (nest b e)

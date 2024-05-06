@@ -32,7 +32,7 @@ set!-transformers.
     (rep-let v:var body:racket-expr)
     #:binding {(bind v) body}
     (mybegin def:mydef body:racket-expr)
-    #:binding {(recursive def) body})
+    #:binding {(import def) body})
  
   (nonterminal/exporting mydef
     #:description "mylet definition"

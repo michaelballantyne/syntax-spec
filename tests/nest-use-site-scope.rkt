@@ -31,7 +31,7 @@
 (syntax-spec
   (nonterminal my-expr
     (block d:my-def ...)
-    #:binding {(recursive d)})
+    #:binding {(import d)})
  
   (nonterminal/exporting my-def
     ((~literal define-syntax) x:pat-macro e:expr)

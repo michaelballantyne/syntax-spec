@@ -20,10 +20,10 @@
     #:binding (re-export p)
     (not p:pat)
     ; you don't want to export from a `not`
-    #:binding {(recursive p)})
+    #:binding {(import p)})
   (nonterminal clause
     [p:pat body:racket-expr ...+]
-    #:binding {(recursive p) body})
+    #:binding {(import p) body})
   (host-interface/expression
    (match target:racket-expr c:clause ...)
    #'(with-reference-compilers ([pat-var immutable-reference-compiler])

@@ -61,7 +61,7 @@
     (set! x:js-var e:js-expr)
     
     (function (x:js-var ...) body:js-stmt ...)
-    #:binding {(bind x) {(recursive body)}}
+    #:binding {(bind x) {(import body)}}
      
     (e:js-expr e*:js-expr ...))
   
@@ -80,10 +80,10 @@
     (return e:js-expr)
 
     (while c:js-expr body:js-stmt ...)
-    #:binding {(recursive body)}
+    #:binding {(import body)}
                         
     (if c:js-expr (b1:js-stmt ...) (b2:js-stmt ...))
-    #:binding [{(recursive b1)} {(recursive b2)}]
+    #:binding [{(import b1)} {(import b2)}]
                         
     e:js-expr))
 

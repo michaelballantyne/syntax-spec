@@ -23,7 +23,7 @@
     #:binding (export name)
 
     (architecture name:arch-name e:entity-name stmt:statement ...)
-    #:binding [(export name) {(recursive stmt)}])
+    #:binding [(export name) {(import stmt)}])
   
   (nonterminal port-spec
     (m:mode name:id))

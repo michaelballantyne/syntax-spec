@@ -95,11 +95,11 @@
      #:binding (bind b))))
 
 (check-decl-error
- #rx"recursive: expected pattern variable associated with a exporting nonterminal"
+ #rx"import: expected pattern variable associated with a exporting nonterminal"
  (syntax-spec
    (nonterminal expr
      b:expr
-     #:binding (recursive b))))
+     #:binding (import b))))
 
 
 (check-decl-error
@@ -119,7 +119,7 @@
      #:binding (bind x))))
 
 (check-decl-error
- #rx"nonterminal: recursive binding groups must occur within a scope"
+ #rx"nonterminal: import binding groups must occur within a scope"
  (syntax-spec
    (binding-class var #:description "var")
    (nonterminal/exporting def
@@ -127,7 +127,7 @@
      #:binding [(export x) e])
    (nonterminal expr
      (block d:def)
-     #:binding (recursive d))))
+     #:binding (import d))))
 
 (check-decl-error
  #rx"nonterminal: bindings must appear first within a scope"
@@ -138,7 +138,7 @@
      #:binding {e (bind x)})))
 
 (check-decl-error
- #rx"nonterminal: a recursive binding group must appear before references and subexpressions"
+ #rx"nonterminal: an import binding group must appear before references and subexpressions"
  (syntax-spec
    (binding-class var)
    (nonterminal/exporting def
@@ -146,10 +146,10 @@
      #:binding [(export x) e])
    (nonterminal expr
      (block d:def e:expr)
-     #:binding {e (recursive d)})))
+     #:binding {e (import d)})))
 
 (check-decl-error
- #rx"nonterminal: only one recursive binding group may appear in a scope"
+ #rx"nonterminal: only one import binding group may appear in a scope"
  (syntax-spec
    (binding-class var)
    (nonterminal/exporting def
@@ -157,7 +157,7 @@
      #:binding [(export x) e])
    (nonterminal expr
      (block d1:def d2:def)
-     #:binding {(recursive d1) (recursive d2)})))
+     #:binding {(import d1) (import d2)})))
 
 (check-decl-error
  #rx"exports must appear first in a exporting spec"
