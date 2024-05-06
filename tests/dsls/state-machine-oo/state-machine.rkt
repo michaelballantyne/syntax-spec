@@ -12,7 +12,7 @@
     #:binding {(recursive d) s}
     #'(compile-machine s d ...))
   
-  (nonterminal/two-pass machine-decl
+  (nonterminal/exporting machine-decl
     (state n:state-name
       e:event-decl ...)
     #:binding (export n)

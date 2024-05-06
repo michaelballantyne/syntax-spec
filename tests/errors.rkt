@@ -95,7 +95,7 @@
      #:binding (bind b))))
 
 (check-decl-error
- #rx"recursive: expected pattern variable associated with a two-pass nonterminal"
+ #rx"recursive: expected pattern variable associated with a exporting nonterminal"
  (syntax-spec
    (nonterminal expr
      b:expr
@@ -103,7 +103,7 @@
 
 
 (check-decl-error
- #rx"nonterminal: exports may only occur at the top-level of a two-pass binding spec"
+ #rx"nonterminal: exports may only occur at the top-level of a exporting binding spec"
  (syntax-spec
    (binding-class var #:description "var")
    (nonterminal expr
@@ -122,7 +122,7 @@
  #rx"nonterminal: recursive binding groups must occur within a scope"
  (syntax-spec
    (binding-class var #:description "var")
-   (nonterminal/two-pass def
+   (nonterminal/exporting def
      (define x:var e:expr)
      #:binding [(export x) e])
    (nonterminal expr
@@ -141,7 +141,7 @@
  #rx"nonterminal: a recursive binding group must appear before references and subexpressions"
  (syntax-spec
    (binding-class var)
-   (nonterminal/two-pass def
+   (nonterminal/exporting def
      (define x:var e:expr)
      #:binding [(export x) e])
    (nonterminal expr
@@ -152,7 +152,7 @@
  #rx"nonterminal: only one recursive binding group may appear in a scope"
  (syntax-spec
    (binding-class var)
-   (nonterminal/two-pass def
+   (nonterminal/exporting def
      (define x:var e:expr)
      #:binding [(export x) e])
    (nonterminal expr
@@ -160,10 +160,10 @@
      #:binding {(recursive d1) (recursive d2)})))
 
 (check-decl-error
- #rx"exports must appear first in a two-pass spec"
+ #rx"exports must appear first in a exporting spec"
  (syntax-spec
    (binding-class var)
-   (nonterminal/two-pass def
+   (nonterminal/exporting def
      (define x:var e:expr)
      #:binding [e (export x)])))
 
@@ -171,7 +171,7 @@
  #rx"re-exports must occur before references and subexpressions"
  (syntax-spec
    (binding-class var)
-   (nonterminal/two-pass def
+   (nonterminal/exporting def
      (define x:var d:def e:expr)
      #:binding [(export x) e (re-export d)])))
 

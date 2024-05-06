@@ -41,7 +41,7 @@
          (compile-bspec-term/single-pass spec))]
       [#:pass1
        (lambda (spec)
-         (check-order/two-pass spec)
+         (check-order/exporting spec)
          (compile-bspec-term/pass1 spec))]
       [#:pass2
        (lambda (spec)
@@ -149,15 +149,15 @@
          this-syntax
        (for/list ([v (attribute v)])
          (elaborate-pvar v
-                         (s* nonterm-rep [variant-info (s* two-pass-nonterm-info)])
-                         "two-pass nonterminal")))]
+                         (s* nonterm-rep [variant-info (s* exporting-nonterm-info)])
+                         "exporting nonterminal")))]
     [(re-export v:nonref-id ...+)
      (re-export
       this-syntax
       (for/list ([v (attribute v)])
         (elaborate-pvar v
-                        (s* nonterm-rep [variant-info (s* two-pass-nonterm-info)])
-                        "two-pass nonterminal")))]
+                        (s* nonterm-rep [variant-info (s* exporting-nonterm-info)])
+                        "exporting nonterminal")))]
     [(export v:nonref-id ...+)
      (group
       (for/list ([v (attribute v)])
@@ -314,7 +314,7 @@
 ;         in a scope created by the nesting non-terminal, and the binding might
 ;         come after a reference created in the nesting non-terminal.
 ;   - Bindings should come before rec and references within a scope
-;   - Exports may only occur at the top-level of a two-pass non-terminal,
+;   - Exports may only occur at the top-level of a exporting non-terminal,
 ;     and appear before rec and references
 ;   - Only one `recursive` group should appear in a scope, after bindings and before
 ;     references.
@@ -335,7 +335,7 @@
 ; As a grammar:
 ;
 ; one-pass-spec: unscoped-spec
-; two-pass-spec: (seq (* (or (export _) (export-syntax _ _) (export-syntaxes _ _))) (* (re-export _)) refs+subexps)
+; exporting-spec: (seq (* (or (export _) (export-syntax _ _) (export-syntaxes _ _))) (* (re-export _)) refs+subexps)
 ; unscoped-spec: refs+subexps
 ; refs+subexps: (* (or (ref _) (nest _ unscoped-spec) (nest-one _ unscoped-spec) (scope scoped-spec)))
 ; scoped-spec:   (seq (* (or (bind-syntax _ _) (bind-syntaxes _ _) (bind _))) (? (rec _)) refs+subexps)
@@ -355,10 +355,10 @@
   (wrong-syntax/orig stx "binding must occur within a scope"))
 
 (define (export-context-error stx)
-  (wrong-syntax/orig stx "exports may only occur at the top-level of a two-pass binding spec"))
+  (wrong-syntax/orig stx "exports may only occur at the top-level of a exporting binding spec"))
 
 (define (re-export-context-error stx)
-  (wrong-syntax/orig stx "re-exports may only occur at the top-level of a two-pass binding spec"))
+  (wrong-syntax/orig stx "re-exports may only occur at the top-level of a exporting binding spec"))
 
 ; spec -> (void) or raised syntax error
 ; enforces the above grammar for an unscoped expression
@@ -424,7 +424,7 @@
 
   (check-sequence bindings (flat-bspec-top-elements spec)))
 
-(define (check-order/two-pass spec)
+(define (check-order/exporting spec)
   (define (exports spec specs)
     (match spec
       [(or (s* export) (s* export-syntax) (s* export-syntaxes))
@@ -443,7 +443,7 @@
       [(and (or (s* bind) (s* bind-syntax) (s* bind-syntaxes)) (with-stx stx))
        (binding-scope-error stx)]
       [(and (or (s* export) (s* export-syntax) (s* export-syntaxes)) (with-stx stx))
-       (wrong-syntax/orig stx "exports must appear first in a two-pass spec")]
+       (wrong-syntax/orig stx "exports must appear first in a exporting spec")]
       [(and (s* re-export) (with-stx stx))
        (wrong-syntax/orig stx "re-exports must occur before references and subexpressions")]
       [(and (s* rec) (with-stx stx))
@@ -475,8 +475,8 @@
         #`(nested)]
        [(nonterm-rep (nesting-nonterm-info _))
         (wrong-syntax/orig v "nesting nonterminals may only be used with `nest`")]
-       [(nonterm-rep (two-pass-nonterm-info _ _))
-        (wrong-syntax/orig v "two-pass nonterminals may only be used with `recursive` and `re-export`")]
+       [(nonterm-rep (exporting-nonterm-info _ _))
+        (wrong-syntax/orig v "exporting nonterminals may only be used with `recursive` and `re-export`")]
        [(or (? stxclass-rep?) (? special-syntax-class-binding?))
         #`(group (list))])]
     [(suspend _ (pvar v info))
@@ -489,10 +489,10 @@
      #`(group (list (bind-syntaxes '#,v '#,space #'#,constr '#,v-transformer) (rename-bind '#,v '#,space)))]
     [(rec _ pvars)
      (with-syntax ([(s-cp1 ...) (for/list ([pv pvars])
-                                  (match-define (pvar v (nonterm-rep (two-pass-nonterm-info pass1-expander _))) pv)
+                                  (match-define (pvar v (nonterm-rep (exporting-nonterm-info pass1-expander _))) pv)
                                   #`(subexp '#,v #,pass1-expander))]
                    [(s-cp2 ...) (for/list ([pv pvars])
-                                  (match-define (pvar v (nonterm-rep (two-pass-nonterm-info _ pass2-expander))) pv)
+                                  (match-define (pvar v (nonterm-rep (exporting-nonterm-info _ pass2-expander))) pv)
                                   ;; avoid adding the local-scopes to syntax moved in by first pass expansion
                                   #`(subexp/no-scope '#,v #,pass2-expander))])
        #`(group (list s-cp1 ... s-cp2 ...)))]
@@ -542,7 +542,7 @@
      #`(group (list (bind-syntaxes '#,v '#,space #'#,constr '#,v-transformer) (rename-bind '#,v '#,space)))]
     [(re-export _ pvars)
      (with-syntax ([(s-c ...) (for/list ([pv pvars])
-                                (match-define (pvar v (nonterm-rep (two-pass-nonterm-info pass1-expander _))) pv)
+                                (match-define (pvar v (nonterm-rep (exporting-nonterm-info pass1-expander _))) pv)
                                 #`(subexp '#,v #,pass1-expander))])
        #`(group (list s-c ...)))]))
 
@@ -565,7 +565,7 @@
      no-op]
     [(re-export _ pvars)
      (with-syntax ([(s-c ...) (for/list ([pv pvars])
-                                (match-define (pvar v (nonterm-rep (two-pass-nonterm-info _ pass2-expander))) pv)
+                                (match-define (pvar v (nonterm-rep (exporting-nonterm-info _ pass2-expander))) pv)
                                 ;; avoid adding the local-scopes to syntax moved in by first pass expansion
                                 #`(subexp/no-scope '#,v #,pass2-expander))])
        #`(group (list s-c ...)))]))

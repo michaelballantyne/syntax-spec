@@ -32,7 +32,7 @@
     [v:var e:expr]
     #:binding [e {(bind v) nested}])
   
-  (nonterminal/two-pass def-or-expr
+  (nonterminal/exporting def-or-expr
     #:description "dsl definition context"
     #:allow-extension dsl-macro
 

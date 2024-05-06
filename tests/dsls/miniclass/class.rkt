@@ -38,7 +38,7 @@
   (binding-class method-var #:description "method name")
   (binding-class field-var #:description "field name")
 
-  (nonterminal/two-pass class-form
+  (nonterminal/exporting class-form
                         #:allow-extension racket-macro
                         (field name:field-var ...)
                         #:binding (export name)

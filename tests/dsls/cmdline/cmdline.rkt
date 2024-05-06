@@ -64,12 +64,12 @@
     [names:flag-names arg:arg-spec ... desc:string e:racket-expr]
     #:binding {(recursive arg) e})
 
-  (nonterminal/two-pass arg-spec
+  (nonterminal/exporting arg-spec
     (~> name:id #'[name identity/p])
     [name:racket-var parser:racket-expr]
     #:binding (export name))
 
-  (nonterminal/two-pass maybe-arg-spec
+  (nonterminal/exporting maybe-arg-spec
     (~datum #f)
     arg:arg-spec
     #:binding (re-export arg))

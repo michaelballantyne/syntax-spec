@@ -15,7 +15,7 @@
   (binding-class arch-name #:description "TinyHDL architecture name")
   (binding-class entity-name #:description "TinyHDL entity name")
 
-  (nonterminal/two-pass top-item
+  (nonterminal/exporting top-item
     #:description "TinyHDL declaration"
     #:binding-space hdl
     
@@ -33,7 +33,7 @@
     input
     output)
   
-  (nonterminal/two-pass statement
+  (nonterminal/exporting statement
     #:binding-space hdl
     
     (instance name:inst-name arch:arch-name)

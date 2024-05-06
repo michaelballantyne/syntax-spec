@@ -34,7 +34,7 @@ set!-transformers.
     (mybegin def:mydef body:racket-expr)
     #:binding {(recursive def) body})
  
-  (nonterminal/two-pass mydef
+  (nonterminal/exporting mydef
     #:description "mylet definition"
     (mydefine-inner v:var)
     #:binding (export v)

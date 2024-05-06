@@ -82,7 +82,7 @@
     (syntax-parse stx
       #:datum-literals (binding-class
                         extension-class
-                        nonterminal nonterminal/nesting nonterminal/two-pass
+                        nonterminal nonterminal/nesting nonterminal/exporting
                         host-interface/expression
                         host-interface/definition
                         host-interface/definitions)
@@ -157,7 +157,7 @@
                #,this-syntax
                (#:nesting nested.id) name opts prod ...))
           #f))]
-      [(nonterminal/two-pass ~!
+      [(nonterminal/exporting ~!
          name:id
          opts:nonterminal-options
          prod:production ...+)
@@ -165,7 +165,7 @@
          (values
           (generate-nonterminal-declarations
            (attribute name) (attribute opts) (attribute prod.form-name)
-           #'(two-pass-nonterm-info (quote-syntax pass1-expander-name) (quote-syntax pass2-expander-name)))
+           #'(exporting-nonterm-info (quote-syntax pass1-expander-name) (quote-syntax pass2-expander-name)))
           #`(begin
               (define pass1-expander-name
                 (generate-nonterminal-expander

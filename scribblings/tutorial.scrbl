@@ -144,7 +144,7 @@ For now it's a stub.
   #:binding {(recursive s) initial-state})
 
 @(racketblock
-  (nonterminal/two-pass state-spec
+  (nonterminal/exporting state-spec
     (state n:state-name e:event-spec ...)
     #:binding (export n)))
 

@@ -75,7 +75,7 @@ defined in the space.
 
 @defsubform[(nonterminal id nonterminal-options production ...)]
 @defsubform[(nonterminal/nesting id (nested-id) nonterminal-options production ...)]
-@defsubform[(nonterminal/two-pass id nonterminal-options production ...)]
+@defsubform[(nonterminal/exporting id nonterminal-options production ...)]
 
 @subsection{Nonterminal options}
 

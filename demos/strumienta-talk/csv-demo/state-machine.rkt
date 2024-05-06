@@ -7,7 +7,7 @@
 (syntax-spec
   (binding-class state-name)
   
-  (nonterminal/two-pass state-spec
+  (nonterminal/exporting state-spec
     (state name:state-name
       ((~datum on-enter) action:racket-expr ...)
       e:event-spec ...)

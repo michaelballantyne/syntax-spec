@@ -54,7 +54,7 @@
                (lambda (stx-a)
                  #,(generate-loop (add-scope #'(prod-arg ...) sc) id^ #'stx-a))
                'definition))]
-         ;; Skip hygiene on the second pass of a two-pass definition context to cooperate
+         ;; Skip hygiene on the second pass of a exporting definition context to cooperate
          ;; with binder renaming. Exports will have been renamed on the first passs; if we
          ;; applied hygiene, we would improperly add inside-edge scopes to the renamed binders.
          ;;

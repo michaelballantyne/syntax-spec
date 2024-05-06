@@ -6,7 +6,7 @@
 (syntax-spec
   (binding-class pat-var)
   (extension-class pat-macro #:binding-space pm)
-  (nonterminal/two-pass pat
+  (nonterminal/exporting pat
     #:allow-extension pat-macro
     #:binding-space pm
     x:pat-var

@@ -9,7 +9,7 @@
          drracket/check-syntax)
 
 (syntax-spec
-  (nonterminal/two-pass block-form
+  (nonterminal/exporting block-form
     #:allow-extension racket-macro
 
     ((~literal define-values) (x:racket-var ...) e:racket-expr)

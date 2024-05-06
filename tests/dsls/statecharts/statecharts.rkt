@@ -16,7 +16,7 @@
     [#:initial initial-state:state-name s:machine-element-spec ...]
     #:binding {(recursive s) initial-state})
   
-  (nonterminal/two-pass machine-element-spec
+  (nonterminal/exporting machine-element-spec
     (data v:data-var e:expr)
     #:binding (export v)
 

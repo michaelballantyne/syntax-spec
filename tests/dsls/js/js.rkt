@@ -65,7 +65,7 @@
      
     (e:js-expr e*:js-expr ...))
   
-  (nonterminal/two-pass js-stmt
+  (nonterminal/exporting js-stmt
     #:description "Javascript statement"
     #:bind-literal-set js-stmts
     #:allow-extension js-macro

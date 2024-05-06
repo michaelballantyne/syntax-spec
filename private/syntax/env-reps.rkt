@@ -6,7 +6,7 @@
          
          (struct-out simple-nonterm-info)
          (struct-out nesting-nonterm-info)
-         (struct-out two-pass-nonterm-info)
+         (struct-out exporting-nonterm-info)
          
          (struct-out nested-binding)
          (struct-out special-syntax-class-binding)
@@ -68,7 +68,7 @@
 
 (struct simple-nonterm-info (expander))
 (struct nesting-nonterm-info (expander))
-(struct two-pass-nonterm-info (pass1-expander pass2-expander))
+(struct exporting-nonterm-info (pass1-expander pass2-expander))
 
 ; var-info is one of:
 ;   bindclass-rep

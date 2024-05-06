@@ -45,7 +45,7 @@
 
 
 (syntax-spec
- (nonterminal/two-pass mk-def
+ (nonterminal/exporting mk-def
    (define-relation2 (name:relation-name arg:term-variable ...) body:goal)
    #:binding [(export name) {(bind arg) body}])
 

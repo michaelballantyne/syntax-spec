@@ -33,7 +33,7 @@
     (block d:my-def ...)
     #:binding {(recursive d)})
  
-  (nonterminal/two-pass my-def
+  (nonterminal/exporting my-def
     ((~literal define-syntax) x:pat-macro e:expr)
     #:binding (export-syntax x e)
     ((~literal my-match) [p:pat e:dsl-expr])

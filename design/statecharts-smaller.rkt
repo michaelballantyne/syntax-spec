@@ -8,7 +8,7 @@
   (binding-class var)
   (binding-class data-name)
   
-  (nonterminal/two-pass state-body
+  (nonterminal/exporting state-body
     (initial n:state-name)
     #:binding {n}
     
