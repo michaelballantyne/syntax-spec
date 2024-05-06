@@ -20,13 +20,13 @@
  (binding-class number-var)
  (nonterminal expr
               (mutable-let ([x:mutable-var e:racket-expr]) body:racket-expr)
-              #:binding {(bind x) body}
+              #:binding (scope (bind x) body)
               (immutable-let ([x:immutable-var e:racket-expr]) body:racket-expr)
-              #:binding {(bind x) body}
+              #:binding (scope (bind x) body)
               (weird-let ([x:weird-var e:racket-expr]) body:racket-expr)
-              #:binding {(bind x) body}
+              #:binding (scope (bind x) body)
               (number-let ([x:number-var n:number]) body:racket-expr)
-              #:binding {(bind x) body})
+              #:binding (scope (bind x) body))
 
  (host-interface/expression
   (expression e:expr)
