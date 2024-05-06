@@ -10,13 +10,13 @@
   
   (nonterminal/exporting state-body
     (initial n:state-name)
-    #:binding {n}
+    #:binding (scope n)
     
     e:event
 
     (state n:state-name
            sb:state-body ...)
-    #:binding [(export n) {(import sb)}]
+    #:binding [(export n) (scope (import sb))]
 
     (use scn:statechart-name #:as sn:state-name
          e:event ...))
@@ -24,7 +24,7 @@
   (nonterminal event
     (on (evt:id arg:var ...)
         ab:action ...+)
-    #:binding {(bind arg) ab})
+    #:binding (scope (bind arg) ab))
     
   (nonterminal action
     (-> s:state-name)
@@ -38,12 +38,12 @@
 
   (nonterminal/nesting binding-group (tail)
     [v:var e:racket-expr]
-    #:binding {(bind v) tail})
+    #:binding (scope (bind v) tail))
 
   #;(host-interface/definition
       (define-statechart n:statechart-name
         sb:state-body)
-      #:binding [(export n) {(import sb)}])
+      #:binding [(export n) (scope (import sb))])
 
   (host-interface/expression
     (machine st:statechart-name)

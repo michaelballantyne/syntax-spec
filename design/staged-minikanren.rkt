@@ -53,7 +53,7 @@
     (conj2 g1:goal g2:goal)
   
     (fresh1 (x:term-variable) b:goal)
-    #:binding {(bind x) b}
+    #:binding (scope (bind x) b)
 
     ; new reified call datatype
     (reify-call )
@@ -81,7 +81,7 @@
     (conj2 g1:goal g2:goal)
   
     (fresh1 (x:term-variable) b:goal)
-    #:binding {(bind x) b}
+    #:binding (scope (bind x) b)
 
     ; new reified call datatype
     (lreify-call )
@@ -99,12 +99,12 @@
   
   (nonterminal condg-clause
     ([x:term-variable ...] [guard:goal] [body:goal])
-    #:binding {(bind x) guard body})
+    #:binding (scope (bind x) guard body))
 
   (host-interface/definition
     (defrel/condg (r:relation-name arg:term-variable ...)
       clause:condg-clause ...)
-    #:binding [(export r) {(bind arg) clause}]
+    #:binding [(export r) (scope (bind arg) clause)]
 
     #:lhs [#'r]
     #:rhs [#'(void)]))

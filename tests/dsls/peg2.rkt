@@ -28,7 +28,7 @@
     #:allow-extension peg-macro
     
     (bind v:var ps:peg-seq)
-    #:binding {(bind v) (nest-one ps tail)}
+    #:binding (scope (bind v) (nest-one ps tail))
     
     (seq ps1:peg-seq ps2:peg-seq)
     #:binding (nest-one ps1 (nest-one ps2 tail))
@@ -37,7 +37,7 @@
     #:binding (nest-one ps tail)
 
     (src-span v:var ps:peg-seq)
-    #:binding {(bind v) (nest-one ps tail)}
+    #:binding (scope (bind v) (nest-one ps tail))
 
     pe:peg-el)
 

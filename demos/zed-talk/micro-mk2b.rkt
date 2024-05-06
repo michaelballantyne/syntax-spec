@@ -31,7 +31,7 @@
     (or2 g1:goal g2:goal)
     
     (exists (x:term-variable ...) b:goal)
-    #:binding {(bind x) b})
+    #:binding (scope (bind x) b))
 
   (nonterminal term    
     n:number

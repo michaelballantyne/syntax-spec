@@ -115,10 +115,10 @@
 ; convert surface syntax for a bspec to a structure representation.
 (define elaborate-bspec
   (syntax-parser
-    #:datum-literals (bind bind-syntax bind-syntaxes import export export-syntax export-syntaxes re-export nest nest-one host)
+    #:datum-literals (scope bind bind-syntax bind-syntaxes import export export-syntax export-syntaxes re-export nest nest-one host)
     [v:nonref-id
      (elaborate-ref (attribute v))]
-    [(bind v:nonref-id ...+)
+    [(bind ~! v:nonref-id ...+)
      (group
       (for/list ([v (attribute v)])
         (bind
@@ -126,7 +126,7 @@
          (elaborate-pvar v
                          (s* bindclass-rep)
                          "binding class"))))]
-    [(bind-syntax v:nonref-id v-transformer:nonref-id)
+    [(bind-syntax ~! v:nonref-id v-transformer:nonref-id)
      (bind-syntax
       this-syntax
       (elaborate-pvar (attribute v)
@@ -135,7 +135,7 @@
       (elaborate-pvar (attribute v-transformer)
                       (? stxclass-rep?)
                       "syntax class"))]
-    [(bind-syntaxes v:nonref-id v-transformer:nonref-id)
+    [(bind-syntaxes ~! v:nonref-id v-transformer:nonref-id)
      (bind-syntaxes
       this-syntax
       (elaborate-pvar (attribute v)
@@ -144,21 +144,21 @@
       (elaborate-pvar (attribute v-transformer)
                       (? stxclass-rep?)
                       "syntax class"))]
-    [(import v:nonref-id ...+)
+    [(import ~! v:nonref-id ...+)
      (rec
          this-syntax
        (for/list ([v (attribute v)])
          (elaborate-pvar v
                          (s* nonterm-rep [variant-info (s* exporting-nonterm-info)])
                          "exporting nonterminal")))]
-    [(re-export v:nonref-id ...+)
+    [(re-export ~! v:nonref-id ...+)
      (re-export
       this-syntax
       (for/list ([v (attribute v)])
         (elaborate-pvar v
                         (s* nonterm-rep [variant-info (s* exporting-nonterm-info)])
                         "exporting nonterminal")))]
-    [(export v:nonref-id ...+)
+    [(export ~! v:nonref-id ...+)
      (group
       (for/list ([v (attribute v)])
         (export
@@ -166,7 +166,7 @@
          (elaborate-pvar v
                          (s* bindclass-rep)
                          "binding class"))))]
-    [(export-syntax v:nonref-id v-transformer:nonref-id)
+    [(export-syntax ~! v:nonref-id v-transformer:nonref-id)
      (export-syntax
       this-syntax
       (elaborate-pvar (attribute v)
@@ -175,7 +175,7 @@
       (elaborate-pvar (attribute v-transformer)
                       (? stxclass-rep?)
                       "syntax class"))]
-    [(export-syntaxes v:nonref-id v-transformer:nonref-id)
+    [(export-syntaxes ~! v:nonref-id v-transformer:nonref-id)
      (export-syntaxes
       this-syntax
       (elaborate-pvar (attribute v)
@@ -184,29 +184,29 @@
       (elaborate-pvar (attribute v-transformer)
                       (? stxclass-rep?)
                       "syntax class"))]
-    [(nest v:nonref-id spec:bspec-term)
+    [(nest ~! v:nonref-id spec:bspec-term)
      (nest
       this-syntax
       (elaborate-pvar (attribute v)
                       (s* nonterm-rep [variant-info (s* nesting-nonterm-info)])
                       "nesting nonterminal")
       (elaborate-bspec (attribute spec)))]
-    [(nest-one v:nonref-id spec:bspec-term)
+    [(nest-one ~! v:nonref-id spec:bspec-term)
      (nest-one
       this-syntax
       (elaborate-pvar (attribute v)
                       (s* nonterm-rep [variant-info (s* nesting-nonterm-info)])
                       "nesting nonterminal")
       (elaborate-bspec (attribute spec)))]
-    [(host v:nonref-id)
+    [(host ~! v:nonref-id)
      (suspend
       this-syntax
       (pvar (attribute v) (lookup-pvar (attribute v))))]
-    [(~braces spec ...)
+    [(scope ~! spec ...)
      (scope
       this-syntax
       (group (map elaborate-bspec (attribute spec))))]
-    [(~brackets spec ...)
+    [(spec ...)
      (group (map elaborate-bspec (attribute spec)))]))
 
 
@@ -310,7 +310,7 @@
 ;       - (nest a [(bind x) x]) shouldn't be legal as we have
 ;         no static guarantee about the length of a or whether its
 ;         associated non-terminal installs any scopes.
-;       - {(nest a [(bind x) x)])} shouldn't be legal as it would imply binding
+;       - (scope (nest a [(bind x) x)])) shouldn't be legal as it would imply binding
 ;         in a scope created by the nesting non-terminal, and the binding might
 ;         come after a reference created in the nesting non-terminal.
 ;   - Bindings should come before rec and references within a scope

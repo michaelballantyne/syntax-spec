@@ -5,7 +5,7 @@
 (syntax-spec
   (nonterminal/nesting binding-floe (nested)
     (as v:racket-var)
-    #:binding {(bind v) nested}
+    #:binding (scope (bind v) nested)
 
     (thread f:binding-floe ...)
     #:binding (nest f nested)

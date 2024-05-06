@@ -13,7 +13,7 @@
     #:allow-extension pat-macro
     
     v:var
-    #:binding {(bind v) nested})
+    #:binding (scope (bind v) nested))
 
   (host-interface/expression
     (my-match [p:pat e:dsl-expr])
@@ -31,7 +31,7 @@
 (syntax-spec
   (nonterminal my-expr
     (block d:my-def ...)
-    #:binding {(import d)})
+    #:binding (scope (import d)))
  
   (nonterminal/exporting my-def
     ((~literal define-syntax) x:pat-macro e:expr)

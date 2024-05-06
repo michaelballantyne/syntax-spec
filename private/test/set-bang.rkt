@@ -26,13 +26,13 @@ set!-transformers.
   (nonterminal mylet-expr
     #:description "mylet expression"
     (mylet v:var body:racket-expr)
-    #:binding {(bind v) body}
+    #:binding (scope (bind v) body)
     (regular-let v:var val:racket-expr body:racket-expr)
-    #:binding {(bind v) body}
+    #:binding (scope (bind v) body)
     (rep-let v:var body:racket-expr)
-    #:binding {(bind v) body}
+    #:binding (scope (bind v) body)
     (mybegin def:mydef body:racket-expr)
-    #:binding {(import def) body})
+    #:binding (scope (import def) body))
  
   (nonterminal/exporting mydef
     #:description "mylet definition"

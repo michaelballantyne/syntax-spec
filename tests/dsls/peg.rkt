@@ -40,7 +40,7 @@
     #:binding (nest-one e [])
     
     (bind x:var e:peg)  ; :
-    #:binding {(bind x) (nest-one e []) tail}
+    #:binding (scope (bind x) (nest-one e []) tail)
     
     (=> pe:peg e:expr)
     #:binding (nest-one pe e)
@@ -50,7 +50,7 @@
     (char e:expr)
     (token e:expr)
     (src-span v:var e:peg)
-    #:binding {(nest-one e [])}
+    #:binding (scope (nest-one e []))
     
     ;; can't do implicit #%peg-datum yet.
     

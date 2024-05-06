@@ -7,7 +7,7 @@
 (syntax-spec
   (nonterminal my-expr
    ((~literal let) ([x:racket-var e:racket-expr] ...) b:racket-expr)
-   #:binding {(bind x) b})
+   #:binding (scope (bind x) b))
 
   (host-interface/expression
     (eval-my-expr e:my-expr)

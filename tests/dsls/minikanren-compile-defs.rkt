@@ -29,7 +29,7 @@
   (host-interface/expression
     (run n:expr (qvar:term-variable ...)
       g:goal ...)
-    #:binding {(bind qvar) g}
+    #:binding (scope (bind qvar) g)
   
     #'(void))
 
@@ -40,14 +40,14 @@
 
   (host-interface/definitions
     (define-relation (name:relation-name arg:term-variable ...) body:goal)
-    #:binding [(export name) {(bind arg) body}]
+    #:binding [(export name) (scope (bind arg) body)]
     #'(define tmp 5)))
 
 
 (syntax-spec
  (nonterminal/exporting mk-def
    (define-relation2 (name:relation-name arg:term-variable ...) body:goal)
-   #:binding [(export name) {(bind arg) body}])
+   #:binding [(export name) (scope (bind arg) body)])
 
  (host-interface/definitions
    (mk-defs d:mk-def ...)

@@ -62,7 +62,7 @@
     #:allow-extension flag-macro
     ((~literal begin) f:flag ...+)
     [names:flag-names arg:arg-spec ... desc:string e:racket-expr]
-    #:binding {(import arg) e})
+    #:binding (scope (import arg) e))
 
   (nonterminal/exporting arg-spec
     (~> name:id #'[name identity/p])

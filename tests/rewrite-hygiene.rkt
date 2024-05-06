@@ -10,7 +10,7 @@
     #:binding [n]
     
     (dsl-let n:dsl-name e:dsl-expr)
-    #:binding {(bind n) e}
+    #:binding (scope (bind n) e)
 
     ;; Introduce binding; need to ensure it does not capture references in e...
     (~> ((~datum a) e)

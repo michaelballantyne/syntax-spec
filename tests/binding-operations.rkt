@@ -12,7 +12,7 @@
    (host e:racket-expr)
    
    (lambda (x:var) e:expr)
-   #:binding {(bind x) e})
+   #:binding (scope (bind x) e))
 
  (host-interface/definition
   (define-var v:var)

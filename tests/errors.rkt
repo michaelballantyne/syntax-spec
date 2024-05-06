@@ -53,7 +53,7 @@
    (binding-class dsl-var #:description "DSL variable")
    (nonterminal expr
      x:dsl-var
-     #:binding {y})))
+     #:binding (scope y))))
 
 (check-decl-error
  #rx"bind: expected a reference to a pattern variable"
@@ -61,7 +61,7 @@
    (binding-class dsl-var #:description "DSL variable")
    (nonterminal expr
      x:dsl-var
-     #:binding {(bind y)})))
+     #:binding (scope (bind y)))))
 
 (check-decl-error
  #rx"nonterminal: nesting nonterminals may only be used with `nest`"
@@ -135,7 +135,7 @@
    (binding-class var)
    (nonterminal expr
      (let x:var e:expr)
-     #:binding {e (bind x)})))
+     #:binding (scope e (bind x)))))
 
 (check-decl-error
  #rx"nonterminal: an import binding group must appear before references and subexpressions"
@@ -146,7 +146,7 @@
      #:binding [(export x) e])
    (nonterminal expr
      (block d:def e:expr)
-     #:binding {e (import d)})))
+     #:binding (scope e (import d)))))
 
 (check-decl-error
  #rx"nonterminal: only one import binding group may appear in a scope"
@@ -157,7 +157,7 @@
      #:binding [(export x) e])
    (nonterminal expr
      (block d1:def d2:def)
-     #:binding {(import d1) (import d2)})))
+     #:binding (scope (import d1) (import d2)))))
 
 (check-decl-error
  #rx"exports must appear first in a exporting spec"
@@ -213,13 +213,13 @@
     v:dsl-var2
     (dsl-begin e:expr1 ...+)
     [b:dsl-var2 e:expr1 ...+]
-    #:binding {(bind b) e})
+    #:binding (scope (bind b) e))
   (nonterminal expr2
     #:description "DSL expression"
     n:number)
   (nonterminal/nesting binding-group (tail)
     [v:dsl-var2 e:expr1]
-    #:binding {(bind v) tail}))
+    #:binding (scope (bind v) tail)))
 
 (define-syntax m1
   (dsl-macro1
@@ -362,7 +362,7 @@
 (syntax-spec
   (host-interface/expression
     (dsl/let x:dsl-var2 e:racket-expr)
-    #:binding {(bind x) e}
+    #:binding (scope (bind x) e)
     #'e))
 
 ;; When no reference compiler is provided for

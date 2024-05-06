@@ -11,7 +11,7 @@
   (binding-class blue-var)
   (nonterminal blue-expr
     ((~literal let) ([x:blue-var e:racket-expr] ...) b:racket-expr)
-    #:binding {(bind x) b})
+    #:binding (scope (bind x) b))
 
   (host-interface/expression
     (blue e:blue-expr)
@@ -23,7 +23,7 @@
   (binding-class red-var)
   (nonterminal red-expr
     ((~literal let) ([x:red-var e:racket-expr] ...) b:racket-expr)
-    #:binding {(bind x) b})
+    #:binding (scope (bind x) b))
 
   (host-interface/expression
     (red e:red-expr)

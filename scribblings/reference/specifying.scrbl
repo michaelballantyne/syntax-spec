@@ -132,7 +132,7 @@ defined in the space.
 @racketgrammar[#:literals (bind import re-export export nest nest-one)
                binding-spec spec-variable-id
                (bind spec-variable-id ...+)
-               {spec ...}
+               (scope spec ...)
                [spec ...]
                (nest spec-variable-id binding-spec)
                (nest-one spec-variable-id binding-spec)

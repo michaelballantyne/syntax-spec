@@ -56,7 +56,7 @@
     (conj2 g1:goal g2:goal)
   
     (fresh1 (x:term-variable) b:goal)
-    #:binding {(bind x) b}
+    #:binding (scope (bind x) b)
 
     (project (x:term-variable ...) e:racket-expr ...)
     
@@ -140,7 +140,7 @@
 (syntax-spec
   (host-interface/definition
     (core-defrel (name:relation-name x:term-variable ...) g:goal)
-    #:binding [(export name) {(bind x) g}]
+    #:binding [(export name) (scope (bind x) g)]
    
     #:lhs
     [(symbol-table-set!
@@ -157,7 +157,7 @@
 
   (host-interface/expression
     (core-run n:expr q:term-variable g:goal)
-    #:binding {(bind q) g}
+    #:binding (scope (bind q) g)
   
     #`(let ([q (var 'q)])
         (map (reify q)

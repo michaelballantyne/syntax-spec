@@ -49,7 +49,7 @@
    (conj2 g1:goal g2:goal)
   
    (fresh1 (x:term-variable ...) b:goal)
-   #:binding {(bind x) b}
+   #:binding (scope (bind x) b)
 
    (#%rel-app r:relation-name t:term ...+)
 

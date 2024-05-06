@@ -131,7 +131,7 @@ For now it's a stub.
   (nonterminal event-spec
     (on (evt:id) t:transition-spec)
     (on (evt:id arg:local-var ...) #:when guard:guard-expr t:transition-spec)
-    #:binding {(bind arg) guard}))
+    #:binding (scope (bind arg) guard)))
 
 
 @subsection{Definition contexts}
@@ -141,7 +141,7 @@ For now it's a stub.
 
 @(racketblock
   (machine #:initial inital-state:state-name s:state-spec ...)
-  #:binding {(import s) initial-state})
+  #:binding (scope (import s) initial-state))
 
 @(racketblock
   (nonterminal/exporting state-spec
@@ -169,7 +169,7 @@ For now it's a stub.
 @(racketblock
   (nesting-nonterminal binding-pair (nested)
     [v:local-var e:guard-expr]
-    #:binding {(bind v) nested}))
+    #:binding (scope (bind v) nested)))
 
 @section[#:tag "racket"]{Integrating Racket Subexpressions}
 

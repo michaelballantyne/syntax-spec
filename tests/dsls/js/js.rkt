@@ -50,7 +50,7 @@
 
     ; TODO
     ; (letrec-syntax ([x:TODO rhs:TODO]) body ...)
-    ; #:binding {(! x) rhs {(rec body)}}
+    ; #:binding (scope (! x) rhs (scope (rec body)))
     
     v:js-var
     n:number
@@ -61,7 +61,7 @@
     (set! x:js-var e:js-expr)
     
     (function (x:js-var ...) body:js-stmt ...)
-    #:binding {(bind x) {(import body)}}
+    #:binding (scope (bind x) (scope (import body)))
      
     (e:js-expr e*:js-expr ...))
   
@@ -80,10 +80,10 @@
     (return e:js-expr)
 
     (while c:js-expr body:js-stmt ...)
-    #:binding {(import body)}
+    #:binding (scope (import body))
                         
     (if c:js-expr (b1:js-stmt ...) (b2:js-stmt ...))
-    #:binding [{(import b1)} {(import b2)}]
+    #:binding [(scope (import b1)) (scope (import b2))]
                         
     e:js-expr))
 
