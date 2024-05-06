@@ -4,7 +4,7 @@
 ;; arithmetic + let -> ANF -> prune unused variables -> racket
 
 (require "../../testing.rkt"
-         (for-syntax racket/list))
+         (for-syntax racket/list (only-in ee-lib define/hygienic)))
 
 (syntax-spec
   (nonterminal expr
@@ -14,7 +14,8 @@
     ((~literal let) ([x:racket-var e:expr]) body:expr)
     #:binding {(bind x) body}
     ((~literal +) a:expr b:expr)
-    ((~literal *) a:expr b:expr))
+    ((~literal *) a:expr b:expr)
+    ((~literal /) a:expr b:expr))
   (nonterminal anf-expr
     ((~literal let) ([x:racket-var e:rhs-expr]) body:anf-expr)
     #:binding {(bind x) body}
@@ -22,6 +23,7 @@
   (nonterminal rhs-expr
     ((~literal +) a:immediate-expr b:immediate-expr)
     ((~literal *) a:immediate-expr b:immediate-expr)
+    ((~literal /) a:immediate-expr b:immediate-expr)
     e:immediate-expr)
   (nonterminal immediate-expr
     x:racket-var
@@ -37,16 +39,17 @@
 (define-syntax compile-expr
   (syntax-parser
     [(_ e)
+     ; I chose to use compile-time functions instead of macros because there is a lot
+     ; of non-syntax data to pass around. But we still get hygiene with define/hygienic.
+
      ; need to expand to make sure everything is properly bound
      ; for the analysis pass, which uses symbol tables.
-     (define e/anf (local-expand-anf (to-anf #'e)))
-     ; I chose to use compile-time functions instead of macros because there is a lot
-     ; of non-syntax data to pass around, and new identifiers will be made with generate-temporaries,
-     ; so I don't need hygiene.
+     (define e/anf (local-expand-anf (to-anf #'e) #:should-rename? #t))
      (define e/pruned (prune-unused-variables e/anf))
      ; this last local-expand-anf might be unnecessary for this compiler, but i'll leave it in
      ; since most compilers would need it.
-     #`(compile-anf #,(local-expand-anf e/pruned))]))
+     (define e/pruned^ (local-expand-anf e/pruned #:should-rename? #t))
+     #`(compile-anf #,e/pruned^)]))
 
 (begin-for-syntax
   ; expr -> anf-expr
@@ -60,7 +63,6 @@
     ; ends up producing a let-binding of x to e in the result
     (define (bind! x e) (set! bindings-rev (cons (list x e) bindings-rev)))
     (define e^ (to-rhs e bind!))
-    (displayln bindings-rev)
     (wrap-lets e^ (reverse bindings-rev)))
 
   ; expr (Identifier rhs-expr -> Void) -> rhs-expr
@@ -68,7 +70,7 @@
   ; in other compilers, helpers may need to be hygienic too.
   (define (to-rhs e bind!)
     (syntax-parse e
-      [(let ([x e]) body)
+      [((~literal let) ([x e]) body)
        (bind! #'x (to-rhs #'e bind!))
        (to-rhs #'body bind!)]
       [(op a b)
@@ -117,7 +119,7 @@
     ; so we don't traverse its rhs since it isn't needed.
     (let mark-used-variables! ([e e])
       (syntax-parse e
-        [(let ([x e]) body)
+        [((~literal let) ([x e]) body)
          (mark-used-variables! #'body)
          (when (var-used? #'x)
            (mark-used-variables! #'e))]
@@ -127,13 +129,14 @@
         [x:id
          (mark-as-used! #'x)]
         [n:number
-         (void)])))
+         (void)]))
+    var-used?)
 
   ; anf-expr (Identifier -> Boolean) -> anf-expr
   (define (remove-unused-vars e var-used?)
     (let loop ([e e])
       (syntax-parse e
-        [(let ([x e]) body)
+        [((~and let (~literal let)) ([x e]) body)
          (if (var-used? #'x)
              ; no need to recur on e since it's not a let
              #`(let ([x e])
@@ -143,12 +146,31 @@
 
 (define-syntax compile-anf
   (syntax-parser
-    [(_ (_ ([x e]) body))
-     #'(let ([x e]) (compile-anf body))]
+    [(_ ((~literal let) ([x e]) body))
+     #'(let ([x (compile-anf e)]) (compile-anf body))]
+    ; experience note: it's a little weird to have to translate + into + like this
     [(_ ((~literal +) a b)) #'(+ a b)]
     [(_ ((~literal *) a b)) #'(* a b)]
+    [(_ ((~literal /) a b)) #'(/ a b)]
     [(_ e) #'e]))
 
-(check-equal? (eval-expr 1) 1)
-(check-equal? (eval-expr (+ 1 1)) 2)
-(check-equal? (eval-expr (+ 1 (* 2 3))) 7)
+(define-syntax-rule (check-eval e) (check-equal? (eval-expr e) e))
+(check-eval 1)
+(check-eval (+ 1 1))
+(check-eval (+ 1 (* 2 3)))
+(check-eval (let ([x 1]) x))
+(check-eval (let ([x (+ 3 4)]) x))
+(check-eval
+ (let ([x (let ([y 2])
+            (+ 1 (* y 3)))])
+   x))
+(check-equal?
+ (eval-expr
+  (let ([unused (/ 1 0)])
+    2))
+ 2)
+(check-eval
+ (let ([a 1])
+   (let ([b a])
+     (let ([unused a])
+       b))))
