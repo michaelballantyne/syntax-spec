@@ -89,6 +89,8 @@ Our initial specification with @racket[syntax-spec] supplies the grammar:
       (= e1:guard-expr e2:guard-expr)))
 }|
 
+@;TODO should goto be ->?
+
 
 The @racket[syntax-spec] form is the entry-point into the metalanguage. It must be used at the top-level of a module.
 @;
@@ -116,6 +118,33 @@ For now it's a stub.
 
 @section[#:tag "binding"]{Binding}
 
+Consider this program:
+
+@racketblock[
+(machine
+ #:initial red
+ (state red
+   (on (event x) #:when (= y 10)
+     (-> green))
+   (on (event x)
+     (-> red))))
+]
+
+In the guard @racket[(= y 10)], the @racket[y] is unbound.
+Additionally, our first transition is to @racket[green], but there is no @racket[green] state.
+Our compiled code will end up containing an unbound variable reference for @racket[y], so Racket's
+expander will raise an error.
+
+However, let's say our compiler translates @racket[(-> green)] to @racket[(set! state 'green)] and generally doesn't
+produce any identifiers for @racket[green],
+and we changed the guard to @racket[(= x 10)] instead of @racket[(= y 10)], so there's no unbound reference to @racket[y].
+Would we get an unbound reference error for @racket[green]? No! We'd just have strange behavior at runtime, or maybe
+a runtime error, depending on the compiler.
+
+We could adjust our compiler to check for unbound state references, but syntax-spec can do it for us. syntax-spec allows us to declare
+the binding and scoping rules for our language, and bindings and references will be checked before your compiler is even
+invoked, so your compiler can assume the program is not only grammatically correct, but also well-bound.
+
 @subsection{Simple binding}
 
 @; Problem: the binding we're showing here gets referenced in a Racket subexpression,
@@ -124,15 +153,39 @@ For now it's a stub.
 @;
 @; Solution possibility: include a small language of guard expressions in the DSL definition.
 @; Then later show how we can integrate with Racket instead.
-@(racketblock
-  (binding-class local-var))
+
+First, let's declare that the arguments to an action are in scope in the guard expression:
 
 @(racketblock
-  (nonterminal event-spec
-    (on (evt:id) t:transition-spec)
-    (on (evt:id arg:local-var ...) #:when guard:guard-expr t:transition-spec)
-    #:binding (scope (bind arg) guard)))
+  (syntax-spec
+    (binding-class event-var)
+    ...
+    (nonterminal transition-spec
+      (on (event-name:id arg:event-var ...) action:action-spec)
+      #:binding (scope (bind arg))
+      (on (event-name:id arg:event-var ...) #:when guard:guard-expr action:action-spec)
+      #:binding (scope (bind arg) guard))
+    ...
+    (nonterminal guard-expr
+      var-ref:event-var
+      n:number
+      (= e1:guard-expr e2:guard-expr))))
 
+We added a binding class, @racket[event-var], for an event's argument names. We also added a @racket[#:binding] declaration to guarded transitions to declare that the @racket[arg]s are bound in the @racket[guard] expression and this binding introduces a new scope. Although there are no reference positions in a non-guarded transition, we still need to declare the binding rule. Otherwise, by default, syntax-spec will assume that the @racket[arg] is a reference position, which will cause @racket[arg] to be unbound.
+
+These simple binding rules behave like @racket[let]:
+
+@racketblock[
+(syntax-spec
+  (binding-class my-var)
+  (nonterminal my-expr
+    (my-let ([x:my-var e:my-expr] ...) body:my-expr)
+    #:binding (group e (scope (bind x) body))
+    x:my-var
+    n:number))
+]
+
+We could've just written @racket[(scope (bind x) body)]. syntax-spec will automatically treat @racket[e] as a reference position outside of the new scope. That's why we don't have to mention @racket[action] or @racket[event-name] in the binding rules for transitions.
 
 @subsection{Definition contexts}
 
@@ -180,3 +233,4 @@ For now it's a stub.
 The full code for the state machine example is available at
 @url{https://github.com/michaelballantyne/syntax-spec/blob/main/tests/dsls/state-machine-oo}.
 
+@;TODO demonstrate symbol tables by doing an arity check on actions?
