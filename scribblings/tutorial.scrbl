@@ -26,13 +26,13 @@ Here's what using the DSL to define a controller for a subway turnstile looks li
 
      (state locked
        (on (coin value) #:when (= value 0.25)
-         (-> unlocked))
+         (goto unlocked))
        (on (coin value)
-         (-> locked)))
+         (goto locked)))
      
      (state unlocked
        (on (person-enters)
-         (-> locked)))))
+         (goto locked)))))
 
   (define ts (new turnstile%))
   (check-equal? (send ts get-state) 'locked)
@@ -89,9 +89,6 @@ Our initial specification with @racket[syntax-spec] supplies the grammar:
       (= e1:guard-expr e2:guard-expr)))
 }|
 
-@;TODO should goto be ->?
-
-
 The @racket[syntax-spec] form is the entry-point into the metalanguage. It must be used at the top-level of a module.
 @;
 In the example above, the language definition contains two kinds of definitions, for host interface macros and nonterminals.
@@ -125,9 +122,9 @@ Consider this program:
  #:initial red
  (state red
    (on (event x) #:when (= y 10)
-     (-> green))
+     (goto green))
    (on (event x)
-     (-> red))))
+     (goto red))))
 ]
 
 In the guard @racket[(= y 10)], the @racket[y] is unbound.
@@ -135,7 +132,7 @@ Additionally, our first transition is to @racket[green], but there is no @racket
 Our compiled code will end up containing an unbound variable reference for @racket[y], so Racket's
 expander will raise an error.
 
-However, let's say our compiler translates @racket[(-> green)] to @racket[(set! state 'green)] and generally doesn't
+However, let's say our compiler translates @racket[(goto green)] to @racket[(set! state 'green)] and doesn't
 produce any identifiers for @racket[green],
 and we changed the guard to @racket[(= x 10)] instead of @racket[(= y 10)], so there's no unbound reference to @racket[y].
 Would we get an unbound reference error for @racket[green]? No! We'd just have strange behavior at runtime, or maybe
@@ -171,7 +168,7 @@ First, let's declare that the arguments to an action are in scope in the guard e
       n:number
       (= e1:guard-expr e2:guard-expr))))
 
-We added a binding class, @racket[event-var], for an event's argument names. We also added a @racket[#:binding] declaration to guarded transitions to declare that the @racket[arg]s are bound in the @racket[guard] expression and this binding introduces a new scope. Although there are no reference positions in a non-guarded transition, we still need to declare the binding rule. Otherwise, by default, syntax-spec will assume that the @racket[arg] is a reference position, which will cause @racket[arg] to be unbound.
+We added a binding class, @racket[event-var], for an event's argument names. We also added a @racket[#:binding] declaration to guarded transitions to declare that the @racket[arg]s are bound in the @racket[guard] expression and this binding introduces a new scope. Although there are no reference positions in a non-guarded transition, we still need to declare the binding rule. Otherwise, by default, syntax-spec will assume that the @racket[arg] is a reference position, which will cause @racket[arg] to be unbound. When we don't include any binding rule for a production at all, a default binding rule is implicitly generated which treats all forms as reference positions.
 
 These simple binding rules behave like @racket[let]:
 
@@ -189,22 +186,24 @@ We could've just written @racket[(scope (bind x) body)]. syntax-spec will automa
 
 @subsection{Definition contexts}
 
+Now let's add binding rules for state names. We can't just use @racket[scope] and @racket[bind] since the binding for state names is not like @racket[let]. It's more like @racket[define] where you can have mutual recursion. For that kind of binding structure, we use @racket[export] and @racket[import]:
+
 @(racketblock
   (binding-class state-name))
 
 @(racketblock
-  (machine #:initial inital-state:state-name s:state-spec ...)
-  #:binding (scope (import s) initial-state))
+  (host-interface/expression
+    (machine #:initial inital-state:state-name s:state-spec ...)
+    #:binding (scope (import s) initial-state)
+    (error 'machine "compiler not yet implemented"))
 
-@(racketblock
   (nonterminal/exporting state-spec
-    (state n:state-name e:event-spec ...)
-    #:binding (export n)))
+    (state name:state-name transition:transition-spec ...)
+    #:binding (export name)))
 
-@(racketblock
-  (nonterminal transition-spec
-    (-> s:state-name)))
+We use an exporting nonterminal for @racket[state-spec], which allows us to use the @racket[export] binding rule for mutually recursive definitions. This binds @racket[name] in @racket[transition] and the other @racket[state-spec] forms in the body of the machine, like @racket[define] in a @racket[class] body.
 
+Similar to @racket[bind] for a variable, we use @racket[import] to declare that an exporting nonterminal's bindings should be in scope for the @racket[initial-state] in the @racket[machine].
 
 @subsection{Nested binding}
 
