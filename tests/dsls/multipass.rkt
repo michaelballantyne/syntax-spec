@@ -44,11 +44,11 @@
 
      ; need to expand to make sure everything is properly bound
      ; for the analysis pass, which uses symbol tables.
-     (define e/anf (local-expand-anf (to-anf #'e) #:should-rename? #t))
+     (define e/anf (local-expand-anf (to-anf #'e)))
      (define e/pruned (prune-unused-variables e/anf))
      ; this last local-expand-anf might be unnecessary for this compiler, but i'll leave it in
      ; since most compilers would need it.
-     (define e/pruned^ (local-expand-anf e/pruned #:should-rename? #t))
+     (define e/pruned^ (local-expand-anf e/pruned))
      #`(compile-anf #,e/pruned^)]))
 
 (begin-for-syntax
@@ -148,10 +148,7 @@
   (syntax-parser
     [(_ ((~literal let) ([x e]) body))
      #'(let ([x (compile-anf e)]) (compile-anf body))]
-    ; experience note: it's a little weird to have to translate + into + like this
-    [(_ ((~literal +) a b)) #'(+ a b)]
-    [(_ ((~literal *) a b)) #'(* a b)]
-    [(_ ((~literal /) a b)) #'(/ a b)]
+    [(_ (op a b)) #'(op a b)]
     [(_ e) #'e]))
 
 (define-syntax-rule (check-eval e) (check-equal? (eval-expr e) e))
