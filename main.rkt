@@ -15,7 +15,8 @@
           symbol-table-set!
           symbol-table-ref
 
-          free-identifiers))
+          free-identifiers
+          alpha-equivalent?))
 
 (require "private/syntax/interface.rkt"
          "private/runtime/compile.rkt"
