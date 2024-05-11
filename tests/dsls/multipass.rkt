@@ -48,11 +48,11 @@
 
      ; need to expand to make sure everything is properly bound
      ; for the analysis pass, which uses symbol tables.
-     (define e/anf (local-expand-anf (to-anf #'e)))
+     (define e/anf (local-expand-anf (to-anf #'e) #:should-rename? #t))
      (define e/pruned (prune-unused-variables e/anf))
      ; this last local-expand-anf might be unnecessary for this compiler, but i'll leave it in
      ; since most compilers would need it.
-     (define e/pruned^ (local-expand-anf e/pruned))
+     (define e/pruned^ (local-expand-anf e/pruned #:should-rename? #t))
      #`(compile-anf #,e/pruned^)]))
 
 (begin-for-syntax
@@ -162,24 +162,25 @@
              (error 'rkt "expected a number, got ~a" x)))]
     [(_ e) #'e]))
 
-(begin-for-syntax
-  (define-syntax-rule
-    (check-anf e e/anf)
-    (check-true
-     (alpha-equivalent? (local-expand-anf (to-anf #'e))
-                        (local-expand-anf #'e/anf))))
-  (check-anf 1 1)
-  (check-anf (let ([x 1]) x)
-             (let ([y 1]) y))
-  (check-anf (+ 1 (+ 2 3))
-             (let ([x (+ 2 3)])
-               (+ 1 x)))
-  (check-anf
-   (let ([x (let ([y 1]) y)])
-     x)
-   (let ([y 1])
-     (let ([x y])
-       x))))
+(module+ test
+  (begin-for-syntax
+    (define-syntax-rule
+      (check-anf e e/anf)
+      (check-true
+       (alpha-equivalent? (local-expand-anf (to-anf #'e) #:should-rename? #t)
+                          (local-expand-anf #'e/anf #:should-rename? #t))))
+    (check-anf 1 1)
+    (check-anf (let ([x 1]) x)
+               (let ([y 1]) y))
+    (check-anf (+ 1 (+ 2 3))
+               (let ([x (+ 2 3)])
+                 (+ 1 x)))
+    (check-anf
+     (let ([x (let ([y 1]) y)])
+       x)
+     (let ([y 1])
+       (let ([x y])
+         x)))))
 
 (define-syntax-rule (check-eval e) (check-equal? (eval-expr e) e))
 (check-eval 1)

@@ -135,10 +135,10 @@
   (match-define (list spec) spec-list)
   (exp-f-ret spec (flip-intro-scope/env pvar-vals) reconstruct-f (current-syntax-context)))
 
-#;(-> (-> syntax? any?) (-> syntax? any?))
+#;(-> (-> syntax? any?) (->* (syntax?) (#:should-rename? boolean?) any?))
 ; apply the procedure with renaming disabled
-(define ((make-local-expand-entry-point f) stx)
-  (parameterize ([should-rename? #t])
+(define ((make-local-expand-entry-point f) stx #:should-rename? [should-rename?/val #f])
+  (parameterize ([should-rename? should-rename?/val])
     (expand-top (list (subexp 'inject f)) (hash 'inject stx) (lambda (env^) (hash-ref env^ 'inject)))))
 
 ;; Use only for the initial call at an interface macro.
