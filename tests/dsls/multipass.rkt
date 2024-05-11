@@ -4,34 +4,38 @@
 ;; arithmetic + let -> ANF -> prune unused variables -> racket
 
 (require "../../testing.rkt"
-         (for-syntax racket/list (only-in ee-lib define/hygienic)))
+         (for-syntax racket/list rackunit (only-in ee-lib define/hygienic)))
 
 (syntax-spec
+  (binding-class var)
   (nonterminal expr
     n:number
-    x:racket-var
+    x:var
     ; need to use ~literal because you can't re-use let in the other non-terminals
-    ((~literal let) ([x:racket-var e:expr]) body:expr)
+    ((~literal let) ([x:var e:expr]) body:expr)
     #:binding (scope (bind x) body)
     ((~literal +) a:expr b:expr)
     ((~literal *) a:expr b:expr)
-    ((~literal /) a:expr b:expr))
+    ((~literal /) a:expr b:expr)
+    (rkt e:racket-expr))
   (nonterminal anf-expr
-    ((~literal let) ([x:racket-var e:rhs-expr]) body:anf-expr)
+    ((~literal let) ([x:var e:rhs-expr]) body:anf-expr)
     #:binding (scope (bind x) body)
     e:rhs-expr)
   (nonterminal rhs-expr
     ((~literal +) a:immediate-expr b:immediate-expr)
     ((~literal *) a:immediate-expr b:immediate-expr)
     ((~literal /) a:immediate-expr b:immediate-expr)
+    ((~literal rkt) e:racket-expr)
     e:immediate-expr)
   (nonterminal immediate-expr
-    x:racket-var
+    x:var
     n:number)
 
   (host-interface/expression
    (eval-expr e:expr)
-   #'(compile-expr e)))
+   #'(with-reference-compilers ([var immutable-reference-compiler])
+       (compile-expr e))))
 
 (begin-for-syntax
   (define local-expand-anf (nonterminal-expander anf-expr)))
@@ -128,8 +132,10 @@
          (mark-used-variables! #'b)]
         [x:id
          (mark-as-used! #'x)]
-        [n:number
-         (void)]))
+        ; don't descent into racket expressions.
+        ; this means we'll miss references like (rkt (eval-expr x)).
+        ; TODO use free-variables once it supports host-expressions
+        [_ (void)]))
     var-used?)
 
   ; anf-expr (Identifier -> Boolean) -> anf-expr
@@ -149,7 +155,31 @@
     [(_ ((~literal let) ([x e]) body))
      #'(let ([x (compile-anf e)]) (compile-anf body))]
     [(_ (op a b)) #'(op a b)]
+    [(_ ((~literal rkt) e))
+     #'(let ([x e])
+         (if (number? x)
+             x
+             (error 'rkt "expected a number, got ~a" x)))]
     [(_ e) #'e]))
+
+(begin-for-syntax
+  (define-syntax-rule
+    (check-anf e e/anf)
+    (check-true
+     (alpha-equivalent? (local-expand-anf (to-anf #'e))
+                        (local-expand-anf #'e/anf))))
+  (check-anf 1 1)
+  (check-anf (let ([x 1]) x)
+             (let ([y 1]) y))
+  (check-anf (+ 1 (+ 2 3))
+             (let ([x (+ 2 3)])
+               (+ 1 x)))
+  (check-anf
+   (let ([x (let ([y 1]) y)])
+     x)
+   (let ([y 1])
+     (let ([x y])
+       x))))
 
 (define-syntax-rule (check-eval e) (check-equal? (eval-expr e) e))
 (check-eval 1)
@@ -171,3 +201,39 @@
    (let ([b a])
      (let ([unused a])
        b))))
+; interfacing with racket
+(check-equal?
+ (eval-expr (rkt (add1 1)))
+ 2)
+(test-equal? "use racket var in rkt"
+ (let ([x 1])
+   (eval-expr (rkt x)))
+ 1)
+(test-equal? "use dsl var in rkt"
+ (eval-expr
+  (let ([x 1])
+    (+ x
+       (rkt x))))
+ 2)
+(test-equal? "use outer dsl var in dsl in rkt"
+ (eval-expr
+  (let ([x 1])
+    (+ x
+       (rkt
+        (eval-expr x)))))
+ 2)
+(check-exn
+ #rx"expected a number"
+ (lambda ()
+   (eval-expr (rkt "one"))))
+(check-equal?
+ (eval-expr
+  (let ([unused (rkt (error "bad"))])
+    1))
+ 1)
+#;; since we don't descend into racket exprs, it thinks it's unused, so it removes it and we get an unbound reference
+(check-equal?
+ (eval-expr
+  (let ([used-only-in-rkt 1])
+    (let ([x (rkt used-only-in-rkt)])
+      x))))
