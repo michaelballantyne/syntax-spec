@@ -1,7 +1,8 @@
 #lang racket/base
 
 (provide free-identifiers
-         alpha-equivalent?)
+         alpha-equivalent?
+         (rename-out [identifier=? compiled-identifier=?]))
 
 (require racket/list
          racket/dict

@@ -17,6 +17,7 @@
           symbol-table-set!
           symbol-table-ref
 
+          compiled-identifier=?
           free-identifiers
           alpha-equivalent?))
 
