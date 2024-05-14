@@ -88,7 +88,7 @@
 
     ; wrap ctx in a pair because #f is valid as ctx but not as a syntax
     ; property value.
-    (syntax-property #`(#%host-expression #,stx) suspension-property-key (list ctx)))
+    (syntax-property (quasisyntax/loc stx (#%host-expression #,stx)) suspension-property-key (list ctx)))
 
   (define (suspension? stx)
     (not (not (and (syntax? stx)

@@ -1,7 +1,8 @@
 #lang racket/base
 
 (require "../../testing.rkt"
-         (for-syntax racket/match))
+         racket/contract
+         (for-syntax racket/match syntax/transformer))
 
 (syntax-spec
   (binding-class typed-var)
@@ -24,6 +25,8 @@
     (~> (e (~datum :) t)
         #'(: e t))
     ((~datum :) e:typed-expr t:type)
+
+    (rkt e:racket-expr (~datum :) t:type)
 
     ; rewrite for tagging applications
     (~> (fun arg ...)
@@ -48,7 +51,8 @@
   (host-interface/expression
    (stlc/expr e:typed-expr)
    (infer-expr-type #'e)
-   #'(compile-expr e))
+   #'(with-reference-compilers ([typed-var typed-var-reference-compiler])
+       (compile-expr e)))
   (host-interface/expression
    (stlc/infer e:typed-expr)
    (define t (infer-expr-type #'e))
@@ -102,7 +106,9 @@
        (for ([x (attribute x)]
              [e (attribute e)])
          (symbol-table-set! types x (infer-expr-type e)))
-       (infer-expr-type #'body)]))
+       (infer-expr-type #'body)]
+      [((~datum rkt) e (~datum :) t)
+       (parse-type #'t)]))
 
   ; Syntax Type -> Void
   (define (check-expr-type e expected-type)
@@ -142,7 +148,31 @@
      #'((compile-expr f) (compile-expr arg) ...)]
     [(_ ((~datum :) e _)) #'(compile-expr e)]
     [(_ ((~datum let) ([x e] ...) body))
-     #'(let ([x (compile-expr e)] ...) (compile-expr body))]))
+     #'(let ([x (compile-expr e)] ...) (compile-expr body))]
+    [(_ ((~datum rkt) e (~datum :) t))
+     #`(contract #,(type->contract-stx (parse-type #'t))
+                 e
+                 'racket 'stlc
+                 #f #'e)]))
+
+(begin-for-syntax
+  (define typed-var-reference-compiler
+    ; TODO change to make-variable-like-reference-compiler
+    (make-variable-like-transformer (lambda (x)
+                                      #`(contract #,(type->contract-stx (symbol-table-ref types x))
+                                                  #,x
+                                                  'stlc 'racket
+                                                  '#,x #'#,x))))
+
+  ; Type -> Syntax
+  ; emits syntax that specifies a contract equivalent to the given type
+  (define (type->contract-stx t)
+    (match t
+      [(number-type) #'number?]
+      [(function-type arg-types return-type)
+       (define/syntax-parse (arg-type-stx ...) (map type->contract-stx arg-types))
+       (define/syntax-parse return-type-stx (type->contract-stx return-type))
+       #'(-> arg-type-stx ... return-type-stx)])))
 
 (define-syntax define-stlc-syntax
   (syntax-parser
@@ -194,3 +224,30 @@
  (lambda ()
    (convert-compile-time-error
     (stlc/expr ((lambda () 1) : Number)))))
+; racket integration
+(check-infer (rkt 1 : Number)
+             Number)
+(check-infer (rkt (lambda (x) x) : (-> Number Number))
+             (-> Number Number))
+(check-eval (rkt 1 : Number)
+            1)
+(test-exn
+ "racket expr is not of the correct type"
+ #rx"promised: number\\?\n  produced: #t"
+ (lambda ()
+   (stlc/expr
+    (rkt #t : Number))))
+(test-exn
+ "racket expr is a function which breaks its contract"
+ #rx"promised: number\\?\n  produced: #t"
+ (lambda ()
+   (stlc/expr
+    (let ([f (rkt (lambda (x) #t) : (-> Number Number))])
+      (f 1)))))
+(test-exn
+ "typed var misused in racket expr"
+ #rx"expected: number\\?\n  given: #t"
+ (lambda ()
+   (stlc/expr
+    (let ([f (lambda ([x : Number]) x)])
+      (rkt (f #t) : Number)))))
