@@ -1,5 +1,9 @@
 #lang racket/base
 
+; simply typed lambda calculus, featuring racket integration, dsl macros, binding spaces,
+; definition contexts, re-export, top-level definitions, persistent symbol tables,
+; static analysis, rewrites, and custom reference compilers.
+
 (require "../../testing.rkt"
          racket/contract
          (for-syntax racket/match syntax/transformer))
@@ -14,11 +18,11 @@
     x:typed-var
     n:number
 
-    (lambda ([x:typed-var (~datum :) t:type] ...) body:typed-expr)
+    (#%lambda ([x:typed-var (~datum :) t:type] ...) body:typed-expr)
     #:binding (scope (bind x) body)
     (#%app fun:typed-expr arg:typed-expr ...)
 
-    (let ([x:typed-var e:typed-expr] ...) body:typed-expr)
+    (#%let ([x:typed-var e:typed-expr] ...) body:typed-expr)
     #:binding (scope (bind x) body)
 
     ; type annotation
@@ -27,6 +31,9 @@
     ((~datum :) e:typed-expr t:type)
 
     (rkt e:racket-expr (~datum :) t:type)
+
+    (block d:typed-definition-or-expr ... e:typed-expr)
+    #:binding (scope (import d) e)
 
     ; rewrite for tagging applications
     (~> (fun arg ...)
@@ -73,7 +80,7 @@
     (syntax-parse e
       [n:number (number-type)]
       [x:id (symbol-table-ref types #'x (lambda () (raise-syntax-error 'infer-expr-type "untyped identifier" #'x)))]
-      [((~datum lambda) ([x:id _ t] ...) body)
+      [((~datum #%lambda) ([x:id _ t] ...) body)
        (define arg-types (map parse-type (attribute t)))
        (for ([x (attribute x)]
              [t arg-types])
@@ -102,13 +109,17 @@
        (define t (parse-type #'t-stx))
        (check-expr-type #'e t)
        t]
-      [((~datum let) ([x e] ...) body)
+      [((~datum #%let) ([x e] ...) body)
        (for ([x (attribute x)]
              [e (attribute e)])
          (symbol-table-set! types x (infer-expr-type e)))
        (infer-expr-type #'body)]
       [((~datum rkt) e (~datum :) t)
-       (parse-type #'t)]))
+       (parse-type #'t)]
+      [((~datum block) d ... e)
+       (type-check-defn-or-expr/pass1 #'(begin d ...))
+       (type-check-defn-or-expr/pass2 #'(begin d ...))
+       (infer-expr-type #'e)]))
 
   ; Syntax Type -> Void
   (define (check-expr-type e expected-type)
@@ -135,7 +146,7 @@
     (syntax-parse e
       [((~datum #%define) _ t e)
        (check-expr-type #'e (parse-type #'t))]
-      [((~datum begin) body ...+)
+      [((~datum begin) body ...)
        (for ([body (attribute body)])
          (type-check-defn-or-expr/pass2 body))]
       [e (void (infer-expr-type #'e))]))
@@ -162,18 +173,23 @@
   (syntax-parser
     [(_ n:number) #'n]
     [(_ x:id) #'x]
-    [(_ ((~datum lambda) ([x:id _ _] ...) body))
+    [(_ ((~datum #%lambda) ([x:id _ _] ...) body))
      #'(lambda (x ...) (compile-expr body))]
     [(_ ((~datum #%app) f arg ...))
      #'((compile-expr f) (compile-expr arg) ...)]
     [(_ ((~datum :) e _)) #'(compile-expr e)]
-    [(_ ((~datum let) ([x e] ...) body))
+    [(_ ((~datum #%let) ([x e] ...) body))
      #'(let ([x (compile-expr e)] ...) (compile-expr body))]
     [(_ ((~datum rkt) e (~datum :) t))
      #`(contract #,(type->contract-stx (parse-type #'t))
                  e
                  'racket 'stlc
-                 #f #'e)]))
+                 #f #'e)]
+    [(_ ((~datum block) d ... e))
+     #'(let ()
+         (compile-defn-or-expr d)
+         ...
+         (compile-expr e))]))
 
 (begin-for-syntax
   (define typed-var-reference-compiler
@@ -208,6 +224,16 @@
     [(_ name:id trans:expr)
      #`(define-syntax #,((make-interned-syntax-introducer 'stlc) #'name 'add)
          (typed-macro trans))]))
+
+(define-stlc-syntax let
+  (syntax-parser
+    [(_ ([x e] ...) body) #'(#%let ([x e] ...) body)]
+    [(_ ([x e] ...) body ...+) #'(#%let ([x e] ...) (block body ...))]))
+
+(define-stlc-syntax lambda
+  (syntax-parser
+    [(_ ([x (~datum :) t] ...) body) #'(#%lambda ([x : t] ...) body)]
+    [(_ ([x (~datum :) t] ...) body ...+) #'(#%lambda ([x : t] ...) (block body ...))]))
 
 (define-stlc-syntax let*
   (syntax-parser
@@ -317,4 +343,32 @@
     (define (g) -> Number
       1)
     (f)))
+ 1)
+(test-equal?
+ "begin splices definitions"
+ (let ()
+   (stlc
+    (begin (begin (define x : Number 1)))
+    x))
+ 1)
+; block
+(check-eval
+ (block 1)
+ 1)
+(check-eval
+ (block 1 2)
+ 2)
+(check-eval
+ (block
+  (define x : Number 1)
+  x)
+ 1)
+; implicit block for multi-expression let
+(check-eval
+ (let ()
+   (define x : Number 1)
+   x)
+ 1)
+(check-eval
+ ((lambda () (define x : Number 1) 1))
  1)
