@@ -1,6 +1,6 @@
 #lang scribble/manual
 
-@(require (for-label racket "../main.rkt"))
+@(require (for-label racket racket/block "../main.rkt"))
 
 @title{Tutorial}
 
@@ -179,16 +179,16 @@ These simple binding rules behave like @racket[let]:
   (binding-class my-var)
   (nonterminal my-expr
     (my-let ([x:my-var e:my-expr] ...) body:my-expr)
-    #:binding (group e (scope (bind x) body))
+    #:binding [e (scope (bind x) body)]
     x:my-var
     n:number))
 ]
 
 We could've just written @racket[(scope (bind x) body)]. syntax-spec will automatically treat @racket[e] as a reference position outside of the new scope. That's why we don't have to mention @racket[action] or @racket[event-name] in the binding rules for transitions.
 
-@subsection{Definition contexts}
+@subsection{Separate scope and binding forms}
 
-Now let's add binding rules for state names. We can't just use @racket[scope] and @racket[bind] since the binding for state names is not like @racket[let]. It's more like @racket[define] where you can have mutual recursion. For that kind of binding structure, we use @racket[export] and @racket[import]:
+Now let's add binding rules for state names. We can't just use @racket[scope] and @racket[bind] since the binding of the state name comes from the @racket[state-spec] nonterminal, and those bindings need to be in scope throughout the entire @racket[machine] form. To use @racket[bind], we need to be able to refer to the name being bound directly. For this kind of binding structure, we use @racket[export] to export bindings from the @racket[state-spec] nonterminal and @racket[import] to import those bindings into a scope in the @racket[machine] host interface:
 
 @(racketblock
   (binding-class state-name))
@@ -206,13 +206,13 @@ Now let's add binding rules for state names. We can't just use @racket[scope] an
   (nonterminal action-spec
     (goto next-state-name:state-name)))
 
-We use an exporting nonterminal for @racket[state-spec], which allows us to use the @racket[export] binding rule for mutually recursive definitions. This binds @racket[name] in @racket[transition] and the other @racket[state-spec] forms in the body of the machine, like @racket[define] in a @racket[class] body.
+We use an exporting nonterminal for @racket[state-spec], which allows us to use the @racket[export] binding rule. This binds @racket[name] in @racket[transition] and the other @racket[state-spec] forms in the body of the machine, like @racket[define] in a @racket[class] or body or a @racket[block] form.
 
 Similar to @racket[bind] for a variable, we use @racket[import] to declare that an exporting nonterminal's bindings should be in scope for the @racket[initial-state] in the @racket[machine].
 
 @subsection{Nested binding}
 
-There is another type of binding rule that doesn't fit into our state machine language, but you might need it when creating a language on your own. This is nested binding and behaves like @racket[let*], where you have a sequence of variables being defined and each one is in scope for the next definition. Here is an example:
+There is another type of binding rule that doesn't fit into our state machine language, but you might need it when creating a different language. This is nested binding and behaves like @racket[let*], where you have a sequence of variables being defined and each one is in scope for the subsequent definitions (but not previous ones). Here is an example:
 
 @(racketblock
   (syntax-spec
@@ -242,7 +242,7 @@ In our state machine language, guard expressions are very limited. Let's remind 
      n:number
      (= e1:guard-expr e2:guard-expr)))
 
-A guard expression is either a variable reference, a number, or an equality test. What if we want something fancier like @racket[<]? Or what if we want to use values other than numbers? At this rate, we might as well allow arbitrary Racket expressions. Can we do that? Yes!
+A guard expression is either a variable reference, a number, or an equality test. What if we want something fancier like @racket[<]? Or what if we want to use values other than numbers? Really, it'd be ideal to be able to allow arbitrary racket expressions for the guard. We can actually do that!
 
 @(racketblock
    (syntax-spec
@@ -256,7 +256,7 @@ A guard expression is either a variable reference, a number, or an equality test
 
 Instead of using @racket[guard-expr] and defining our own nonterminal for guard expressions, we can just use @racket[racket-expr], which allows arbitrary racket expressions. And our @racket[event-var] identifiers will be in scope in the racket expression! We can even control how references to our DSL-bound variables behave in Racket expressions using reference compilers, which we'll discuss in the @secref["compilation"] section.
 
-In addition to @racket[racket-expr], there is @racket[racket-var] for allowing references to Racket-defined variables in DSL expressions, and @racket[racket-macro] for allowing the language to be extended by arbitrary Racket macros. We'll talk more about macros in the @secref["macros"] section.
+In addition to @racket[racket-expr], syntax-spec provides @racket[racket-var] for allowing references to Racket-defined variables in DSL expressions, and @racket[racket-macro] for allowing the language to be extended by arbitrary Racket macros. We'll talk more about macros in the @secref["macros"] section.
 
 @section[#:tag "compilation"]{Compilation}
 
