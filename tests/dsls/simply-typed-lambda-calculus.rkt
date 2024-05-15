@@ -370,5 +370,5 @@
    x)
  1)
 (check-eval
- ((lambda () (define x : Number 1) 1))
+ ((lambda () (define x : Number 1) x))
  1)
