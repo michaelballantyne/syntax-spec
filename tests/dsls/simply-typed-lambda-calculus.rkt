@@ -34,18 +34,12 @@
   (nonterminal type
     Number
     ((~literal ->) arg-type:type ... return-type:type))
-  #;#;
-  (nonterminal/exporting typed-definition
+  (nonterminal/exporting typed-definition-or-expr
     #:allow-extension typed-macro
     #:binding-space stlc
     (#%define x:typed-var t:type e:typed-expr)
     #:binding (export x)
-    (begin defn:typed-definition-or-expr ... e:typed-expr)
-    #:binding (re-export defn))
-  (nonterminal/exporting typed-definition-or-expr
-    #:allow-extension typed-macro
-    #:binding-space stlc
-    defn:typed-definition
+    (begin defn:typed-definition-or-expr ...+)
     #:binding (re-export defn)
     e:typed-expr)
   (host-interface/expression
@@ -57,7 +51,13 @@
    (stlc/infer e:typed-expr)
    (define t (infer-expr-type #'e))
    (define t-datum (type->datum t))
-   #`'#,t-datum))
+   #`'#,t-datum)
+  (host-interface/definitions
+   (stlc body:typed-definition-or-expr ...+)
+   #:binding (re-export body)
+   (type-check-defn-or-expr/pass1 #'(begin body ...))
+   (type-check-defn-or-expr/pass2 #'(begin body ...))
+   #'(compile-defn-or-expr (begin body ...))))
 
 (begin-for-syntax
   ; a Type is one of
@@ -120,6 +120,26 @@
                                   (type->datum actual-type))
                           e)))
 
+  ; Syntax -> Void
+  (define (type-check-defn-or-expr/pass1 e)
+    (syntax-parse e
+      [((~datum #%define) x:id t _)
+       (symbol-table-set! types #'x (parse-type #'t))]
+      [((~datum begin) body ...)
+       (for ([body (attribute body)])
+         (type-check-defn-or-expr/pass1 body))]
+      [_ (void)]))
+
+  ; Syntax -> Void
+  (define (type-check-defn-or-expr/pass2 e)
+    (syntax-parse e
+      [((~datum #%define) _ t e)
+       (check-expr-type #'e (parse-type #'t))]
+      [((~datum begin) body ...+)
+       (for ([body (attribute body)])
+         (type-check-defn-or-expr/pass2 body))]
+      [e (void (infer-expr-type #'e))]))
+
   ; Syntax -> Type
   (define (parse-type t-stx)
     (syntax-parse t-stx
@@ -174,6 +194,15 @@
        (define/syntax-parse return-type-stx (type->contract-stx return-type))
        #'(-> arg-type-stx ... return-type-stx)])))
 
+(define-syntax compile-defn-or-expr
+  (syntax-parser
+    [(_ ((~datum #%define) x:id _ body))
+     #'(define x (compile-expr body))]
+    [(_ ((~datum begin) body ...+))
+     #'(begin (compile-defn-or-expr body) ...)]
+    [(_ e)
+     #'(compile-expr e)]))
+
 (define-syntax define-stlc-syntax
   (syntax-parser
     [(_ name:id trans:expr)
@@ -186,11 +215,20 @@
     [(_ ([x:id e] binding ...) body)
      #'(let ([x e]) (let* (binding ...) body))]))
 
+(define-stlc-syntax define
+  (syntax-parser
+    [(_ x:id (~datum :) t e)
+     #'(#%define x t e)]
+    [(_ (f:id [arg:id (~datum :) arg-type] ...) (~datum ->) return-type body)
+     #'(#%define f (-> arg-type ... return-type)
+                 (lambda ([arg : arg-type] ...)
+                   body))]))
+
 ; testing
 
 (define-syntax-rule
   (check-eval e v)
-  (check-equal? (stlc/expr e) v))
+  (check-equal? (let () (stlc e)) v))
 (define-syntax-rule
   (check-infer e t)
   (check-equal? (stlc/infer e) 't))
@@ -251,3 +289,32 @@
    (stlc/expr
     (let ([f (lambda ([x : Number]) x)])
       (rkt (f #t) : Number)))))
+; definitions
+(check-equal?
+ (let ()
+   (stlc
+    (define x : Number 1)
+    x))
+ 1)
+; define at top-level
+(stlc
+ (define one : Number 1))
+(check-eval
+ one
+ 1)
+(check-equal?
+ (let ()
+   (stlc
+    (define (id [x : Number]) -> Number
+      x)
+    (id 2)))
+ 2)
+(check-equal?
+ (let ()
+   (stlc
+    (define (f) -> Number
+      (g))
+    (define (g) -> Number
+      1)
+    (f)))
+ 1)
