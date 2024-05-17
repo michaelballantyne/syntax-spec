@@ -128,19 +128,21 @@
              cls))]))
 
   (define method-reference-compiler
-    (make-variable-like-transformer (syntax-parser
-                                      [name:id
-                                       #'(lambda args (send this name . args))])))
+    (make-variable-like-reference-compiler
+     (syntax-parser
+       [name:id
+        #'(lambda args (send this name . args))])))
 
   (define field-reference-compiler
-    (make-variable-like-transformer (syntax-parser
-                                      [name:id
-                                       (let ([idx (symbol-table-ref field-index-table #'name)])
-                                         #`(vector-ref (object-fields this) #,idx))])
-                                    (syntax-parser
-                                      [(_ name:id rhs)
-                                       (let ([idx (symbol-table-ref field-index-table #'name)])
-                                         #`(vector-set! (object-fields this) #,idx rhs))])))
+    (make-variable-like-reference-compiler
+     (syntax-parser
+       [name:id
+        (let ([idx (symbol-table-ref field-index-table #'name)])
+          #`(vector-ref (object-fields this) #,idx))])
+     (syntax-parser
+       [(_ name:id rhs)
+        (let ([idx (symbol-table-ref field-index-table #'name)])
+          #`(vector-set! (object-fields this) #,idx rhs))])))
 
   #;((listof identifier?) -> void?)
   ;; If there are (symbolically) duplicate method names, error

@@ -7,9 +7,12 @@
                      make-suspension
 
                      mutable-reference-compiler
-                     immutable-reference-compiler))
+                     immutable-reference-compiler
+
+                     make-variable-like-reference-compiler))
 
 (require
+  syntax/parse
   (for-syntax
    racket/base
    racket/list
@@ -28,16 +31,56 @@
             "../syntax/env-reps.rkt"
             ee-lib))
 
-(begin-for-syntax  
+(define-syntax call-3d-syntax
+    (syntax-parser
+      [(_ proc arg)
+       ((syntax-e #'proc) #'arg)]))
+
+(begin-for-syntax
+  ; (Syntax | (Identifier -> Syntax)) {Syntax | (Syntax -> Syntax)}
+  ; Like make-variable-like-transformer.
+  ; If reference-stx is Syntax, replace references with it.
+  ; If reference-stx is a procedure, apply it to the reference syntax.
+  ; If setter-stx is Syntax, it should be syntax for a procedure accepting
+  ; the new value for the variable.
+  ; If setter-stx is a procedure, apply it to the entire set! expression.
+  ; When the identifier is used in an application position,
+  ; wrap the reference in a #%expression.
+  ; Expects syntax with a compiled name.
+  (define (make-variable-like-reference-compiler reference-stx [setter-stx #f])
+    ; TODO does this need datum->syntax like binding-as-rkt?
+    (define transformer
+      (syntax-parser
+        [v:id
+         (if (procedure? reference-stx)
+             (reference-stx #'v)
+             reference-stx)]
+        [((~and set! (~literal set!)) v:id new-val)
+         (cond
+           [(procedure? setter-stx)
+            (setter-stx this-syntax)]
+           [(syntax? setter-stx)
+            (syntax/loc this-syntax (setter-stx new-val))]
+           [else (raise-syntax-error (syntax-e #'set!) "cannot mutate identifier" this-syntax #'v)])]
+        [(v:id . args)
+         (datum->syntax
+          this-syntax
+          #`((#%expression (call-3d-syntax #,transformer v))
+             .
+             args)
+          this-syntax)]))
+    (make-set!-transformer transformer))
+
+
   (define mutable-reference-compiler
-    (make-variable-like-transformer
+    (make-variable-like-reference-compiler
      (lambda (id) id)
      (lambda (stx) stx)))
 
   (define immutable-reference-compiler
-    (make-variable-like-transformer
+    (make-variable-like-reference-compiler
      (lambda (id) id)))
-  
+
   (define suspension-property-key (gensym))
 
   (define/who (make-suspension stx ctx)
@@ -82,7 +125,7 @@
              (t (datum->syntax this-syntax (list #'set! (compile-reference #'v) #'e) this-syntax this-syntax))
              (raise-syntax-error #f (format "the reference compiler for ~a does not support set!" s) stx #'x))]
         [(v:id . rest)
-         (datum->syntax this-syntax (cons #'(#%expression v) #'rest) this-syntax this-syntax)])))
+         (t (datum->syntax this-syntax (cons (compile-reference #'v) #'rest) this-syntax this-syntax))])))
 
   #;(listof (list identifier? reference-compiler?))
   ; associates binding classes with reference compilers in the default environment.

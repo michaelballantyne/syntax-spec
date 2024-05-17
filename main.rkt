@@ -9,6 +9,8 @@
           mutable-reference-compiler
           immutable-reference-compiler
 
+          make-variable-like-reference-compiler
+
           define-persistent-symbol-table
           define-local-symbol-table
           syntax-datum?
