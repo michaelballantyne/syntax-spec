@@ -48,7 +48,6 @@
   ; wrap the reference in a #%expression.
   ; Expects syntax with a compiled name.
   (define (make-variable-like-reference-compiler reference-stx [setter-stx #f])
-    ; TODO does this need datum->syntax like binding-as-rkt?
     (define transformer
       (syntax-parser
         [v:id
