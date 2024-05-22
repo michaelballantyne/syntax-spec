@@ -17,6 +17,11 @@
           symbol-table-set!
           symbol-table-ref
 
+          define-persistent-symbol-set
+          define-local-symbol-set
+          symbol-set-add!
+          symbol-set-member?
+
           compiled-identifier=?
           free-identifiers
           alpha-equivalent?))

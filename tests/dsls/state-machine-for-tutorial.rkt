@@ -1,6 +1,7 @@
 #lang racket/base
 
 (require "../../testing.rkt"
+         racket/match
          racket/class
          (for-syntax racket/list))
 
@@ -24,10 +25,50 @@
   (host-interface/expression
     (machine #:initial initial-state:state-name s:state-spec ...)
     #:binding (scope (import s) initial-state)
-    #'(compile-machine initial-state s ...)))
+    (define/syntax-parse (s^ ...) (prune-inaccessible-states #'initial-state (attribute s)))
+    #'(compile-machine initial-state s^ ...)))
+
+(begin-for-syntax
+  ; Identifier (listof Syntax) -> (listof Syntax)
+  ; removes inaccessible states' specs
+  (define (prune-inaccessible-states initial-state-id state-specs)
+    (define accessible-states (get-accessible-states initial-state-id state-specs))
+    (for/list ([state-spec state-specs]
+               #:when (symbol-set-member? accessible-states (state-spec-name state-spec)))
+      state-spec))
+
+  ; Identifier (listof Syntax) -> SymbolSet
+  (define (get-accessible-states initial-state-id state-specs)
+    (define-local-symbol-set accessible-states)
+    (define (find-state-spec state-name)
+      (findf (lambda (state-spec)
+               (compiled-identifier=? state-name (state-spec-name state-spec)))
+             state-specs))
+    (let loop ([state-name initial-state-id])
+      (unless (symbol-set-member? accessible-states state-name)
+        (symbol-set-add! accessible-states state-name)
+        (define state-spec (find-state-spec state-name))
+        (for ([next-state-name (state-spec-next-state-names state-spec)])
+          (loop next-state-name))))
+    accessible-states)
+
+  ; Syntax -> Identifier
+  (define (state-spec-name state-spec)
+    (syntax-parse state-spec
+      [(state name . _) #'name]))
+
+  ; Syntax -> (listof Identifier)
+  ; Possible next states
+  (define (state-spec-next-state-names state-spec)
+    (syntax-parse state-spec
+      [(state name
+         (on action (~optional (~seq #:when guard))
+             (goto next-state-name))
+         ...)
+       (attribute next-state-name)])))
 
 (define-syntax compile-machine
-  ; TODO handle when not all events are present in all states. should just ignore the event if no transition for it.
+  ; TODO handle when not all events are present in all states. should get a clearer error message.
   (syntax-parser
     [(_ initial-state:id
         ((~literal state) state-name evt ...)
@@ -93,12 +134,38 @@
          (when guard
            (send machine set-state name)))]))
 
-(define mchn
-  (machine
-   #:initial green
-   (state green
-          (on (good) (goto green))
-          (on (bad) (goto red)))
-   (state red
-          (on (bad) (goto red)))))
-
+(module+ test
+  (define mchn
+    (machine
+     #:initial green
+     (state green
+            (on (good) (goto green))
+            (on (bad) (goto red)))
+     (state red
+            (on (good) (goto green))
+            (on (bad) (goto red)))))
+  (check-equal?
+   (send mchn get-state)
+   'green)
+  (send mchn good)
+  (check-equal?
+   (send mchn get-state)
+   'green)
+  (send mchn bad)
+  (check-equal?
+   (send mchn get-state)
+   'red)
+  (define machine-datum
+    (syntax->datum
+     (expand
+      #'(machine
+          #:initial the-initial-state
+          (state the-initial-state)
+          (state unreachable)))))
+  (define (symbol-in-datum? datum sym)
+    (match datum
+      [(cons a b) (or (symbol-in-datum? a sym)
+                      (symbol-in-datum? b sym))]
+      [_ (eq? sym datum)]))
+  (check-true (symbol-in-datum? machine-datum 'the-initial-state))
+  (check-false (symbol-in-datum? machine-datum 'unreachable)))
