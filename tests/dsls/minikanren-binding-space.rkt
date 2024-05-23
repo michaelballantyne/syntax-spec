@@ -64,40 +64,30 @@
     (~> (name:id arg ...)
         (with-syntax ([#%rel-app (datum->syntax this-syntax '#%rel-app)])
           #'(#%rel-app name arg ...)))))
-
-(define-syntax define-mk-syntax
-  (syntax-parser
-    [(_ name:id rhs:expr)
-     #:with spaced-name ((make-interned-syntax-introducer 'mk) (attribute name) 'add)
-     #'(define-syntax spaced-name rhs)]))
      
 
 ; Surface syntax
-(define-mk-syntax conj
-  (goal-macro
-   (syntax-parser
-     [(_ g) #'g]
-     [(_ g1 g2 g* ...) #'(conj (conj2 g1 g2) g* ...)])))
+(define-extension conj goal-macro
+  (syntax-parser
+    [(_ g) #'g]
+    [(_ g1 g2 g* ...) #'(conj (conj2 g1 g2) g* ...)]))
 
-(define-mk-syntax disj
-  (goal-macro
-   (syntax-parser
-     [(_ g) #'g]
-     [(_ g1 g* ...) #'(disj2 g1 (disj g* ...))])))
+(define-extension disj goal-macro
+  (syntax-parser
+    [(_ g) #'g]
+    [(_ g1 g* ...) #'(disj2 g1 (disj g* ...))]))
 
-(define-mk-syntax fresh
-  (goal-macro
-   (syntax-parser
-     [(_ (x:id ...+) b ...+)
-      #'(fresh1 (x ...) (conj b ...))])))
+(define-extension fresh goal-macro
+  (syntax-parser
+    [(_ (x:id ...+) b ...+)
+     #'(fresh1 (x ...) (conj b ...))]))
 
-(define-mk-syntax conde
-  (goal-macro
-   (syntax-parser
-     [(_ [g ...+] ...+)
-      #'(disj
-         (conj g ...)
-         ...)])))
+(define-extension conde goal-macro
+  (syntax-parser
+    [(_ [g ...+] ...+)
+     #'(disj
+        (conj g ...)
+        ...)]))
 
 (syntax-spec
   (host-interface/definition
@@ -112,9 +102,10 @@
 (define-relation/stub appendo)
 
 (define expanded
-  (expand-nonterminal/datum goal
-    (fresh (l1 l2 l3)
-      (conde
+  (expand-nonterminal/datum
+   goal
+   (fresh (l1 l2 l3)
+     (conde
        [(== l1 '()) (== l3 l2)]  ; base case
        [(fresh (head rest result) ; recursive case
           (== (cons head rest) l1)
@@ -124,12 +115,12 @@
 (check-equal?
  expanded
  '(fresh1 (l1 l2 l3)
-          (disj2
-           (conj2 (== (#%term-ref l1) '()) (== (#%term-ref l3) (#%term-ref l2)))
-           (fresh1 (head rest result)
-                   (conj2 (conj2 (== (cons (#%term-ref head) (#%term-ref rest)) (#%term-ref l1))
-                                 (== (cons (#%term-ref head) (#%term-ref result)) (#%term-ref l3)))
-                          (#%rel-app appendo (#%term-ref rest) (#%term-ref l2) (#%term-ref result)))))))
+    (disj2
+     (conj2 (== (#%term-ref l1) '()) (== (#%term-ref l3) (#%term-ref l2)))
+     (fresh1 (head rest result)
+       (conj2 (conj2 (== (cons (#%term-ref head) (#%term-ref rest)) (#%term-ref l1))
+                     (== (cons (#%term-ref head) (#%term-ref result)) (#%term-ref l3)))
+              (#%rel-app appendo (#%term-ref rest) (#%term-ref l2) (#%term-ref result)))))))
 
 ; Test interposition point; separate submodule so we can rename-in the core #%rel-app.
 (module* test racket
@@ -144,12 +135,13 @@
             (core-#%rel-app name arg ...))])))
 
   (check-equal?
-   (expand-nonterminal/datum goal
-     (fresh (l1 l2 l3)
-       (appendo l1 l2 l3)))
+   (expand-nonterminal/datum
+    goal
+    (fresh (l1 l2 l3)
+      (appendo l1 l2 l3)))
    '(fresh1 (l1 l2 l3)
-            (fresh1 (foo)
-                    (#%rel-app appendo (#%term-ref l1) (#%term-ref l2) (#%term-ref l3))))))
+      (fresh1 (foo)
+        (#%rel-app appendo (#%term-ref l1) (#%term-ref l2) (#%term-ref l3))))))
 
   
   

@@ -2,7 +2,7 @@
 
 (provide (all-defined-out)
          quote cons
-         (for-space mk quasiquote))
+         (for-space mk (all-defined-out)))
 
 (require "../../../main.rkt"
          ee-lib/errors
@@ -71,67 +71,55 @@
 
 ;; TODO: use syntax-parse and syntax classes for better errors.
 
-(define-syntax define-syntax/space
-  (syntax-parser
-    [(_ name space rhs)
-     #`(define-syntax #,((make-interned-syntax-introducer (syntax-e #'space)) #'name) rhs)]))
+(define-extension quasiquote term-macro
+  (syntax-parser 
+    [(~describe
+      "`<datum>"
+      (_ q))
+     (let recur ([stx #'q])
+       (syntax-parse stx #:datum-literals (unquote)
+         [(unquote e) #'e]
+         [(unquote . rest)
+          (raise-syntax-error 'unquote "bad unquote syntax" stx)]
+         [(a . d) #`(cons #,(recur #'a) #,(recur #'d))]
+         [(~or* v:identifier v:number) #'(quote v)]
+         [() #'(quote ())]))]))
 
-(define-syntax/space quasiquote mk
-  (term-macro
-   (syntax-parser 
-     [(~describe
-       "`<datum>"
-       (_ q))
-      (let recur ([stx #'q])
-        (syntax-parse stx #:datum-literals (unquote)
-          [(unquote e) #'e]
-          [(unquote . rest)
-           (raise-syntax-error 'unquote "bad unquote syntax" stx)]
-          [(a . d) #`(cons #,(recur #'a) #,(recur #'d))]
-          [(~or* v:identifier v:number) #'(quote v)]
-          [() #'(quote ())]))])))
+(define-extension disj goal-macro
+  (syntax-rules ()
+    ((disj) fail)
+    ((disj g) g)
+    ((disj g0 g ...) (disj2 g0 (disj g ...)))))
 
-(define-syntax disj
-  (goal-macro
-   (syntax-rules ()
-     ((disj) fail)
-     ((disj g) g)
-     ((disj g0 g ...) (disj2 g0 (disj g ...))))))
+(define-extension conj goal-macro
+  (syntax-rules ()
+    ((conj) succeed)
+    ((conj g) g)
+    ((conj g0 g ...) (conj2 g0 (conj g ...)))))
 
-(define-syntax conj
-  (goal-macro
-   (syntax-rules ()
-     ((conj) succeed)
-     ((conj g) g)
-     ((conj g0 g ...) (conj2 g0 (conj g ...))))))
+(define-extension fresh goal-macro
+  (syntax-rules ()
+    ((fresh () g ...) (conj g ...))
+    ((fresh (x0 x ...) g ...)
+     (fresh1 (x0)
+       (fresh (x ...)
+         g ...)))))
 
-(define-syntax fresh
-  (goal-macro
-   (syntax-rules ()
-     ((fresh () g ...) (conj g ...))
-     ((fresh (x0 x ...) g ...)
-      (fresh1 (x0)
-              (fresh (x ...)
-                g ...))))))
+(define-extension conde goal-macro
+  (syntax-rules ()
+    ((conde (g ...) ...)
+     (disj (conj g ...) ...))))
 
-(define-syntax conde
-  (goal-macro
-   (syntax-rules ()
-     ((conde (g ...) ...)
-      (disj (conj g ...) ...)))))
+(define-extension conda goal-macro
+  (syntax-rules ()
+    ((conda (g0 g ...)) (conj g0 g ...))
+    ((conda (g0 g ...) ln ...)
+     (ifte g0 (conj g ...) (conda ln ...)))))
 
-(define-syntax conda
-  (goal-macro
-   (syntax-rules ()
-     ((conda (g0 g ...)) (conj g0 g ...))
-     ((conda (g0 g ...) ln ...)
-      (ifte g0 (conj g ...) (conda ln ...))))))
-
-(define-syntax condu
-  (goal-macro
-   (syntax-rules ()
-     ((condu (g0 g ...) ...)
-      (conda ((once g0) g ...) ...)))))
+(define-extension condu goal-macro
+  (syntax-rules ()
+    ((condu (g0 g ...) ...)
+     (conda ((once g0) g ...) ...))))
 
 ;;
 ;; Interface macros

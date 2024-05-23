@@ -1,6 +1,7 @@
 #lang racket/base
 
 (provide syntax-spec
+         define-extension
          (for-syntax racket-expr
                      racket-var
                      racket-macro
@@ -296,9 +297,9 @@
          
          (define (generate-body)
            #`(with-syntax ([compiled-names (check-lhs-result
-                                           (syntax-parse #f
-                                             [_
-                                              #,@(add-scope #'[name-parse-body ...] sc)]))])
+                                            (syntax-parse #f
+                                              [_
+                                               #,@(add-scope #'[name-parse-body ...] sc)]))])
                (trampoline-lift! #'(define-values compiled-names (pass2-macro . #,(compile-sspec-to-template sspec))))
                #'(begin)))
 
@@ -346,6 +347,15 @@
     e:expr
     #:binding (host e)))
 
+
+
+(define-syntax define-extension
+  (syntax-parser
+    [(_ name eclass rhs)
+     (define space (eval-transformer #'(extension-class-space eclass)))
+     (define/syntax-parse name/space ((in-space space) #'name))
+     #'(define-syntax name/space (eclass rhs))]))
+
 ;;
 ;; phase 1 accessors
 ;;
@@ -377,4 +387,8 @@
   
   (define-syntax binding-class-predicate
     (accessor-macro bindclass-rep? "expected a binding class name" bindclass-rep-pred))
+
+  (define-syntax extension-class-space
+    (accessor-macro extclass-rep? "expected an extension class name"
+                    (lambda (b) #`'#,(extclass-rep-binding-space b))))
   )

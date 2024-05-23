@@ -25,10 +25,10 @@
     [p:pat body:racket-expr ...+]
     #:binding (scope (import p) body))
   (host-interface/expression
-   (match target:racket-expr c:clause ...)
-   #'(with-reference-compilers ([pat-var immutable-reference-compiler])
-       (let ([target-pv target])
-         (match-clauses target-pv c ...)))))
+    (match target:racket-expr c:clause ...)
+    #'(with-reference-compilers ([pat-var immutable-reference-compiler])
+        (let ([target-pv target])
+          (match-clauses target-pv c ...)))))
 
 (define-syntax match-clauses
   (syntax-parser
@@ -58,12 +58,10 @@
        [(not p)
         #'(do-match target p on-fail on-success)])]))
 
-; TODO shouldn't have to mess with make-interned-syntax-introducer
 (define-syntax define-match-expander
   (syntax-parser
     [(_ name:id trans:expr)
-     #`(define-syntax #,((make-interned-syntax-introducer 'pm) #'name 'add)
-         (pat-macro trans))]))
+     #`(define-extension name pat-macro trans)]))
 
 (define-match-expander _
   (syntax-parser
