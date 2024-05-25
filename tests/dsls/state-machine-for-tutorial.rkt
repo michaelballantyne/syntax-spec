@@ -1,5 +1,6 @@
 #lang racket/base
 
+(provide (all-defined-out))
 (require "../../testing.rkt"
          racket/match
          racket/class
@@ -25,17 +26,17 @@
   (host-interface/expression
     (machine #:initial initial-state:state-name s:state-spec ...)
     #:binding (scope (import s) initial-state)
-    (define/syntax-parse (s^ ...) (prune-inaccessible-states #'initial-state (attribute s)))
-    #'(compile-machine initial-state s^ ...)))
+    (check-for-inaccessible-states #'initial-state (attribute s))
+    #'(compile-machine initial-state s ...)))
 
 (begin-for-syntax
   ; Identifier (listof Syntax) -> (listof Syntax)
-  ; removes inaccessible states' specs
-  (define (prune-inaccessible-states initial-state-id state-specs)
+  ; Error if there is an inaccessible state
+  (define (check-for-inaccessible-states initial-state-id state-specs)
     (define accessible-states (get-accessible-states initial-state-id state-specs))
     (for/list ([state-spec state-specs]
-               #:when (symbol-set-member? accessible-states (state-spec-name state-spec)))
-      state-spec))
+               #:unless (symbol-set-member? accessible-states (state-spec-name state-spec)))
+      (error 'machine "Inaccessible state: ~a" (syntax->datum (state-spec-name state-spec)))))
 
   ; Identifier (listof Syntax) -> SymbolSet
   (define (get-accessible-states initial-state-id state-specs)
@@ -77,37 +78,37 @@
      #'(with-reference-compilers ([event-var immutable-reference-compiler])
          ; no reference compiler for state names since they shouldn't be referenced in racket expressions.
          (let ()
-         (define machine%
-           (class object%
-             (define state #f)
-             (define/public (set-state state%)
-               (set! state (new state% [machine this])))
-             (define/public (get-state) (send state get-state))
+           (define machine%
+             (class object%
+               (define state #f)
+               (define/public (set-state state%)
+                 (set! state (new state% [machine this])))
+               (define/public (get-state) (send state get-state))
 
-             (compile-proxy-method all-events state)
-             ...
+               (compile-proxy-method all-events state)
+               ...
 
-             (send this set-state initial-state)
-             (super-new)))
+               (send this set-state initial-state)
+               (super-new)))
 
-         (define common%
-           (class object%
-             (init-field machine)
-             (super-new)))
+           (define common%
+             (class object%
+               (init-field machine)
+               (super-new)))
 
-         (define state-name
-           (class common%
-             (inherit-field machine)
+           (define state-name
+             (class common%
+               (inherit-field machine)
 
-             (define/public (get-state) 'state-name)
+               (define/public (get-state) 'state-name)
 
-             (compile-event-method evt machine)
-             ...
+               (compile-event-method evt machine)
+               ...
 
-             (super-new)))
-         ...
+               (super-new)))
+           ...
 
-         (new machine%)))]))
+           (new machine%)))]))
 
 (begin-for-syntax
   (define (unique-event-names evt-stxs)
@@ -127,7 +128,7 @@
 (define-syntax compile-event-method
   (syntax-parser
     #:datum-literals (on ->)
-    [(_ (on (event-name arg ...) (~optional (~seq #:where guard) #:defaults ([guard #'#t]))
+    [(_ (on (event-name arg ...) (~optional (~seq #:when guard) #:defaults ([guard #'#t]))
           (goto name))
         machine)
      #'(define/public (event-name arg ...)
@@ -155,17 +156,25 @@
   (check-equal?
    (send mchn get-state)
    'red)
-  (define machine-datum
-    (syntax->datum
-     (expand
-      #'(machine
-          #:initial the-initial-state
-          (state the-initial-state)
-          (state unreachable)))))
-  (define (symbol-in-datum? datum sym)
-    (match datum
-      [(cons a b) (or (symbol-in-datum? a sym)
-                      (symbol-in-datum? b sym))]
-      [_ (eq? sym datum)]))
-  (check-true (symbol-in-datum? machine-datum 'the-initial-state))
-  (check-false (symbol-in-datum? machine-datum 'unreachable)))
+  (check-exn
+   #rx"machine: Inaccessible state: unreachable"
+   (lambda ()
+     (convert-compile-time-error
+      (machine
+       #:initial the-initial-state
+       (state the-initial-state)
+       (state unreachable)))))
+
+  #;(define turnstile
+    (machine
+     #:initial locked
+
+     (state locked
+            (on (coin value) #:when (= value 0.25)
+                (goto unlocked))
+            (on (coin value)
+                (goto locked)))
+
+     (state unlocked
+            (on (person-enters)
+                (goto locked))))))
