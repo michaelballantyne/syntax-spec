@@ -69,44 +69,28 @@
        (attribute next-state-name)])))
 
 (define-syntax compile-machine
-  ; TODO handle when not all events are present in all states. should get a clearer error message.
   (syntax-parser
     [(_ initial-state:id
-        ((~literal state) state-name evt ...)
+        (~and state-spec
+              ((~literal state) state-name evt ...))
         ...)
-     (define/syntax-parse (all-events ...) (unique-event-names #'(evt ... ...)))
-     #'(with-reference-compilers ([event-var immutable-reference-compiler])
+     ; TODO use a symbol table mapping state IDs to gensyms instead of using state name datums
+     (define/syntax-parse (event-name ...) (unique-event-names #'(evt ... ...)))
+     (define/syntax-parse (event-method ...)
+       (for/list ([event-name (attribute event-name)])
+         (compile-event-method event-name (attribute state-spec))))
+     #`(with-reference-compilers ([event-var immutable-reference-compiler])
          ; no reference compiler for state names since they shouldn't be referenced in racket expressions.
          (let ()
            (define machine%
              (class object%
-               (define state #f)
-               (define/public (set-state state%)
-                 (set! state (new state% [machine this])))
-               (define/public (get-state) (send state get-state))
-
-               (compile-proxy-method all-events state)
-               ...
-
-               (send this set-state initial-state)
-               (super-new)))
-
-           (define common%
-             (class object%
-               (init-field machine)
-               (super-new)))
-
-           (define state-name
-             (class common%
-               (inherit-field machine)
-
-               (define/public (get-state) 'state-name)
-
-               (compile-event-method evt machine)
-               ...
-
-               (super-new)))
-           ...
+               (super-new)
+               (define state 'initial-state)
+               (define/public (set-state! new-state)
+                 (set! state new-state))
+               (define/public (get-state) state)
+               event-method
+               ...))
 
            (new machine%)))]))
 
@@ -125,15 +109,58 @@
      #'(define/public (name . args)
          (send/apply target name args))]))
 
-(define-syntax compile-event-method
+(begin-for-syntax
+  ; Identifier (listof Syntax) -> Syntax
+  (define (compile-event-method event-name state-specs)
+    (define/syntax-parse (state-name ...)
+      (for/list ([state-spec state-specs])
+        (state-spec-name state-spec)))
+    (define/syntax-parse (state-spec ...) state-specs)
+    #`(define/public (#,event-name . args)
+        (match (send this get-state)
+          ['state-name
+           (apply (compile-event-handler-for-state #,event-name state-name (state-spec ...))
+                  args)]
+          ...
+          [state (error 'machine (format "Unknown state: ~a" state))]))))
+
+(define-syntax compile-event-handler-for-state
   (syntax-parser
-    #:datum-literals (on ->)
-    [(_ (on (event-name arg ...) (~optional (~seq #:when guard) #:defaults ([guard #'#t]))
-          (goto name))
-        machine)
-     #'(define/public (event-name arg ...)
-         (when guard
-           (send machine set-state name)))]))
+    [(_ event-name state-name (state-spec ...))
+     (define/syntax-parse
+       ((on (_ arg ...) (~optional (~seq #:when guard) #:defaults ([guard #'#t]))
+            (goto next-state-name))
+        ...)
+       (get-transitions-for-event-and-state #'event-name #'state-name #'(state-spec ...)))
+     #'(lambda args
+         (cond
+           [(apply (lambda (arg ...) guard)
+                   args)
+            (send this set-state! 'next-state-name)]
+           ...
+           [else (error 'machine
+                        "No transition defined for event ~v in state ~v"
+                        (syntax->datum #'event-name)
+                        (syntax->datum #'state-name))]))]))
+
+(begin-for-syntax
+  ; Identifier Identifier (listof Syntax) -> (listof Syntax)
+  ; gets the transitions for the given event and state
+  (define (get-transitions-for-event-and-state event-name state-name state-specs)
+    (apply append
+           (for/list ([state-spec (syntax->list state-specs)]
+                      #:when (compiled-identifier=? (state-spec-name state-spec)
+                                                    state-name))
+             (syntax-parse state-spec
+               [(state _
+                       transition
+                       ...)
+                (for/list ([transition (attribute transition)]
+                           #:when (syntax-parse transition
+                                    [(on (event-name^ . _) . _)
+                                     (eq? (syntax->datum event-name)
+                                          (syntax->datum #'event-name^))]))
+                  transition)])))))
 
 (module+ test
   (define mchn
@@ -165,7 +192,7 @@
        (state the-initial-state)
        (state unreachable)))))
 
-  #;(define turnstile
+  (define turnstile
     (machine
      #:initial locked
 
@@ -177,4 +204,19 @@
 
      (state unlocked
             (on (person-enters)
-                (goto locked))))))
+                (goto locked)))))
+  (check-equal? (send turnstile get-state)
+                'locked)
+  (send turnstile coin 0.10)
+  (check-equal? (send turnstile get-state)
+                'locked)
+  (send turnstile coin 0.25)
+  (check-equal? (send turnstile get-state)
+                'unlocked)
+  (send turnstile person-enters)
+  (check-equal? (send turnstile get-state)
+                'locked)
+  (check-exn
+   #rx"machine: No transition defined for event 'person-enters in state 'locked"
+   (lambda ()
+     (send turnstile person-enters))))
