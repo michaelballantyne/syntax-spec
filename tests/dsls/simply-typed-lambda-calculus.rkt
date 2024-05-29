@@ -4,6 +4,8 @@
 ; definition contexts, re-export, top-level definitions, persistent symbol tables,
 ; static analysis, rewrites, and custom reference compilers.
 
+(provide (all-defined-out)
+         (for-syntax (all-defined-out)))
 (require "../../testing.rkt"
          racket/contract
          (for-syntax racket/match syntax/transformer))
@@ -40,7 +42,7 @@
         #'(#%app fun arg ...)))
   (nonterminal type
     Number
-    ((~literal ->) arg-type:type ... return-type:type))
+    ((~datum ->) arg-type:type ... return-type:type))
   (nonterminal/exporting typed-definition-or-expr
     #:allow-extension typed-macro
     #:binding-space stlc
@@ -51,9 +53,8 @@
     e:typed-expr)
   (host-interface/expression
    (stlc/expr e:typed-expr)
-   (infer-expr-type #'e)
-   #'(with-reference-compilers ([typed-var typed-var-reference-compiler])
-       (compile-expr e)))
+   (define/syntax-parse t (infer-expr-type #'e))
+   #'(compile-expr/top e t))
   (host-interface/expression
    (stlc/infer e:typed-expr)
    (define t (infer-expr-type #'e))
@@ -64,7 +65,7 @@
    #:binding (re-export body)
    (type-check-defn-or-expr/pass1 #'(begin body ...))
    (type-check-defn-or-expr/pass2 #'(begin body ...))
-   #'(compile-defn-or-expr (begin body ...))))
+   #'(compile-defn-or-expr/top (begin body ...))))
 
 (begin-for-syntax
   ; a Type is one of
@@ -79,12 +80,12 @@
   (define (infer-expr-type e)
     (syntax-parse e
       [n:number (number-type)]
-      [x:id (symbol-table-ref types #'x (lambda () (raise-syntax-error 'infer-expr-type "untyped identifier" #'x)))]
+      [x:id (get-identifier-type #'x)]
       [((~datum #%lambda) ([x:id _ t] ...) body)
        (define arg-types (map parse-type (attribute t)))
        (for ([x (attribute x)]
              [t arg-types])
-         (symbol-table-set! types x t))
+         (extend-type-environment! x t))
        (define body-type (infer-expr-type #'body))
        (function-type arg-types body-type)]
       [((~datum #%app) f arg ...)
@@ -112,7 +113,7 @@
       [((~datum #%let) ([x e] ...) body)
        (for ([x (attribute x)]
              [e (attribute e)])
-         (symbol-table-set! types x (infer-expr-type e)))
+         (extend-type-environment! x (infer-expr-type e)))
        (infer-expr-type #'body)]
       [((~datum rkt) e (~datum :) t)
        (parse-type #'t)]
@@ -120,6 +121,15 @@
        (type-check-defn-or-expr/pass1 #'(begin d ...))
        (type-check-defn-or-expr/pass2 #'(begin d ...))
        (infer-expr-type #'e)]))
+
+  ; Identifier -> Type
+  (define (get-identifier-type x)
+    (symbol-table-ref types x (lambda () (raise-syntax-error #f "untyped identifier" x))))
+
+  ; Identifier Type -> Void
+  ; Records the identifier's type. Does nothing if already recorded.
+  (define (extend-type-environment! x t)
+    (void (symbol-table-ref types x (lambda () (symbol-table-set! types x t)))))
 
   ; Syntax Type -> Void
   (define (check-expr-type e expected-type)
@@ -135,7 +145,7 @@
   (define (type-check-defn-or-expr/pass1 e)
     (syntax-parse e
       [((~datum #%define) x:id t _)
-       (symbol-table-set! types #'x (parse-type #'t))]
+       (extend-type-environment! #'x (parse-type #'t))]
       [((~datum begin) body ...)
        (for ([body (attribute body)])
          (type-check-defn-or-expr/pass1 body))]
@@ -169,6 +179,19 @@
                (map type->datum arg-types)
                (list (type->datum return-type)))])))
 
+; inserts with-reference-compilers, and contract check
+(define-syntax compile-expr/top
+  (syntax-parser
+    [(_ e t-stx)
+     (define t (syntax->datum #'t-stx))
+     (define/syntax-parse e^
+       #'(with-reference-compilers ([typed-var typed-var-reference-compiler])
+           (compile-expr e)))
+     #`(contract #,(type->contract-stx t)
+                 e^
+                 'stlc 'racket
+                 #f #'e^)]))
+
 (define-syntax compile-expr
   (syntax-parser
     [(_ n:number) #'n]
@@ -193,12 +216,12 @@
 
 (begin-for-syntax
   (define typed-var-reference-compiler
-    ; TODO change to make-variable-like-reference-compiler
-    (make-variable-like-transformer (lambda (x)
-                                      #`(contract #,(type->contract-stx (symbol-table-ref types x))
-                                                  #,x
-                                                  'stlc 'racket
-                                                  '#,x #'#,x))))
+    (make-variable-like-reference-compiler
+     (lambda (x)
+       #`(contract #,(type->contract-stx (get-identifier-type x))
+                   #,x
+                   'stlc 'racket
+                   '#,x #'#,x))))
 
   ; Type -> Syntax
   ; emits syntax that specifies a contract equivalent to the given type
@@ -210,10 +233,20 @@
        (define/syntax-parse return-type-stx (type->contract-stx return-type))
        #'(-> arg-type-stx ... return-type-stx)])))
 
+; inserts with-reference-compilers around exprs, and contract checks
+(define-syntax compile-defn-or-expr/top
+  (syntax-parser
+    [(_ ((~datum #%define) x:id _ body))
+     #`(define x (compile-expr/top body #,(get-identifier-type #'x)))]
+    [(_ ((~datum begin) body ...+))
+     #'(begin (compile-defn-or-expr/top body) ...)]
+    [(_ e)
+     #`(compile-expr/top e #,(infer-expr-type #'e))]))
+
 (define-syntax compile-defn-or-expr
   (syntax-parser
     [(_ ((~datum #%define) x:id _ body))
-     #'(define x (compile-expr body))]
+     #`(define x (compile-expr body))]
     [(_ ((~datum begin) body ...+))
      #'(begin (compile-defn-or-expr body) ...)]
     [(_ e)
@@ -252,123 +285,131 @@
 
 ; testing
 
-(define-syntax-rule
-  (check-eval e v)
-  (check-equal? (let () (stlc e)) v))
-(define-syntax-rule
-  (check-infer e t)
-  (check-equal? (stlc/infer e) 't))
-(check-eval 1 1)
-(check-eval ((lambda ([x : Number]) x) 1) 1)
-(check-infer (lambda ([x : Number]) x)
-             (-> Number Number))
-(check-eval (let ([x 1]) x) 1)
-(check-eval
- (let* ([second (lambda ([x : Number] [y : Number]) y)]
-        [x (second 1 2)])
-   x)
- 2)
-(check-exn
- #rx"expected a function type, but got Number"
- (lambda ()
-   (convert-compile-time-error
-    (stlc/expr (1 2)))))
-(check-exn
- #rx"arity error. expected 0 arguments, but got 1"
- (lambda ()
-   (convert-compile-time-error
-    (stlc/expr ((lambda () 1) 2)))))
-(check-exn
- #rx"type mismatch. expected Number, but got \\(-> Number\\)"
- (lambda ()
-   (convert-compile-time-error
-    (stlc/expr ((lambda ([x : Number]) x) (lambda () 1))))))
-(check-exn
- #rx"type mismatch. expected Number, but got \\(-> Number\\)"
- (lambda ()
-   (convert-compile-time-error
-    (stlc/expr ((lambda () 1) : Number)))))
-; racket integration
-(check-infer (rkt 1 : Number)
-             Number)
-(check-infer (rkt (lambda (x) x) : (-> Number Number))
-             (-> Number Number))
-(check-eval (rkt 1 : Number)
-            1)
-(test-exn
- "racket expr is not of the correct type"
- #rx"promised: number\\?\n  produced: #t"
- (lambda ()
-   (stlc/expr
-    (rkt #t : Number))))
-(test-exn
- "racket expr is a function which breaks its contract"
- #rx"promised: number\\?\n  produced: #t"
- (lambda ()
-   (stlc/expr
-    (let ([f (rkt (lambda (x) #t) : (-> Number Number))])
-      (f 1)))))
-(test-exn
- "typed var misused in racket expr"
- #rx"expected: number\\?\n  given: #t"
- (lambda ()
-   (stlc/expr
-    (let ([f (lambda ([x : Number]) x)])
-      (rkt (f #t) : Number)))))
-; definitions
-(check-equal?
- (let ()
-   (stlc
+(module+ test
+  (define-syntax-rule
+    (check-eval e v)
+    (check-equal? (let () (stlc e)) v))
+  (define-syntax-rule
+    (check-infer e t)
+    (check-equal? (stlc/infer e) 't))
+  (check-eval 1 1)
+  (check-eval ((lambda ([x : Number]) x) 1) 1)
+  (check-infer (lambda ([x : Number]) x)
+               (-> Number Number))
+  (check-eval (let ([x 1]) x) 1)
+  (check-eval
+   (let* ([second (lambda ([x : Number] [y : Number]) y)]
+          [x (second 1 2)])
+     x)
+   2)
+  (check-exn
+   #rx"expected a function type, but got Number"
+   (lambda ()
+     (convert-compile-time-error
+      (stlc/expr (1 2)))))
+  (check-exn
+   #rx"arity error. expected 0 arguments, but got 1"
+   (lambda ()
+     (convert-compile-time-error
+      (stlc/expr ((lambda () 1) 2)))))
+  (check-exn
+   #rx"type mismatch. expected Number, but got \\(-> Number\\)"
+   (lambda ()
+     (convert-compile-time-error
+      (stlc/expr ((lambda ([x : Number]) x) (lambda () 1))))))
+  (check-exn
+   #rx"type mismatch. expected Number, but got \\(-> Number\\)"
+   (lambda ()
+     (convert-compile-time-error
+      (stlc/expr ((lambda () 1) : Number)))))
+  ; racket integration
+  (check-infer (rkt 1 : Number)
+               Number)
+  (check-infer (rkt (lambda (x) x) : (-> Number Number))
+               (-> Number Number))
+  (check-eval (rkt 1 : Number)
+              1)
+  (test-exn
+   "racket expr is not of the correct type"
+   #rx"promised: number\\?\n  produced: #t"
+   (lambda ()
+     (stlc/expr
+      (rkt #t : Number))))
+  (test-exn
+   "racket expr is a function which breaks its contract"
+   #rx"promised: number\\?\n  produced: #t"
+   (lambda ()
+     (stlc/expr
+      (let ([f (rkt (lambda (x) #t) : (-> Number Number))])
+        (f 1)))))
+  (test-exn
+   "typed var misused in racket expr"
+   #rx"expected: number\\?\n  given: #t"
+   (lambda ()
+     (stlc/expr
+      (let ([f (lambda ([x : Number]) x)])
+        (rkt (f #t) : Number)))))
+  (test-exn
+   "typed function misused in racket expr"
+   #rx"expected: number\\?\n  given: #t"
+   (lambda ()
+     (stlc/expr
+      (let ([f (lambda ([x : Number]) x)])
+        (rkt ((stlc/expr f) #t) : Number)))))
+  ; definitions
+  (check-equal?
+   (let ()
+     (stlc
+      (define x : Number 1)
+      x))
+   1)
+  ; define at top-level
+  (stlc
+   (define one : Number 1))
+  (check-eval
+   one
+   1)
+  (check-equal?
+   (let ()
+     (stlc
+      (define (id [x : Number]) -> Number
+        x)
+      (id 2)))
+   2)
+  (check-equal?
+   (let ()
+     (stlc
+      (define (f) -> Number
+        (g))
+      (define (g) -> Number
+        1)
+      (f)))
+   1)
+  (test-equal?
+   "begin splices definitions"
+   (let ()
+     (stlc
+      (begin (begin (define x : Number 1)))
+      x))
+   1)
+  ; block
+  (check-eval
+   (block 1)
+   1)
+  (check-eval
+   (block 1 2)
+   2)
+  (check-eval
+   (block
     (define x : Number 1)
-    x))
- 1)
-; define at top-level
-(stlc
- (define one : Number 1))
-(check-eval
- one
- 1)
-(check-equal?
- (let ()
-   (stlc
-    (define (id [x : Number]) -> Number
-      x)
-    (id 2)))
- 2)
-(check-equal?
- (let ()
-   (stlc
-    (define (f) -> Number
-      (g))
-    (define (g) -> Number
-      1)
-    (f)))
- 1)
-(test-equal?
- "begin splices definitions"
- (let ()
-   (stlc
-    (begin (begin (define x : Number 1)))
-    x))
- 1)
-; block
-(check-eval
- (block 1)
- 1)
-(check-eval
- (block 1 2)
- 2)
-(check-eval
- (block
-  (define x : Number 1)
-  x)
- 1)
-; implicit block for multi-expression let
-(check-eval
- (let ()
-   (define x : Number 1)
-   x)
- 1)
-(check-eval
- ((lambda () (define x : Number 1) x))
- 1)
+    x)
+   1)
+  ; implicit block for multi-expression let
+  (check-eval
+   (let ()
+     (define x : Number 1)
+     x)
+   1)
+  (check-eval
+   ((lambda () (define x : Number 1) x))
+   1))
