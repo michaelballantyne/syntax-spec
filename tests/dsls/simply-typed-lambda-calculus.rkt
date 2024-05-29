@@ -30,7 +30,7 @@
     ; type annotation
     (~> (e (~datum :) t)
         #'(: e t))
-    ((~datum :) e:typed-expr t:type)
+    (: e:typed-expr t:type)
 
     (rkt e:racket-expr (~datum :) t:type)
 
@@ -252,11 +252,11 @@
     [(_ e)
      #'(compile-expr e)]))
 
+
 (define-syntax define-stlc-syntax
   (syntax-parser
     [(_ name:id trans:expr)
-     #`(define-syntax #,((make-interned-syntax-introducer 'stlc) #'name 'add)
-         (typed-macro trans))]))
+     #'(define-extension name typed-macro trans)]))
 
 (define-stlc-syntax let
   (syntax-parser

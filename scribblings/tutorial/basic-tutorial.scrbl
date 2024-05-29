@@ -1,6 +1,6 @@
 #lang scribble/manual
 
-@(require (for-label racket racket/block racket/class racket/match racket/list syntax/parse "../main.rkt")
+@(require (for-label racket racket/block racket/class racket/match racket/list syntax/parse "../../main.rkt")
           scribble/example)
 
 @title{Basic Tutorial: State Machine Language}
