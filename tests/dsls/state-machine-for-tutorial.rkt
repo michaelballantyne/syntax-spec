@@ -9,8 +9,10 @@
 (syntax-spec
   (binding-class event-var)
   (binding-class state-name)
+  (extension-class state-macro)
 
   (nonterminal/exporting state-spec
+    #:allow-extension state-macro
     (state name:state-name transition:transition-spec ...)
     #:binding (export name))
 
@@ -74,12 +76,11 @@
         (~and state-spec
               ((~literal state) state-name evt ...))
         ...)
-     ; TODO use a symbol table mapping state IDs to gensyms instead of using state name datums
      (define/syntax-parse (event-name ...) (unique-event-names #'(evt ... ...)))
      (define/syntax-parse (event-method ...)
        (for/list ([event-name (attribute event-name)])
          (compile-event-method event-name (attribute state-spec))))
-     #`(with-reference-compilers ([event-var immutable-reference-compiler])
+     #'(with-reference-compilers ([event-var immutable-reference-compiler])
          ; no reference compiler for state names since they shouldn't be referenced in racket expressions.
          (let ()
            (define machine%
@@ -97,17 +98,11 @@
 (begin-for-syntax
   (define (unique-event-names evt-stxs)
     (remove-duplicates (map event-name (syntax->list evt-stxs))
-                       free-identifier=?))
+                       (lambda (a b) (eq? (syntax->datum a) (syntax->datum b)))))
 
   (define (event-name e)
     (syntax-parse e
       [(on (name . _) . _) #'name])))
-
-(define-syntax compile-proxy-method
-  (syntax-parser
-    [(_ name target)
-     #'(define/public (name . args)
-         (send/apply target name args))]))
 
 (begin-for-syntax
   ; Identifier (listof Syntax) -> Syntax
@@ -146,7 +141,7 @@
 (begin-for-syntax
   ; Identifier Identifier (listof Syntax) -> (listof Syntax)
   ; gets the transitions for the given event and state
-  (define (get-transitions-for-event-and-state event-name state-name state-specs)
+  (define (get-transitions-for-event-and-state evt-name state-name state-specs)
     (apply append
            (for/list ([state-spec (syntax->list state-specs)]
                       #:when (compiled-identifier=? (state-spec-name state-spec)
@@ -156,11 +151,13 @@
                        transition
                        ...)
                 (for/list ([transition (attribute transition)]
-                           #:when (syntax-parse transition
-                                    [(on (event-name^ . _) . _)
-                                     (eq? (syntax->datum event-name)
-                                          (syntax->datum #'event-name^))]))
+                           #:when (eq? (syntax->datum evt-name)
+                                       (syntax->datum (event-name transition))))
                   transition)])))))
+
+(define-syntax-rule
+  (define-state-syntax name trans)
+  (define-extension name state-macro trans))
 
 (module+ test
   (define mchn
@@ -219,4 +216,28 @@
   (check-exn
    #rx"machine: No transition defined for event 'person-enters in state 'locked"
    (lambda ()
-     (send turnstile person-enters))))
+     (send turnstile person-enters)))
+
+  (define-state-syntax simple-state
+    (syntax-rules ()
+      [(_ name [evt next] ...)
+       (state name
+              (on (evt) (goto next))
+              ...)]))
+  (define traffic-light
+    (machine
+     #:initial red
+     (simple-state red [tick green])
+     (simple-state green [tick yellow])
+     (simple-state yellow [tick red])))
+  (check-equal? (send traffic-light get-state)
+                'red)
+  (send traffic-light tick)
+  (check-equal? (send traffic-light get-state)
+                'green)
+  (send traffic-light tick)
+  (check-equal? (send traffic-light get-state)
+                'yellow)
+  (send traffic-light tick)
+  (check-equal? (send traffic-light get-state)
+                'red))
