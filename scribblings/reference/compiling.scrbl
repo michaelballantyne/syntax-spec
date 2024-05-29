@@ -91,7 +91,15 @@ Like @racket[free-id-table-ref]
 
 @section{Binding Operations}
 
-@defproc[(free-identifiers [stx (syntax?)] [#:allow-host? allow-host? boolean? #f]) (listof identifier?)]
+@defproc[(compiled-identifier=? [a-id identifier?] [b-id identifier?]) boolean?]
+
+@;TODO run this by michael, not sure how to explain it.
+
+Returns @racket[#t] if the two compiled DSL identifiers correspond to the same binding, returns @racket[#f] otherwise. Similar to @racket[free-identifier=?].
+
+This is the equality used by symbol tables.
+
+@defproc[(free-identifiers [stx syntax?] [#:allow-host? allow-host? boolean? #f]) (listof identifier?)]
 
 Get a DSL expression's free identifiers (deduplicated).
 
