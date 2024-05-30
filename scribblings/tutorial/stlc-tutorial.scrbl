@@ -241,21 +241,114 @@ Let's add arbitrary Racket expressions to our language. These can evaluate to an
 
 We also need to add a contract check in the other direction, even if we don't allow arbitrary Racket expressions. Let's consider a program in our language:
 
-@racket[
+@racketblock[
 (stlc/expr (lambda ([f : (-> Number Number)] [x : Number]) (f x)))
 ]
 
 It evaluates to a function which takes in a function and a number and applies the function to a number. But @racket[stlc/expr] gives us a raw procedure that we can pass anything into!
 
-@racket[
+@racketblock[
 ((stlc/expr (lambda ([f : (-> Number Number)] [x : Number]) (f x)))
  "not a function"
  1)
 ]
 
-This produces a runtime type error from inside the typed code! This should be impossible. And if we allow arbitrary racket expressions and allow DSL variables to be referenced in those Racket expressions, we'll need to insert contract checks on references to make sure they're used properly. We can do this by creating a custom reference compiler.
+This produces a runtime type error from inside the typed code! This should be impossible. And if we allow DSL variables to be referenced in Racket expressions, we'll need to insert contract checks on references to make sure they're used properly. We can do this by creating a custom reference compiler.
 
-@;TODO left off here about to do rkt, contract checks, compile/top, etc.
+Let's do it!
+
+@racketblock[#:escape unracket
+(syntax-spec
+  ...
+
+  (nonterminal typed-expr
+    ...
+
+    (rkt e:racket-expr (~datum :) t:type)
+
+    ...)
+
+  ...
+
+  (host-interface/expression
+    (stlc/expr e:typed-expr)
+    (define/syntax-parse t (infer-expr-type #'e))
+    #'(compile-expr/top e t))
+
+  ...)
+
+(define-syntax compile-expr/top
+  (syntax-parser
+    [(_ e t-stx)
+     (define t (syntax->datum #'t-stx))
+     (define/syntax-parse e^
+       #'(with-reference-compilers ([typed-var typed-var-reference-compiler])
+           (compile-expr e)))
+     #`(contract #,(type->contract-stx t)
+                 e^
+                 'stlc 'racket
+                 #f #'e^)]))
+
+(begin-for-syntax
+  (define typed-var-reference-compiler
+    (make-variable-like-reference-compiler
+     (lambda (x)
+       #`(contract #,(type->contract-stx (get-identifier-type x))
+                   #,x
+                   'stlc 'racket
+                   '#,x #'#,x))))
+
+  (define (type->contract-stx t)
+    (match t
+      [(number-type) #'number?]
+      [(function-type arg-types return-type)
+       (define/syntax-parse (arg-type-stx ...) (map type->contract-stx arg-types))
+       (define/syntax-parse return-type-stx (type->contract-stx return-type))
+       #'(-> arg-type-stx ... return-type-stx)])))
+
+(define-syntax compile-expr
+  (syntax-parser
+    ...
+
+    [(_ ((~datum rkt) e (~datum :) t))
+     #`(contract #,(type->contract-stx (parse-type #'t))
+                 e
+                 'racket 'stlc
+                 #f #'e)]
+
+    ...))
+]
+
+We added a new form to our language, @racket[rkt], which contains a racket expression and a type annotation. The compilation of this experssion involves a contract check to make sure the value is of the expected type. We also added a contract check in the other direction when a typed value flows out of the host interface and created a custom reference compiler using @racket[make-variable-like-reference-compiler] which inserts a contract check when a DSL variable is referenced in racket. These contract checks ensure typed values (particularly procedures) are used properly in untyped code.
+
+This implementation is far from efficient. Instead of generating the syntax for a contract check everywhere, we should defer to a runtime function and have the type flow into the runtime since it's a prefab struct. We should also avoid inserting a contract check every time a DSL variable is referenced in Racket and just do it once per variable. But for this tutorial, we'll keep it simple.
+
+Let's run some example programs now:
+
+
+@examples[#:label #f
+(require syntax-spec/tests/dsls/simply-typed-lambda-calculus)
+(stlc/expr
+  (let ([add (rkt + : (-> Number Number Number))])
+    (add 1 2)))
+(eval:error
+ (stlc/expr
+   (rkt "not a number" : Number)))
+(eval:error
+ (stlc/expr
+   (let ([add (rkt <= : (-> Number Number Number))])
+     (add 1 2))))
+(eval:error
+ ((stlc/expr (lambda ([f : (-> Number Number)] [x : Number]) (f x)))
+  "not a function"
+  1))
+(eval:error
+ (stlc/expr
+  (let ([app (lambda ([f : (-> Number Number)] [x : Number]) (f x))])
+    (rkt (app "not a function" 1) : Number))))
+]
+
+@;TODO fix weird blame location
 
 @;TODO definitions, implicit block in let
 @;TODO let* ?

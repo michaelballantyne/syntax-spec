@@ -5,7 +5,8 @@
 ; static analysis, rewrites, and custom reference compilers.
 
 (provide (all-defined-out)
-         (for-syntax (all-defined-out)))
+         (for-syntax (all-defined-out))
+         (for-space stlc (all-defined-out)))
 (require "../../testing.rkt"
          racket/contract
          (for-syntax racket/match syntax/transformer))
@@ -190,7 +191,7 @@
      #`(contract #,(type->contract-stx t)
                  e^
                  'stlc 'racket
-                 #f #'e^)]))
+                 #f #'e)]))
 
 (define-syntax compile-expr
   (syntax-parser
@@ -412,4 +413,8 @@
    1)
   (check-eval
    ((lambda () (define x : Number 1) x))
-   1))
+   1)
+  (check-eval
+   (let ([add (rkt + : (-> Number Number Number))])
+     (add 1 2))
+   3))
