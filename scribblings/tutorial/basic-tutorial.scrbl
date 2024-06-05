@@ -283,7 +283,7 @@ However, our compiler, which performs the actual translation, is not defined. Le
   (host-interface/expression
     (machine #:initial initial-state:state-name s:state-spec ...)
     #:binding (scope (import s) initial-state)
-    #'(compile-machine initial-state s^ ...))
+    #'(compile-machine initial-state s ...))
   ...)
 
 (define-syntax compile-machine
@@ -381,7 +381,9 @@ Now let's define the helpers referenced here:
                                        (syntax->datum (event-name transition))))
                   transition)])))))]
 
-Most of these helpers don't involve anything syntax-spec specific, so we won't talk about them much. For each event, we  One thing to note is that Racket expressions like @racket[guard] in @racket[compile-event-handler-for-state] get wrapped in a @racket[#%host-expression] form by syntax-spec. You can usually ignore this fact completely when writing a compiler, but if you try to inspect the contents of a Racket expression in a compiler, you'll have to account for it.
+Most of these helpers don't involve anything syntax-spec specific, so we won't talk about them much. For each event, we
+@;TODO finish this sentence
+One thing to note is that Racket expressions like @racket[guard] in @racket[compile-event-handler-for-state] get wrapped in a @racket[#%host-expression] form by syntax-spec. You can usually ignore this fact completely when writing a compiler, but if you try to inspect the contents of a Racket expression in a compiler, you'll have to account for it.
 
 Our last helper, @racket[get-transitions-for-event-and-state], uses @racket[compiled-identifier=?] from syntax-spec to compare state names. syntax-spec compiles and renames DSL identifiers to ensure proper hygiene and allow for some utilities like symbol tables, which we'll discuss soon. We compare DSL identifiers using @racket[compiled-identifier=?].
 
