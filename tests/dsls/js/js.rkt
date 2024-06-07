@@ -6,7 +6,7 @@
   racket/list
   racket/system
   racket/string
-  ee-lib/define
+  "../../../private/ee-lib/define.rkt"
   (for-syntax
    racket/base
    syntax/stx
