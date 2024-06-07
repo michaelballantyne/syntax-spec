@@ -7,8 +7,8 @@
 (require
   syntax/id-table
   syntax/parse
-  ee-lib/persistent-id-table
-  (except-in ee-lib racket-var)
+  "../../../../private/ee-lib/persistent-id-table.rkt"
+  (except-in "../../../../private/ee-lib/main.rkt" racket-var)
 
   (for-template
    "forms.rkt"))

@@ -13,7 +13,7 @@
 (require
   "../runtime/errors.rkt"
   "../runtime/compile.rkt"
-  ee-lib/define
+  "../ee-lib/define.rkt"
   
   (for-syntax
    racket/base
@@ -23,19 +23,19 @@
    racket/syntax
    syntax/parse
    syntax/id-table
-   ee-lib
-   ee-lib/persistent-id-table
-   ee-lib/syntax-category
+   "../ee-lib/main.rkt"
+   "../ee-lib/persistent-id-table.rkt"
+   "../ee-lib/syntax-category.rkt"
    "syntax-classes.rkt"
    "../runtime/binding-spec.rkt"
    "../runtime/errors.rkt"
-   ee-lib/private/lift-trampoline)
+   "../ee-lib/lift-trampoline.rkt")
   
   (for-meta 2
             racket/base
             syntax/parse
             racket/syntax
-            ee-lib
+            "../ee-lib/main.rkt"
             "env-reps.rkt"
             "syntax-classes.rkt"
             "compile/syntax-spec.rkt"

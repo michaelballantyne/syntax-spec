@@ -10,7 +10,7 @@
          syntax/parse
          "../syntax-classes.rkt"
          "../env-reps.rkt"
-         ee-lib
+         "../../ee-lib/main.rkt"
          (for-template racket/base
                        syntax/parse
                        "../../runtime/syntax-classes.rkt"))

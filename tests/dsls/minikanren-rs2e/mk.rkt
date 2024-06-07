@@ -5,14 +5,14 @@
          (for-space mk (all-defined-out)))
 
 (require "../../../main.rkt"
-         ee-lib/errors
+         "../../../private/ee-lib/errors.rkt"
          (for-syntax
           racket/base
           racket/pretty
           syntax/parse
           syntax/id-table
           syntax/transformer
-          (except-in ee-lib racket-var)))
+          (except-in "../../../private/ee-lib/main.rkt" racket-var)))
 
 ;;
 ;; Core syntax

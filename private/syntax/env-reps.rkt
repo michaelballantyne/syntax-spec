@@ -18,7 +18,7 @@
          version-case
          "../runtime/errors.rkt"
          racket/syntax
-         ee-lib/syntax-category
+         "../ee-lib/syntax-category.rkt"
          (for-syntax racket/base)
          (for-template racket/base))
 

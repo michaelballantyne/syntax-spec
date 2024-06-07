@@ -3,7 +3,7 @@
 (provide literal-in-space
          ~space-literal)
 
-(require syntax/parse ee-lib
+(require syntax/parse "../ee-lib/main.rkt"
          (for-syntax racket/base syntax/parse))
 
 (define-syntax-class (literal-in-space target-id binding-space)

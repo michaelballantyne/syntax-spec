@@ -24,12 +24,12 @@
    syntax/id-table
    syntax/transformer
    racket/syntax
-   ee-lib)
+   "../ee-lib/main.rkt")
   (for-meta 2
             racket/base
             syntax/parse
             "../syntax/env-reps.rkt"
-            ee-lib))
+            "../ee-lib/main.rkt"))
 
 (define-syntax call-3d-syntax
     (syntax-parser

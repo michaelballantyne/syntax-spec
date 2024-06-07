@@ -5,12 +5,12 @@
          (for-space mk quasiquote))
 
 (require "../main.rkt"
-         ee-lib/errors
+         "../private/ee-lib/errors.rkt"
          (for-syntax
           racket/base
           syntax/parse
           syntax/id-table
-          (except-in ee-lib racket-var)))
+          (except-in "../private/ee-lib/main.rkt" racket-var)))
 
 ;;
 ;; Core syntax

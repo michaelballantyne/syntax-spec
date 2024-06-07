@@ -1,7 +1,7 @@
 #lang racket/base
 
 (require "../testing.rkt"
-         (for-syntax racket/base (except-in ee-lib racket-var) syntax/parse))
+         (for-syntax racket/base (except-in "../private/ee-lib/main.rkt" racket-var) syntax/parse))
 
 (syntax-spec
   (binding-class dsl-name)

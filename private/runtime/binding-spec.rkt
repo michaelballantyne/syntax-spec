@@ -33,8 +33,8 @@
   racket/match
   racket/syntax
   racket/pretty
-  ee-lib
-  ee-lib/private/lift-trampoline
+  "../ee-lib/main.rkt"
+  "../ee-lib/lift-trampoline.rkt"
   (for-template
    racket/base
    "compile.rkt")

@@ -1,7 +1,7 @@
 #lang racket/base
 
 (require "../main.rkt"
-         (for-syntax syntax/parse racket/base (only-in ee-lib map-transform))
+         (for-syntax syntax/parse racket/base (only-in "../private/ee-lib/main.rkt" map-transform))
          rackunit
          syntax/macro-testing)
 

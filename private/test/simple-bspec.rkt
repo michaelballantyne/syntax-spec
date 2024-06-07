@@ -4,10 +4,10 @@
   (for-syntax
    racket/base
    syntax/parse
-   ee-lib
+   "../ee-lib/main.rkt"
    "../runtime/binding-spec.rkt")
   
-  ee-lib/define)
+  "../ee-lib/define.rkt")
 
 (define-literal-forms mylang-lits
   "mylang forms may only be used in mylang"

@@ -12,7 +12,7 @@
          racket/syntax
          syntax/parse/class/paren-shape
          racket/list
-         ee-lib
+         "../../ee-lib/main.rkt"
          "../env-reps.rkt"
          "../syntax-classes.rkt"
          (for-template racket/base

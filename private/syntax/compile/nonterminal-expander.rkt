@@ -6,13 +6,13 @@
          syntax/parse
          syntax/id-table
          racket/syntax
-         ee-lib
+         "../../ee-lib/main.rkt"
          "../syntax-classes.rkt"
          "../env-reps.rkt"
          "syntax-spec.rkt"
          "binding-spec.rkt"
 
-         (for-meta -2 ee-lib/private/lift-disappeareds)
+         (for-meta -2 "../../ee-lib/lift-disappeareds.rkt")
 
          (for-template racket/base
                        "../syntax-classes.rkt"
@@ -20,7 +20,7 @@
                        "pattern-var-reflection.rkt"
                        syntax/parse
                        racket/syntax
-                       ee-lib))
+                       "../../ee-lib/main.rkt"))
 
 (define (compile-nonterminal-expander stx)
   (syntax-parse stx

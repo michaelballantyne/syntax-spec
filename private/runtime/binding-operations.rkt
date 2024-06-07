@@ -7,7 +7,7 @@
          racket/dict
          syntax/parse
          syntax/id-table
-         ee-lib
+         "../ee-lib/main.rkt"
          (for-template "./compile.rkt"))
 
 ;; Currently we use this as the notion of identifier equality:
