@@ -239,106 +239,105 @@
      #'(let name (function (args ...) body ...))]))
 
 
-(module+ test
+(module+ main
   (require rackunit)
 
-  (when (not (getenv "PLT_PKG_BUILD_SERVICE"))
-    (check-equal?
-     (js ((function (n)
-                    (return n)) 5))
+  (check-equal?
+   (js ((function (n)
+                  (return n)) 5))
+   "5")
+
+  (check-equal?
+   (js ((function ()
+                  (let factorial (function (n)
+                                           5 ; expressions are allowed in statement position
+                                           (if (<= n 1)
+                                               ((return 1))
+                                               ((return (* n (factorial (- n 1))))))))
+                  (return (factorial 5)))))
+   "120")
+  
+  ; Thought this was broken due to expander bug, but doesn't seem to be...
+  (check-equal?
+   (js ((function ()
+                  (defn (factorial n)
+                    (return (? (<= n 1) 1 (* n (factorial (- n 1))))))
+                  (return (factorial 5)))))
+   "120")
+  
+  (check-equal?
+   (js ((function ()
+                  (let factorial (function (n)
+                                           (let i 1)
+                                           (let res 1)
+                                           (while (<= i n)
+                                                  (set! res (* res i))
+                                                  (inc! i))
+                                           (return res)))
+                  (return (factorial 5)))))
+   "120")
+
+  (check-equal?
+   (js ((function ()
+                  (let fib (function (n)
+                                     (return
+                                      (cond
+                                        [(== n 1) 1]
+                                        [(== n 2) 1]
+                                        [else (+ (fib (- n 1)) (fib (- n 2)))]))))
+                  (return (fib 6)))))
+   "8")
+
+  ; TODO
+  ; A macro defined inside the langauge. Also a use-site binder test.
+  #;(check-equal?
+     (js ((function ()
+                    (let x 5)
+                    (let-syntax m (lambda (stx)
+                                    (syntax-parse stx
+                                      [(_ arg)
+                                       #'((function (arg) (return x)) 6)])))
+                    (return (m x)))))
      "5")
 
-    (check-equal?
+  ; TODO
+  ; Same as previous, but at statement rather than expression position, plus inc!
+  #;(check-equal?
      (js ((function ()
-                    (let factorial (function (n)
-                                             5 ; expressions are allowed in statement position
-                                             (if (<= n 1)
-                                                 ((return 1))
-                                                 ((return (* n (factorial (- n 1))))))))
-                    (return (factorial 5)))))
-     "120")
-  
-    ; Thought this was broken due to expander bug, but doesn't seem to be...
-    (check-equal?
+                    (let x 5)
+                    (let-syntax m (lambda (stx)
+                                    (syntax-parse stx
+                                      [(_ arg)
+                                       #'(return ((function (arg) (return x)) 6))])))
+                    (inc! x)
+                    (m x))))
+     "6")
+
+  ; TODO
+  ; use-site scope test for something entirely in an expression context
+  #;(check-equal?
      (js ((function ()
-                    (defn (factorial n)
-                      (return (? (<= n 1) 1 (* n (factorial (- n 1))))))
-                    (return (factorial 5)))))
-     "120")
-  
-    (check-equal?
+                    (let x 5)
+                    (return
+                     (letrec-syntax ([m (lambda (stx)
+                                          (syntax-parse stx
+                                            [(_ arg)
+                                             #'((function (arg) (return x)) 6)]))])
+                       (m x))))))
+     "5")
+
+  ; TODO
+  #;(check-equal?
      (js ((function ()
-                    (let factorial (function (n)
-                                             (let i 1)
-                                             (let res 1)
-                                             (while (<= i n)
-                                                    (set! res (* res i))
-                                                    (inc! i))
-                                             (return res)))
-                    (return (factorial 5)))))
-     "120")
-
-    (check-equal?
-     (js ((function ()
-                    (let fib (function (n)
-                                       (return
-                                        (cond
-                                          [(== n 1) 1]
-                                          [(== n 2) 1]
-                                          [else (+ (fib (- n 1)) (fib (- n 2)))]))))
-                    (return (fib 6)))))
-     "8")
-
-    ; TODO
-    ; A macro defined inside the langauge. Also a use-site binder test.
-    #;(check-equal?
-       (js ((function ()
-                      (let x 5)
-                      (let-syntax m (lambda (stx)
-                                      (syntax-parse stx
-                                        [(_ arg)
-                                         #'((function (arg) (return x)) 6)])))
-                      (return (m x)))))
-       "5")
-
-    ; TODO
-    ; Same as previous, but at statement rather than expression position, plus inc!
-    #;(check-equal?
-       (js ((function ()
-                      (let x 5)
-                      (let-syntax m (lambda (stx)
-                                      (syntax-parse stx
-                                        [(_ arg)
-                                         #'(return ((function (arg) (return x)) 6))])))
-                      (inc! x)
-                      (m x))))
-       "6")
-
-    ; TODO
-    ; use-site scope test for something entirely in an expression context
-    #;(check-equal?
-       (js ((function ()
-                      (let x 5)
-                      (return
-                       (letrec-syntax ([m (lambda (stx)
-                                            (syntax-parse stx
-                                              [(_ arg)
-                                               #'((function (arg) (return x)) 6)]))])
-                         (m x))))))
-       "5")
-
-    ; TODO
-    #;(check-equal?
-       (js ((function ()
-                      (let-syntax my-let (syntax-parser
-                                           [(_ v rhs)
-                                            #'(let v rhs)]))
-                      ; I expected surrounding context to be local-expand 'expression
-                      ; and not record the use-site scope from this expansion.
-                      ; Or... this expansion is occuring within a define/hygienic
-                      ; #:definition call, so we're already in a new definition context.
-                      ; And the re-expansion is actually in a child of that same context.
-                      ; Wouldn't work if we weren't using define/hygienic everywhere.
-                      (my-let x 5)
-                      (return x))))
-       "5")))
+                    (let-syntax my-let (syntax-parser
+                                         [(_ v rhs)
+                                          #'(let v rhs)]))
+                    ; I expected surrounding context to be local-expand 'expression
+                    ; and not record the use-site scope from this expansion.
+                    ; Or... this expansion is occuring within a define/hygienic
+                    ; #:definition call, so we're already in a new definition context.
+                    ; And the re-expansion is actually in a child of that same context.
+                    ; Wouldn't work if we weren't using define/hygienic everywhere.
+                    (my-let x 5)
+                    (return x))))
+     "5"))
