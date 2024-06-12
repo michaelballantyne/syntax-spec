@@ -21,37 +21,31 @@ We will:
 Here's what using the DSL to define a controller for a subway turnstile looks like:
 
 @(racketblock
-  (define turnstile
-    (machine
-     #:initial locked
+(define vending-machine
+  (machine
+   #:initial idle
+   (state idle
+     (on-enter (displayln "pay a dollar"))
+     (on (dollar)
+       (goto paid))
+     (on (select-item item)
+       (displayln "you need to pay before selecting an item")
+       (goto idle)))
+   (state paid
+     (on-enter (displayln "select an item"))
+     (on (select-item item)
+       (displayln (format "dispensing ~a" item))
+       (goto idle)))))
+)
 
-     (state locked
-       (on (coin value) #:when (= value 0.25)
-         (goto unlocked))
-       (on (coin value)
-         (goto locked)))
-     
-     (state unlocked
-       (on (person-enters)
-         (goto locked)))))
-
-  (define ts (new turnstile%))
-  (check-equal? (send ts get-state) 'locked)
-  (send ts coin 0.25)
-  (check-equal? (send ts get-state) 'unlocked))
-
-The machine has two states: locked and unlocked. It reacts to two kinds of external events: a coin
-with a given value being inserted, and a person passing through the turnstile.
+The vending machine has two states: idle and paid. It reacts to two kinds of external events: a dollar
+being inserted, and an item being selected for purchase.
 
 The @racket[machine] declaration acts as a class. Racket code interacts with the machine
-by constructing an instance and calling methods corresponding to machine transitions such as @racket[coin].
+by constructing an instance and calling methods corresponding to machine transitions such as @racket[dollar].
 The @racket[get-state] method returns a symbol representing the current state.
 
-Within the machine,
-Racket code is used to implement the guard on the transition to the unlocked state, which checks
-that the given coin is a quarter.
-
-
+Within the machine, Racket code can be run when certain states are entered or certain transitions occur. Within transitions, these actions can reference arguments to the transition event, such as @racket[item] in the @racket[select-item] event.
 
 @section[#:tag "grammar"]{Grammar}
 
@@ -75,19 +69,17 @@ Our initial specification with @racket[syntax-spec] supplies the grammar:
       (error 'machine "compiler not yet implemented"))
     
     (nonterminal state-spec
-      (state name:id transitions:transition-spec ...))
+      (state name:id transitions:transition-spec ...)
+      (state name:id ((~datum on-enter) body:action-spec ...+) transitions:transition-spec ...))
 
     (nonterminal transition-spec
-      (on (event-name:id arg:id ...) action:action-spec)
-      (on (event-name:id arg:id ...) #:when guard:guard-expr action:action-spec))
+      (on (event-name:id arg:id ...)
+        action:action-spec
+        ...
+        ((~datum goto) next-state:id)))
 
     (nonterminal action-spec
-      (goto next-state-name:id))
-
-    (nonterminal guard-expr
-      var-ref:id
-      n:number
-      (= e1:guard-expr e2:guard-expr)))
+      ((~datum displayln) x:id)))
 }|
 
 The @racket[syntax-spec] form is the entry-point into the metalanguage. It must be used at the top-level of a module.
@@ -122,20 +114,16 @@ Consider this program:
 (machine
  #:initial red
  (state red
-   (on (event x) #:when (= y 10)
+   (on (event x)
      (goto green))
    (on (event x)
      (goto red))))
 ]
 
-In the guard @racket[(= y 10)], the @racket[y] is unbound.
-Additionally, our first transition is to @racket[green], but there is no @racket[green] state.
-Our compiled code will end up containing an unbound variable reference for @racket[y], so Racket's
-expander will raise an error.
+Our first transition is to @racket[green], but there is no @racket[green] state. This should result in an unbound variable error.
 
 However, let's say our compiler translates @racket[(goto green)] to @racket[(set! state 'green)] and doesn't
-produce any identifiers for @racket[green],
-and we changed the guard to @racket[(= x 10)] instead of @racket[(= y 10)], so there's no unbound reference to @racket[y].
+produce any identifiers for @racket[green].
 Would we get an unbound reference error for @racket[green]? No! We'd just have strange behavior at runtime, or maybe
 a runtime error, depending on the compiler.
 
@@ -143,7 +131,7 @@ We could adjust our compiler to check for unbound state references, but syntax-s
 the binding and scoping rules for our language, and bindings and references will be checked before your compiler is even
 invoked, so your compiler can assume the program is not only grammatically correct, but also well-bound.
 
-There are also several other benefits that we get by providing binding rules. We can use symbol tables to associate information with identifiers, it allows our languages to have hygienic macros, we can compute the free identifiers of an expression, and many other identifier-related operations. We'll get more into these details later, but the point is you get a lot for free by declaring binding rules. This is why you should be excited!
+There are also several other benefits that we get by providing binding rules. We can use symbol tables to associate information with identifiers, we can allow our languages to have hygienic macros, we can compute the free identifiers of an expression, and many other identifier-related operations. We'll get more into these details later, but the point is you get a lot for free by declaring binding rules. This is why you should be excited!
 
 @subsection{Simple binding}
 
@@ -159,19 +147,20 @@ First, let's declare that the arguments to an action are in scope in the guard e
 @(racketblock
   (syntax-spec
     (binding-class event-var)
-    ...
-    (nonterminal transition-spec
-      (on (event-name:id arg:event-var ...) action:action-spec)
-      #:binding (scope (bind arg))
-      (on (event-name:id arg:event-var ...) #:when guard:guard-expr action:action-spec)
-      #:binding (scope (bind arg) guard))
-    ...
-    (nonterminal guard-expr
-      var-ref:event-var
-      n:number
-      (= e1:guard-expr e2:guard-expr))))
 
-We added a binding class, @racket[event-var], for an event's argument names. We also added a @racket[#:binding] declaration to guarded transitions to declare that the @racket[arg]s are bound in the @racket[guard] expression and this binding introduces a new scope. Although there are no reference positions in a non-guarded transition, we still need to declare the binding rule. Otherwise, by default, syntax-spec will assume that the @racket[arg] is a reference position, which will cause @racket[arg] to be unbound. When we don't include any binding rule for a production at all, a default binding rule is implicitly generated which treats all forms as reference positions.
+    ...
+
+    (nonterminal transition-spec
+      (on (event-name:id arg:event-var ...)
+        action:action-spec
+        ...
+        ((~datum goto) next-state:id)))
+    #:binding (scope (bind arg) body)
+
+    (nonterminal action-spec
+      ((~datum displayln) x:event-var))))
+
+We added a binding class, @racket[event-var], for an event's argument names. We also added a @racket[#:binding] declaration to transition actions to declare that the @racket[arg]s are bound in the @racket[action] expressions and this binding introduces a new scope.
 
 These simple binding rules behave like @racket[let]:
 
@@ -185,7 +174,7 @@ These simple binding rules behave like @racket[let]:
     n:number))
 ]
 
-We could've just written @racket[(scope (bind x) body)]. syntax-spec will automatically treat @racket[e] as a reference position outside of the new scope. That's why we don't have to mention @racket[action] or @racket[event-name] in the binding rules for transitions.
+We could've just written @racket[(scope (bind x) body)]. syntax-spec will automatically treat @racket[e] as a reference position outside of the new scope. That's why we don't have to mention @racket[event-name] in the binding rules for transitions. Additionally, for @racket[action-spec] expressions, there is an implicit @racket[#:binding] rule generated that treats @racket[x] as a reference position.
 
 @subsection{Separate scope and binding forms}
 
@@ -201,19 +190,23 @@ Now let's add binding rules for state names. We can't just use @racket[scope] an
     (error 'machine "compiler not yet implemented"))
 
   (nonterminal/exporting state-spec
+    (state name:state-name ((~datum on-enter) body:action-spec ...+)  transition:transition-spec ...)
+    #:binding (export name)
+
     (state name:state-name transition:transition-spec ...)
     #:binding (export name))
 
-  (nonterminal action-spec
-    (goto next-state-name:state-name)))
+  (nonterminal transition-spec
+    (on (event-name:id arg:event-var ...)
+      action:action-spec
+      ...
+      ((~datum goto) next-state:state-name))))
 
 We use an exporting nonterminal for @racket[state-spec], which allows us to use the @racket[export] binding rule. This binds @racket[name] in @racket[transition] and the other @racket[state-spec] forms in the body of the machine, like @racket[define] in a @racket[class] body or a @racket[block] form.
 
 Similar to @racket[bind] for a variable, we use @racket[import] to declare that an exporting nonterminal's bindings should be in scope for the @racket[initial-state] in the @racket[machine].
 
 @subsection{Nested binding}
-
-@;TODO move this to the advanced tutorial and leave a note here
 
 There is another type of binding rule that doesn't fit into our state machine language, but you might need it when creating a different language. This is nested binding and behaves like @racket[let*], where you have a sequence of variables being defined and each one is in scope for the subsequent definitions (but not previous ones). Here is an example:
 
@@ -237,27 +230,35 @@ From the simple nonterminal @racket[my-expr], we put the @racket[binding-pair]'s
 
 @section[#:tag "racket"]{Integrating Racket Subexpressions}
 
-In our state machine language, guard expressions are very limited. Let's remind ourselves what the grammar for a guard expression looks like:
+In our state machine language, action expressions are very limited. Let's remind ourselves what the grammar for an action expression looks like:
 
 @(racketblock
-   (nonterminal guard-expr
-     var-ref:event-var
-     n:number
-     (= e1:guard-expr e2:guard-expr)))
+   (nonterminal action-spec
+      ((~datum displayln) x:event-var)))
 
-A guard expression is either a variable reference, a number, or an equality test. What if we want something fancier like @racket[<]? Or what if we want to use values other than numbers? Really, it'd be ideal to be able to allow arbitrary racket expressions for the guard. We can actually do that!
+An action expression can only @racket[displayln] the value of a variable. What if we want something fancier, like using @racket[format] inside the @racket[displayln]? Really, it'd be ideal to be able to allow arbitrary racket expressions for the action. We can actually do that!
 
 @(racketblock
    (syntax-spec
      ...
+
+     (nonterminal/exporting state-spec
+       (state name:state-name ((~datum on-enter) body:racket-expr ...+)  transition:transition-spec ...)
+       #:binding (export name)
+
+       (state name:state-name transition:transition-spec ...)
+       #:binding (export name))
+
      (nonterminal transition-spec
-       (on (event-name:id arg:event-var ...) action:action-spec)
-       #:binding (scope (bind arg))
-       (on (event-name:id arg:event-var ...) #:when guard:racket-expr action:action-spec)
-       #:binding (scope (bind arg) guard))
+       (on (event-name:id arg:event-var ...)
+         body:racket-expr
+         ...
+         ((~datum goto) next-state-name:state-name))
+       #:binding (scope (bind arg) body))
+
      ...))
 
-Instead of using @racket[guard-expr] and defining our own nonterminal for guard expressions, we can just use @racket[racket-expr], which allows arbitrary racket expressions. And our @racket[event-var] identifiers will be in scope in the racket expression! We can control how references to our DSL-bound variables behave in Racket expressions and whether they're allowed at all using reference compilers, which we'll discuss in the @secref["compilation"] section.
+Instead of using @racket[action-spec] and defining our own nonterminal for action expressions, we can just use @racket[racket-expr], which allows arbitrary racket expressions. And our @racket[event-var] identifiers will be in scope in the racket expression! We can control how references to our DSL-bound variables behave in Racket expressions and whether they're allowed at all using reference compilers, which we'll discuss in the @secref["compilation"] section.
 
 In addition to @racket[racket-expr], syntax-spec provides @racket[racket-var] for allowing references to Racket-defined variables in DSL expressions, and @racket[racket-macro] for allowing the language to be extended by arbitrary Racket macros. We'll talk more about macros in the @secref["macros"] section.
 
@@ -275,7 +276,84 @@ Now that we have our grammar and binding rules defined, we must write a compiler
   ...)
 ]
 
-However, our compiler, which performs the actual translation, is not defined. Let's start writing it:
+However, our compiler, which performs the actual translation, is not defined. The compiler is a macro that translates our state machine language to Racket code. In our compiler, we'll translate the state machine to Racket classes using @hyperlink["https://en.wikipedia.org/wiki/State_pattern"]{the state machine pattern}.
+
+For example, let's imagine how we'd translate the example state machine:
+
+@(racketblock
+(define vending-machine
+  (machine
+   #:initial idle
+   (state idle
+     (on-enter (displayln "pay a dollar"))
+     (on (dollar)
+       (goto paid))
+     (on (select-item item)
+       (displayln "you need to pay before selecting an item")
+       (goto idle)))
+   (state paid
+     (on-enter (displayln "select an item"))
+     (on (select-item item)
+       (displayln (format "dispensing ~a" item))
+       (goto idle)))))
+)
+
+We'll create a class for the state machine, which acts as a context class, and a class for each state:
+
+@(racketblock
+(let ()
+  (define machine%
+    (class object%
+      (define state #f)
+      (define/public (set-state state%)
+        (set! state (new state% [machine this])))
+      (define/public (get-state)
+        (send state get-state))
+
+      (define/public (dollar)
+        (send/apply state dollar))
+
+      (define/public (select-item item)
+        (send/apply state select-item item))
+
+      (send this set-state idle)
+      (super-new)))
+
+  (define idle
+    (class object%
+      (init-field machine)
+      (define/public (get-state)
+        'idle)
+
+      (displayln "pay a dollar")
+
+      (define/public (dollar)
+        (send machine set-state paid))
+
+      (define/public (select-item item)
+        (displayln "you need to pay before selecting an item")
+        (send machine set-state idle))
+      (super-new)))
+
+  (define paid
+    (class object%
+      (init-field machine)
+      (define/public (get-state)
+        'idle)
+
+      (displayln "select an item")
+
+      (define/public (select-item item)
+        (displayln (format "dispensing ~a" item))
+        (send machine set-state idle))
+      (super-new)))
+
+  (new machine%))
+)
+
+The @racket[machine%] class stores the current state instance and delegates to it. Each state class has methods for each defined transition. Transition actions go in the transition's method and @racket[on-enter] actions go in the class body. When a state is entered, the @racket[machine%] class creates a fresh instance of it, which runs the class body, and sets the current state to that instance. Finally, we return an instance of the machine class.
+
+Now Let's start to write the compiler:
 
 @racketblock[
 (syntax-spec
@@ -288,104 +366,71 @@ However, our compiler, which performs the actual translation, is not defined. Le
 
 (define-syntax compile-machine
   (syntax-parser
-    [(_ initial-state:id
-        (~and state-spec
-              ((~literal state) state-name evt ...))
+    #:datum-literals (machine state on-enter)
+    [(_ initial-state
+        (state state-name
+          (~optional (on-enter action ...) #:defaults ([(action 1) '()]))
+          e ...)
         ...)
-     (define/syntax-parse (event-name ...) (unique-event-names #'(evt ... ...)))
-     (define/syntax-parse (event-method ...)
-       (for/list ([event-name (attribute event-name)])
-         (compile-event-method event-name (attribute state-spec))))
-     #'(with-reference-compilers ([event-var immutable-reference-compiler])
-         ; no reference compiler for state names since they shouldn't be referenced in racket expressions.
+     #'(with-reference-compilers ([event-var mutable-reference-compiler])
          (let ()
            (define machine%
              (class object%
-               (super-new)
-               (define state 'initial-state)
-               (define/public (set-state! new-state)
-                 (set! state new-state))
-               (define/public (get-state) state)
-               event-method
-               ...))
+               (define state #f)
+               (define/public (set-state state%)
+                 (set! state (new state% [machine this])))
+               (define/public (get-state)
+                 (send state get-state))
 
-           (new machine%)))]))]
+               (compile-proxy-methods (e ... ...) state)
 
-We defined a macro, @racket[compile-machine], which emits a class definition for the machine and ultimately evaluates to an instance of the machine class. Most of this has nothing to do with syntax-spec and is what you'd see in a typical Racket macro compiler for a DSL. However, notice the use of @racket[with-reference-compilers]. This is from syntax-spec and it allows us to control how DSL-bound variables behave in Racket expression positions like the guard of a transition spec. In this case, we chose to use @racket[immutable-reference-compiler] to prevent mutation of @racket[event-var] variables. We intentionally don't provide a reference compiler for @racket[state-name] identifiers because they shouldn't be accessible from Racket expressions, only our DSL's @racket[goto] form.
+               (send this set-state initial-state)
+               (super-new)))
 
-Now let's define the helpers referenced here:
-
-@racketblock[#:escape unracket
-(begin-for-syntax
-  ; Syntax -> Identifier
-  (define (state-spec-name state-spec)
-    (syntax-parse state-spec
-      [(state name . _) #'name]))
-
-  (define (unique-event-names evt-stxs)
-    (remove-duplicates (map event-name (syntax->list evt-stxs))
-                       (lambda (a b) (eq? (syntax->datum a) (syntax->datum b)))))
-
-  (define (event-name e)
-    (syntax-parse e
-      [(on (name . _) . _) #'name])))
-
-(begin-for-syntax
-  ; Identifier (listof Syntax) -> Syntax
-  (define (compile-event-method event-name state-specs)
-    (define/syntax-parse (state-name ...)
-      (for/list ([state-spec state-specs])
-        (state-spec-name state-spec)))
-    (define/syntax-parse (state-spec ...) state-specs)
-    #`(define/public (#,event-name . args)
-        (match (send this get-state)
-          ['state-name
-           (apply (compile-event-handler-for-state #,event-name state-name (state-spec ...))
-                  args)]
-          ...
-          [state (error 'machine (format "Unknown state: ~a" state))]))))
-
-(define-syntax compile-event-handler-for-state
-  (syntax-parser
-    [(_ event-name state-name (state-spec ...))
-     (define/syntax-parse
-       ((on (_ arg ...) (~optional (~seq #:when guard) #:defaults ([guard #'#t]))
-            (goto next-state-name))
-        ...)
-       (get-transitions-for-event-and-state #'event-name #'state-name #'(state-spec ...)))
-     #'(lambda args
-         (cond
-           [(apply (lambda (arg ...) guard)
-                   args)
-            (send this set-state! 'next-state-name)]
+           (define state-name
+             (class object%
+               (init-field machine)
+               (define/public (get-state)
+                 'state-name)
+               action ...
+               (compile-event-method e machine) ...
+               (super-new)))
            ...
-           [else (error 'machine
-                        "No transition defined for event ~v in state ~v"
-                        (syntax->datum #'event-name)
-                        (syntax->datum #'state-name))]))]))
 
-(begin-for-syntax
-  ; Identifier Identifier (listof Syntax) -> (listof Syntax)
-  ; gets the transitions for the given event and state
-  (define (get-transitions-for-event-and-state evt-name state-name state-specs)
-    (apply append
-           (for/list ([state-spec (syntax->list state-specs)]
-                      #:when (compiled-identifier=? (state-spec-name state-spec)
-                                                    state-name))
-             (syntax-parse state-spec
-               [(state _
-                       transition
-                       ...)
-                (for/list ([transition (attribute transition)]
-                           #:when (eq? (syntax->datum evt-name)
-                                       (syntax->datum (event-name transition))))
-                  transition)])))))]
+           (new machine%)))]))
+]
 
-Most of these helpers don't involve anything syntax-spec specific, so we won't talk about them much. For each event, we
-@;TODO finish this sentence
-One thing to note is that Racket expressions like @racket[guard] in @racket[compile-event-handler-for-state] get wrapped in a @racket[#%host-expression] form by syntax-spec. You can usually ignore this fact completely when writing a compiler, but if you try to inspect the contents of a Racket expression in a compiler, you'll have to account for it.
+We defined a macro, @racket[compile-machine], which expands to something similar to what we wrote by hand above. One thing we have to do with syntax-spec is wrap the generated code in a @racket[with-reference-compilers] form. This allows us to control whether and how DSL identifiers behave in Racket expressions like actions. In our case, we use @racket[mutable-reference-compiler], which allows event arguments to be referenced and mutated. We don't specify a reference compiler for state names, so they cannot be referenced in Racket expressions. Only @racket[goto].
 
-Our last helper, @racket[get-transitions-for-event-and-state], uses @racket[compiled-identifier=?] from syntax-spec to compare state names. syntax-spec compiles and renames DSL identifiers to ensure proper hygiene and allow for some utilities like symbol tables, which we'll discuss soon. We compare DSL identifiers using @racket[compiled-identifier=?].
+We have helpers to define the proxy methods in the @racket[machine%] class and transition methods in the state classes:
+
+@(racketblock
+(define-syntax compile-proxy-methods
+  (syntax-parser
+    #:datum-literals (on goto)
+    [(_ ((on (event-name . _) . _) ...) target)
+     #:with (unique-event ...)
+     (remove-duplicates (map syntax-e (attribute event-name)))
+     #'(begin
+         (define/public (unique-event . args)
+           (send/apply target unique-event args))
+         ...)]))
+
+(define-syntax compile-event-method
+  (syntax-parser
+    #:datum-literals (on goto)
+    [(_ (on (event-name arg ...)
+          action ...
+          (goto name))
+        machine)
+     #'(define/public (event-name arg ...)
+         action ...
+         (send machine set-state name))]))
+)
+
+For @racket[compile-proxy-methods], to generate one method definition for each possible transition, we gather up all the transitions in @racket[compile-machine] with that @racket[(e ... ...)], remove the duplicate transition event names, and define a proxy method for each one that delegates to the state instance, which is passed in as @racket[target]. #racket[compile-event-method] is pretty straightforward.
+
+One thing to note is that Racket expressions like @racket[action] in @racket[compile-event-method] get wrapped in a @racket[#%host-expression] form by syntax-spec. You can usually ignore this fact completely when writing a compiler, but if you try to inspect the contents of a Racket expression in a compiler, you'll have to account for it.
 
 Now we have all the pieces to run programs using state machines:
 
@@ -393,26 +438,28 @@ Now we have all the pieces to run programs using state machines:
 #:label #f
 (require racket/class
          syntax-spec/tests/dsls/state-machine-for-tutorial)
-(define turnstile
+(define vending-machine
   (machine
-   #:initial locked
-
-   (state locked
-     (on (coin value) #:when (= value 0.25)
-       (goto unlocked))
-     (on (coin value)
-       (goto locked)))
-
-   (state unlocked
-     (on (person-enters)
-       (goto locked)))))
-(send turnstile get-state)
-(send turnstile coin 0.05)
-(send turnstile get-state)
-(send turnstile coin 0.25)
-(send turnstile get-state)
-(send turnstile person-enters)
-(send turnstile get-state)
+   #:initial idle
+   (state idle
+     (on-enter (displayln "pay a dollar"))
+     (on (dollar)
+       (goto paid))
+     (on (select-item _)
+       (displayln "you need to pay before selecting an item")
+       (goto idle)))
+   (state paid
+     (on-enter (displayln "select an item"))
+     (on (select-item item)
+       (displayln (format "dispensing ~a" item))
+       (goto idle)))))
+(send vending-machine get-state)
+(send vending-machine select-item "chips")
+(send vending-machine get-state)
+(send vending-machine dollar)
+(send vending-machine get-state)
+(send vending-machine select-item "chips")
+(send vending-machine get-state)
 ]
 
 @subsection[#:tag "symbol tables"]{Symbol Tables}
@@ -430,7 +477,7 @@ In our language's compiler, we can use symbol set to raise an error when a state
     (machine #:initial initial-state:state-name s:state-spec ...)
     #:binding (scope (import s) initial-state)
     (check-for-inaccessible-states #'initial-state (attribute s))
-    #'(compile-machine initial-state s^ ...))
+    #'(compile-machine initial-state s ...))
   ...)
 
 (begin-for-syntax
@@ -446,12 +493,13 @@ In our language's compiler, we can use symbol set to raise an error when a state
       (findf (lambda (state-spec)
                (compiled-identifier=? state-name (state-spec-name state-spec)))
              state-specs))
-    (let loop ([state-name initial-state-id])
+    (define (add-reachable-states! state-name)
       (unless (symbol-set-member? accessible-states state-name)
         (symbol-set-add! accessible-states state-name)
         (define state-spec (find-state-spec state-name))
         (for ([next-state-name (state-spec-next-state-names state-spec)])
-          (loop next-state-name))))
+          (add-reachable-states! next-state-name))))
+    (add-reachable-states! initial-state-id)
     accessible-states)
 
   (define (state-spec-name state-spec)
@@ -461,8 +509,11 @@ In our language's compiler, we can use symbol set to raise an error when a state
   (define (state-spec-next-state-names state-spec)
     (syntax-parse state-spec
       [(state name
-         (on action (~optional (~seq #:when guard))
-             (goto next-state-name))
+         (~or ((~datum on-enter) . _)
+              ((~datum on) ev
+                  body
+                  ...
+                  (goto next-state-name)))
          ...)
        (attribute next-state-name)])))
 ]
@@ -500,8 +551,8 @@ syntax-spec allows us to make our DSLs macro-extensible. For example, let's allo
 
   (nonterminal/exporting state-spec
     #:allow-extension state-macro
-    (state name:state-name transition:transition-spec ...)
-    #:binding (export name)))
+
+    ...))
 
 (define-syntax-rule
   (define-state-syntax name trans)
@@ -538,3 +589,5 @@ Now let's create a macro in our language!
 
 The full code for the state machine example is available at
 @url{https://github.com/michaelballantyne/syntax-spec/blob/main/tests/dsls/state-machine-for-tutorial.rkt}.
+
+There is also an example of using the state machine language to create a CSV browser with a GUI at @url{https://github.com/michaelballantyne/syntax-spec/blob/main/demos/minimal-state-machine/csv-browser.rkt}

@@ -2,7 +2,6 @@
 
 (provide (all-defined-out))
 (require "../../testing.rkt"
-         racket/match
          racket/class
          (for-syntax racket/list))
 
@@ -13,21 +12,24 @@
 
   (nonterminal/exporting state-spec
     #:allow-extension state-macro
+
+    (state name:state-name ((~datum on-enter) body:racket-expr ...+)  transition:transition-spec ...)
+    #:binding (export name)
+
     (state name:state-name transition:transition-spec ...)
     #:binding (export name))
 
   (nonterminal transition-spec
-    (on (event-name:id arg:event-var ...) action:action-spec)
-    #:binding (scope (bind arg))
-    (on (event-name:id arg:event-var ...) #:when guard:racket-expr action:action-spec)
-    #:binding (scope (bind arg) guard))
-
-  (nonterminal action-spec
-    (goto next-state-name:state-name))
+    (on (event-name:id arg:event-var ...)
+        body:racket-expr
+        ...
+        ((~datum goto) next-state-name:state-name))
+    #:binding (scope (bind arg) body))
 
   (host-interface/expression
     (machine #:initial initial-state:state-name s:state-spec ...)
     #:binding (scope (import s) initial-state)
+
     (check-for-inaccessible-states #'initial-state (attribute s))
     #'(compile-machine initial-state s ...)))
 
@@ -47,12 +49,13 @@
       (findf (lambda (state-spec)
                (compiled-identifier=? state-name (state-spec-name state-spec)))
              state-specs))
-    (let loop ([state-name initial-state-id])
+    (define (add-reachable-states! state-name)
       (unless (symbol-set-member? accessible-states state-name)
         (symbol-set-add! accessible-states state-name)
         (define state-spec (find-state-spec state-name))
         (for ([next-state-name (state-spec-next-state-names state-spec)])
-          (loop next-state-name))))
+          (add-reachable-states! next-state-name))))
+    (add-reachable-states! initial-state-id)
     accessible-states)
 
   ; Syntax -> Identifier
@@ -65,95 +68,70 @@
   (define (state-spec-next-state-names state-spec)
     (syntax-parse state-spec
       [(state name
-         (on action (~optional (~seq #:when guard))
-             (goto next-state-name))
+         (~or ((~datum on-enter) . _)
+              ((~datum on) ev
+                  body
+                  ...
+                  (goto next-state-name)))
          ...)
        (attribute next-state-name)])))
 
 (define-syntax compile-machine
   (syntax-parser
-    [(_ initial-state:id
-        (~and state-spec
-              ((~literal state) state-name evt ...))
+    #:datum-literals (machine state on-enter)
+    [(_ initial-state
+        (state state-name
+          (~optional (on-enter action ...) #:defaults ([(action 1) '()]))
+          e ...)
         ...)
-     (define/syntax-parse (event-name ...) (unique-event-names #'(evt ... ...)))
-     (define/syntax-parse (event-method ...)
-       (for/list ([event-name (attribute event-name)])
-         (compile-event-method event-name (attribute state-spec))))
-     #'(with-reference-compilers ([event-var immutable-reference-compiler])
-         ; no reference compiler for state names since they shouldn't be referenced in racket expressions.
+     #'(with-reference-compilers ([event-var mutable-reference-compiler])
          (let ()
            (define machine%
              (class object%
-               (super-new)
-               (define state 'initial-state)
-               (define/public (set-state! new-state)
-                 (set! state new-state))
-               (define/public (get-state) state)
-               event-method
-               ...))
+               (define state #f)
+               (define/public (set-state state%)
+                 (set! state (new state% [machine this])))
+               (define/public (get-state)
+                 (send state get-state))
+
+               (compile-proxy-methods (e ... ...) state)
+
+               (send this set-state initial-state)
+               (super-new)))
+
+           (define state-name
+             (class object%
+               (init-field machine)
+               (define/public (get-state)
+                 'state-name)
+               action ...
+               (compile-event-method e machine) ...
+               (super-new)))
+           ...
 
            (new machine%)))]))
 
-(begin-for-syntax
-  (define (unique-event-names evt-stxs)
-    (remove-duplicates (map event-name (syntax->list evt-stxs))
-                       (lambda (a b) (eq? (syntax->datum a) (syntax->datum b)))))
-
-  (define (event-name e)
-    (syntax-parse e
-      [(on (name . _) . _) #'name])))
-
-(begin-for-syntax
-  ; Identifier (listof Syntax) -> Syntax
-  (define (compile-event-method event-name state-specs)
-    (define/syntax-parse (state-name ...)
-      (for/list ([state-spec state-specs])
-        (state-spec-name state-spec)))
-    (define/syntax-parse (state-spec ...) state-specs)
-    #`(define/public (#,event-name . args)
-        (match (send this get-state)
-          ['state-name
-           (apply (compile-event-handler-for-state #,event-name state-name (state-spec ...))
-                  args)]
-          ...
-          [state (error 'machine (format "Unknown state: ~a" state))]))))
-
-(define-syntax compile-event-handler-for-state
+(define-syntax compile-proxy-methods
   (syntax-parser
-    [(_ event-name state-name (state-spec ...))
-     (define/syntax-parse
-       ((on (_ arg ...) (~optional (~seq #:when guard) #:defaults ([guard #'#t]))
-            (goto next-state-name))
-        ...)
-       (get-transitions-for-event-and-state #'event-name #'state-name #'(state-spec ...)))
-     #'(lambda args
-         (cond
-           [(apply (lambda (arg ...) guard)
-                   args)
-            (send this set-state! 'next-state-name)]
-           ...
-           [else (error 'machine
-                        "No transition defined for event ~v in state ~v"
-                        (syntax->datum #'event-name)
-                        (syntax->datum #'state-name))]))]))
+    #:datum-literals (on goto)
+    [(_ ((on (event-name . _) . _) ...) target)
+     #:with (unique-event ...)
+     (remove-duplicates (map syntax-e (attribute event-name)))
+     #'(begin
+         (define/public (unique-event . args)
+           (send/apply target unique-event args))
+         ...)]))
 
-(begin-for-syntax
-  ; Identifier Identifier (listof Syntax) -> (listof Syntax)
-  ; gets the transitions for the given event and state
-  (define (get-transitions-for-event-and-state evt-name state-name state-specs)
-    (apply append
-           (for/list ([state-spec (syntax->list state-specs)]
-                      #:when (compiled-identifier=? (state-spec-name state-spec)
-                                                    state-name))
-             (syntax-parse state-spec
-               [(state _
-                       transition
-                       ...)
-                (for/list ([transition (attribute transition)]
-                           #:when (eq? (syntax->datum evt-name)
-                                       (syntax->datum (event-name transition))))
-                  transition)])))))
+(define-syntax compile-event-method
+  (syntax-parser
+    #:datum-literals (on goto)
+    [(_ (on (event-name arg ...)
+          action ...
+          (goto name))
+        machine)
+     #'(define/public (event-name arg ...)
+         action ...
+         (send machine set-state name))]))
 
 (define-syntax-rule
   (define-state-syntax name trans)
@@ -189,35 +167,6 @@
        (state the-initial-state)
        (state unreachable)))))
 
-  (define turnstile
-    (machine
-     #:initial locked
-
-     (state locked
-            (on (coin value) #:when (= value 0.25)
-                (goto unlocked))
-            (on (coin value)
-                (goto locked)))
-
-     (state unlocked
-            (on (person-enters)
-                (goto locked)))))
-  (check-equal? (send turnstile get-state)
-                'locked)
-  (send turnstile coin 0.10)
-  (check-equal? (send turnstile get-state)
-                'locked)
-  (send turnstile coin 0.25)
-  (check-equal? (send turnstile get-state)
-                'unlocked)
-  (send turnstile person-enters)
-  (check-equal? (send turnstile get-state)
-                'locked)
-  (check-exn
-   #rx"machine: No transition defined for event 'person-enters in state 'locked"
-   (lambda ()
-     (send turnstile person-enters)))
-
   (define-state-syntax simple-state
     (syntax-rules ()
       [(_ name [evt next] ...)
@@ -240,4 +189,21 @@
                 'yellow)
   (send traffic-light tick)
   (check-equal? (send traffic-light get-state)
-                'red))
+                'red)
+  (let ()
+    (define x 0)
+    (define y 0)
+    (define z 0)
+    (define mchn-with-actions
+      (machine
+       #:initial start
+       (state start
+              (on-enter (set! x 1))
+              (on (ev)
+                  (set! y 1)
+                  (goto end)))
+       (state end
+              (on-enter (set! z 1)))))
+    (check-equal? (list x y z) '(1 0 0))
+    (send mchn-with-actions ev)
+    (check-equal? (list x y z) '(1 1 1))))
