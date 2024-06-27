@@ -3,7 +3,7 @@
 (provide (all-defined-out))
 (require "../../testing.rkt"
          racket/class
-         (for-syntax racket/list))
+         (for-syntax racket/pretty racket/list))
 
 (syntax-spec
   (binding-class event-var)
@@ -13,7 +13,7 @@
   (nonterminal/exporting state-spec
     #:allow-extension state-macro
 
-    (state name:state-name ((~datum on-enter) body:racket-expr ...+)  transition:transition-spec ...)
+    (state name:state-name ((~datum on-enter) body:racket-expr ...+) transition:transition-spec ...)
     #:binding (export name)
 
     (state name:state-name transition:transition-spec ...)
@@ -44,7 +44,7 @@
 
   ; Identifier (listof Syntax) -> SymbolSet
   (define (get-accessible-states initial-state-id state-specs)
-    (define-local-symbol-set accessible-states)
+    (define accessible-states (local-symbol-set))
     (define (find-state-spec state-name)
       (findf (lambda (state-spec)
                (compiled-identifier=? state-name (state-spec-name state-spec)))

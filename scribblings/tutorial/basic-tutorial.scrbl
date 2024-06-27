@@ -18,7 +18,7 @@ We will:
  @item{Allow macros to extend the language (@secref["macros"])}
  ]
 
-Here's what using the DSL to define a controller for a subway turnstile looks like:
+Here's what using the DSL to define a controller for a vending machine looks like:
 
 @(racketblock
 (define vending-machine
