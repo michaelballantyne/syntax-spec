@@ -3,15 +3,9 @@
 @(require (for-label racket racket/block racket/class racket/match racket/list syntax/parse "../../main.rkt")
           scribble/example)
 
-@title{Advanced Tutorial: Simply Typed Lambda Calculus}
+@title[#:tag "stlc"]{Advanced Tutorial: Simply Typed Lambda Calculus}
 
 This guide demonstrates advanced usage of syntax-spec via the case study of construscting a DSL for the simply typed lambda calculus.
-
-We will:
-
-@itemlist[
-@;TODO
-]
 
 Here is an example program in our language:
 
@@ -78,16 +72,16 @@ Syntax-spec supports @tech[#:doc '(lib "scribblings/reference/reference.scrbl")]
 @racketblock[
 
 (nonterminal typed-expr
-    ...
+  ...
 
-    (~> (e (~datum :) t)
-        #'(: e t))
-    (: e:typed-expr t:type)
+  (~> (e (~datum :) t)
+      #'(: e t))
+  (: e:typed-expr t:type)
 
-    ...)
+  ...)
 ]
 
-This is called a rewrite production. We have a DSL form, @racket[:], for type annotations like @racket[(: 1 Number)]. We add a rewrite production to allow infix use like @racket[(1 : Number)] for better readability.
+This is called a rewrite production. We have a DSL form, @racket[:], for type annotations like @racket[(: 1 Number)]. We add a rewrite production to allow infix use like @racket[(1 : Number)] for better readability. The first part of a rewrite production is a @racketmodname[syntax/parse] pattern and the second part is the DSL form that the source syntax should transform into. The pattern cannot refer to binding classes, nonterminals, etc.
 
 We have another rewrite production that converts function applications to @racket[#%app] forms. It is important that this comes after the type annotation rewrite. Otherwise, infix usages would be treated as function applications.
 
@@ -277,6 +271,16 @@ Let's do it!
 
   ...)
 
+(begin-for-syntax
+  (define (infer-expr-type e)
+    (syntax-parse e
+      ...
+
+      [((~datum rkt) e (~datum :) t)
+       (parse-type #'t)]
+
+      ...)))
+
 (define-syntax compile-expr/top
   (syntax-parser
     [(_ e t-stx)
@@ -314,9 +318,7 @@ Let's do it!
      #`(contract #,(type->contract-stx (parse-type #'t))
                  e
                  'racket 'stlc
-                 #f #'e)]
-
-    ...))
+                 #f #'e)]))
 ]
 
 We added a new form to our language, @racket[rkt], which contains a racket expression and a type annotation. The compilation of this experssion involves a contract check to make sure the value is of the expected type. We also added a contract check in the other direction when a typed value flows out of the host interface and created a custom reference compiler using @racket[make-variable-like-reference-compiler] which inserts a contract check when a DSL variable is referenced in racket. These contract checks ensure typed values (particularly procedures) are used properly in untyped code.
@@ -324,7 +326,6 @@ We added a new form to our language, @racket[rkt], which contains a racket expre
 This implementation is far from efficient. Instead of generating the syntax for a contract check everywhere, we should defer to a runtime function and have the type flow into the runtime since it's a prefab struct. We should also avoid inserting a contract check every time a DSL variable is referenced in Racket and just do it once per variable. But for this tutorial, we'll keep it simple.
 
 Let's run some example programs now:
-
 
 @examples[#:label #f
 (require syntax-spec/tests/dsls/simply-typed-lambda-calculus)
@@ -348,7 +349,182 @@ Let's run some example programs now:
     (rkt (app "not a function" 1) : Number))))
 ]
 
-@;TODO fix weird blame location
+Our contract checks protect typed-untyped interactions.
 
-@;TODO definitions, implicit block in let
-@;TODO let* ?
+@section{Adding Definitions}
+
+Next, let's add definitions to our language:
+
+@racketblock[
+(syntax-spec
+  ...
+  (nonterminal typed-expr
+    ...
+
+    (block d:typed-definition-or-expr ... e:typed-expr)
+    #:binding (scope (import d) e)
+
+    ...)
+
+  ...
+
+  (nonterminal/exporting typed-definition-or-expr
+    #:allow-extension typed-macro
+    #:binding-space stlc
+    (#%define x:typed-var t:type e:typed-expr)
+    #:binding (export x)
+    (begin defn:typed-definition-or-expr ...+)
+    #:binding (re-export defn)
+    e:typed-expr)
+
+  ...
+
+  (host-interface/definitions
+   (stlc body:typed-definition-or-expr ...+)
+   #:binding (re-export body)
+   (type-check-defn-or-expr/pass1 #'(begin body ...))
+   (type-check-defn-or-expr/pass2 #'(begin body ...))
+   #'(compile-defn-or-expr/top (begin body ...))))
+]
+
+We added a new nonterminal for forms that can be used in a definition context. Since definitions inside of a @racket[begin] should spliced in to the surrounding definition context, we use the binding rule @racket[re-export], which we haven't seen yet. As the name suggests, it takes all exported names from an exporting nonterminal sub-expression and re-exports them. Here is an example of this splicing in regular Racket:
+
+@examples[#:label #f
+(begin
+  (begin
+    (define a 1))
+  (define b 2))
+(+ a b)
+]
+
+We also added the @racket[block] form to our expression nonterminal so we can use definitions in expressions. To make the bindings from the definitions accessible within the @racket[block] form, we use @racket[scope] and @racket[import].
+
+To support top-level definitions, we added a new host interface using @racket[host-interface/definitions], which we've never seen before. This defines a special type of host interface that can only be used in a definition context. This type of host interface can be used to define module-level variables that can be used with @racket[provide] and @racket[require]. Now that this is possible, it is important that we're using a persistent symbol table to store type information.
+
+Now let's update the rest of our code:
+
+@racketblock[#:escape unracket
+(begin-for-syntax
+  (define (infer-expr-type e)
+    (syntax-parse e
+      ...
+
+      [((~datum block) d ... e)
+       (type-check-defn-or-expr/pass1 #'(begin d ...))
+       (type-check-defn-or-expr/pass2 #'(begin d ...))
+       (infer-expr-type #'e)]
+
+      ...))
+  ...
+
+  (define (type-check-defn-or-expr/pass1 e)
+    (syntax-parse e
+      [((~datum #%define) x:id t _)
+       (extend-type-environment! #'x (parse-type #'t))]
+      [((~datum begin) body ...)
+       (for ([body (attribute body)])
+         (type-check-defn-or-expr/pass1 body))]
+      [_ (void)]))
+
+  (define (type-check-defn-or-expr/pass2 e)
+    (syntax-parse e
+      [((~datum #%define) _ t e)
+       (check-expr-type #'e (parse-type #'t))]
+      [((~datum begin) body ...)
+       (for ([body (attribute body)])
+         (type-check-defn-or-expr/pass2 body))]
+      [e (void (infer-expr-type #'e))])))
+
+(define-syntax compile-expr/top
+  (syntax-parser
+    [(_ e t-stx (~optional should-skip-contract?))
+     (define t (syntax->datum #'t-stx))
+     (define/syntax-parse e^
+       #'(with-reference-compilers ([typed-var typed-var-reference-compiler])
+           (compile-expr e)))
+     (if (attribute should-skip-contract?)
+         #'e^
+         #`(contract #,(type->contract-stx t)
+                     e^
+                     'stlc 'racket
+                     #f #'e))]))
+
+(define-syntax compile-expr
+  (syntax-parser
+    ...
+
+    [(_ ((~datum block) d ... e))
+     #'(let ()
+         (compile-defn-or-expr d)
+         ...
+         (compile-expr e))]))
+
+(define-syntax compile-defn-or-expr/top
+  (syntax-parser
+    [(_ ((~datum #%define) x:id _ body))
+     #`(define x (compile-expr/top body #,(get-identifier-type #'x) #t))]
+    [(_ ((~datum begin) body ...+))
+     #'(begin (compile-defn-or-expr/top body) ...)]
+    [(_ e)
+     #`(compile-expr/top e #,(infer-expr-type #'e) #t)]))
+
+(define-syntax compile-defn-or-expr
+  (syntax-parser
+    [(_ ((~datum #%define) x:id _ body))
+     #`(define x (compile-expr body))]
+    [(_ ((~datum begin) body ...+))
+     #'(begin (compile-defn-or-expr body) ...)]
+    [(_ e)
+     #'(compile-expr e)]))
+
+(define-stlc-syntax let
+  (syntax-parser
+    [(_ ([x e] ...) body) #'(#%let ([x e] ...) body)]
+    [(_ ([x e] ...) body ...+) #'(#%let ([x e] ...) (block body ...))]))
+
+(define-stlc-syntax lambda
+  (syntax-parser
+    [(_ ([x (~datum :) t] ...) body) #'(#%lambda ([x : t] ...) body)]
+    [(_ ([x (~datum :) t] ...) body ...+) #'(#%lambda ([x : t] ...) (block body ...))]))
+
+(define-stlc-syntax let*
+  (syntax-parser
+    [(_ () body) #'(let () body)]
+    [(_ ([x:id e] binding ...) body)
+     #'(let ([x e]) (let* (binding ...) body))]))
+
+(define-stlc-syntax define
+  (syntax-parser
+    [(_ x:id (~datum :) t e)
+     #'(#%define x t e)]
+    [(_ (f:id [arg:id (~datum :) arg-type] ...) (~datum ->) return-type body ...)
+     #'(#%define f (-> arg-type ... return-type)
+                 (lambda ([arg : arg-type] ...)
+                   body
+                   ...))]))
+]
+
+To type-check a group of definitions, we must take two passes. The first pass must record the type information of all defined identifiers, and the second pass checks the types of the bodies of definitions. Since mutual recursion is possible, we need the types of all identifiers before we can start checking the types of definition bodies which may reference variables before their definitions. This is a common pattern when working with mutually recursive definition contexts in general.
+
+When compiling top-level definitions, we must wrap expressions with @racket[with-reference-compilers], so we use @racket[compile-expr/top] from @racket[compile-defn-or-expr/top]. We added an optional flag to disable the contract check for @racket[compile-expr/top] when compiling top-level definitions since it is unnecessary.
+
+We also added support for multi-body @racket[let], @racket[lambda], and @racket[let*], and we added a macro around @racket[#%define] for syntactic sugar.
+
+Let's run it!
+
+@examples[#:label #f
+(require syntax-spec/tests/dsls/simply-typed-lambda-calculus)
+(stlc
+  (begin
+   (define two : Number
+           2)
+   (define three : Number
+           3))
+  (define add : (-> Number Number Number)
+    (rkt + : (-> Number Number Number))))
+(stlc/expr (add two three))
+]
+
+@;TODO figure out why you need stlc/expr and use stlc instead
+
+@;TODO fix weird blame location

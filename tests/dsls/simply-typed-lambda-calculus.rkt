@@ -42,7 +42,7 @@
     (~> (fun arg ...)
         #'(#%app fun arg ...)))
   (nonterminal type
-    Number
+    (~datum Number)
     ((~datum ->) arg-type:type ... return-type:type))
   (nonterminal/exporting typed-definition-or-expr
     #:allow-extension typed-macro
@@ -130,7 +130,8 @@
   ; Identifier Type -> Void
   ; Records the identifier's type. Does nothing if already recorded.
   (define (extend-type-environment! x t)
-    (void (symbol-table-ref types x (lambda () (symbol-table-set! types x t)))))
+    (unless (symbol-table-has-key? types x)
+      (symbol-table-set! types x t)))
 
   ; Syntax Type -> Void
   (define (check-expr-type e expected-type)
@@ -183,15 +184,17 @@
 ; inserts with-reference-compilers, and contract check
 (define-syntax compile-expr/top
   (syntax-parser
-    [(_ e t-stx)
+    [(_ e t-stx (~optional should-skip-contract?))
      (define t (syntax->datum #'t-stx))
      (define/syntax-parse e^
        #'(with-reference-compilers ([typed-var typed-var-reference-compiler])
            (compile-expr e)))
-     #`(contract #,(type->contract-stx t)
-                 e^
-                 'stlc 'racket
-                 #f #'e)]))
+     (if (attribute should-skip-contract?)
+         #'e^
+         #`(contract #,(type->contract-stx t)
+                     e^
+                     'stlc 'racket
+                     #f #'e))]))
 
 (define-syntax compile-expr
   (syntax-parser
@@ -238,11 +241,11 @@
 (define-syntax compile-defn-or-expr/top
   (syntax-parser
     [(_ ((~datum #%define) x:id _ body))
-     #`(define x (compile-expr/top body #,(get-identifier-type #'x)))]
+     #`(define x (compile-expr/top body #,(get-identifier-type #'x) #t))]
     [(_ ((~datum begin) body ...+))
      #'(begin (compile-defn-or-expr/top body) ...)]
     [(_ e)
-     #`(compile-expr/top e #,(infer-expr-type #'e))]))
+     #`(compile-expr/top e #,(infer-expr-type #'e) #t)]))
 
 (define-syntax compile-defn-or-expr
   (syntax-parser
@@ -279,10 +282,11 @@
   (syntax-parser
     [(_ x:id (~datum :) t e)
      #'(#%define x t e)]
-    [(_ (f:id [arg:id (~datum :) arg-type] ...) (~datum ->) return-type body)
+    [(_ (f:id [arg:id (~datum :) arg-type] ...) (~datum ->) return-type body ...)
      #'(#%define f (-> arg-type ... return-type)
                  (lambda ([arg : arg-type] ...)
-                   body))]))
+                   body
+                   ...))]))
 
 ; testing
 
