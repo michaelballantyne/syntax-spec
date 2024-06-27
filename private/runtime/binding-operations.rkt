@@ -98,7 +98,7 @@
 (define (alpha-equivalent? stx-a stx-b #:allow-host? [allow-host? #f])
   (define bound-reference=? (alpha-equivalent?/bindings stx-a stx-b allow-host?))
   (and bound-reference=?
-       (alpha-equivalent?/refrences stx-a stx-b bound-reference=? allow-host?)))
+       (alpha-equivalent?/references stx-a stx-b bound-reference=? allow-host?)))
 
 ; Syntax Syntax Boolean -> (or/c #f (Identifier Identifier -> Boolean))
 ; check that the bindings of both expressions can be alpha-equivalent.
@@ -128,7 +128,7 @@
 
 ; Syntax Syntax (Identifier Identifier -> Boolean) Boolean -> Boolean
 ; check that the references are alpha-equivalent.
-(define (alpha-equivalent?/refrences stx-a stx-b bound-reference=? allow-host?)
+(define (alpha-equivalent?/references stx-a stx-b bound-reference=? allow-host?)
   (let loop ([stx-a stx-a] [stx-b stx-b])
     (syntax-parse (list stx-a stx-b)
       [(~or (((~literal #%host-expression) . _) _)
