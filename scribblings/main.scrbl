@@ -28,7 +28,9 @@ You might find the metalanguage useful when you both:
  @item{you want your DSL to be macro-extensible}
 ]
 
-@include-section["tutorial.scrbl"]
+@local-table-of-contents[]
+
+@include-section["tutorial/main.scrbl"]
 
 @include-section["reference/main.scrbl"]
 
