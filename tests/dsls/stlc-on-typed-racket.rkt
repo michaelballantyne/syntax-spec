@@ -91,14 +91,9 @@
    (stlc/expr (let ([x (lambda ([x : Number]) x)]) (rkt (x 1) : Number)))
    1)
   ; misuse dsl value in typed racket
-  #;; the test doesn't work for some reason, but it currently should pass
-  (check-exn
-   #rx"given: True"
-   (lambda ()
-     ((stlc/expr (lambda ([x : Number]) x)) #t)))
+  (assert-typecheck-fail ((stlc/expr (lambda ([x : Number]) x)) #t))
   ; misuse typed racket function in dsl
-  #;; same problem as above
-  (stlc/expr ((rkt (lambda ([y : Boolean]) y) : (-> Number Number)) 1))
+  (assert-typecheck-fail (stlc/expr ((rkt (lambda ([y : Boolean]) y) : (-> Number Number)) 1)))
   (check-equal?
    (let ()
      (stlc (define x : Number 1)
@@ -109,8 +104,4 @@
      (stlc (define (f [x : Number]) -> Number
              x)
            (f 1)))
-   1)
-  (let ()
-     (stlc (define (f [x : Number]) -> Number
-             x)
-           (f 1))))
+   1))
