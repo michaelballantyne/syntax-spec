@@ -4,7 +4,7 @@
 ;; arithmetic + let -> ANF -> prune unused variables -> racket
 
 (require "../../testing.rkt"
-         (for-syntax racket/list rackunit (only-in ee-lib define/hygienic)))
+         (for-syntax racket/list rackunit (only-in "../../private/ee-lib/main.rkt" define/hygienic)))
 
 (syntax-spec
   (binding-class var)
