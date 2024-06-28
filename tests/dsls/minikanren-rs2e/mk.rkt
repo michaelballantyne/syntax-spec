@@ -5,7 +5,7 @@
          (for-space mk (all-defined-out)))
 
 (require "../../../main.rkt"
-         "../../../private/ee-lib/errors.rkt"
+         (only-in "../../../private/ee-lib/errors.rkt" raise-argument-error/stx)
          (for-syntax
           racket/base
           racket/pretty

@@ -8,13 +8,10 @@
 (require "../../../testing.rkt"
          racket/list
          (only-in racket/cmdline parse-command-line)
-         "../../../private/ee-lib/define.rkt"
-
          (for-syntax
           racket/base
           (rename-in syntax/parse [define/syntax-parse def/stx])
           syntax/stx
-          (except-in "../../../private/ee-lib/main.rkt" racket-var)
           racket/list
           racket/sequence
           ))
