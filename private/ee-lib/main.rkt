@@ -407,8 +407,6 @@
   ((make-syntax-introducer) (datum->syntax #f (syntax-e id) id id)))
 
 
-(define-persistent-free-id-table compiled-ids)
-
 (define (table-ref table id fail)
   (if (persistent-free-id-table? table)
         (persistent-free-id-table-ref
@@ -428,13 +426,11 @@
                           val)))
 
 (define/who (compile-binder! id #:table [table compiled-ids] #:reuse? [reuse? #f])
-  (check who (lambda (v) (or (mutable-free-id-table? v) (persistent-free-id-table? v)))
-         #:contract "(or/c mutable-free-id-table? persistent-free-id-table?)"
-         table)
+  (check who symbol-table? table)
   (check who identifier? id)
   (check who boolean? reuse?)
 
-  (define ref-result (table-ref table id #f))
+  (define ref-result (table-ref (mutable-symbol-table-id-table table) id #f))
 
   (define renamed
     (if (and ref-result
@@ -444,7 +440,7 @@
             (flip-intro-scope ref-result)
             (error 'compile-binder! "compiled binder already recorded for identifier ~v" id))
         (let ([result (syntax-local-get-shadower/including-module (generate-same-name-temporary id))])
-          (table-set! table id result)
+          (table-set! (mutable-symbol-table-id-table table) id result)
           (flip-intro-scope result))))
 
   (define annotated
@@ -459,13 +455,11 @@
            ids)))
 
 (define/who (compile-reference id #:table [table compiled-ids])
-  (check who (lambda (v) (or (mutable-free-id-table? v) (persistent-free-id-table? v)))
-         #:contract "(or/c mutable-free-id-table? persistent-free-id-table?)"
-         table)
+  (check who symbol-table? table)
   (check who identifier? id)
 
   (define table-val
-    (table-ref table id (lambda () (error 'compile-reference "no compiled name in table for ~v" id))))
+    (table-ref (mutable-symbol-table-id-table table) id (lambda () (error 'compile-reference "no compiled name in table for ~v" id))))
   
   (define renamed
     (syntax-local-get-shadower/including-module
@@ -499,6 +493,8 @@
   (define-persistent-symbol-table id)
   (begin (define-persistent-free-id-table id-table)
          (define id (mutable-symbol-table id-table))))
+
+(define-persistent-symbol-table compiled-ids)
 
 ; deprecated
 (define-syntax-rule
