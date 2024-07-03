@@ -1,4 +1,4 @@
-#lang racket/base
+#lang typed/racket
 
 (provide
  ; core forms
@@ -11,7 +11,6 @@
  !
  =>
  token
- text
  char
  (rename-out [bind :]
              [src-span :src-span])
@@ -34,11 +33,9 @@
   peg-macro))
 
 (require
-  "private/forms.rkt"
-  "private/runtime.rkt"
-  "private/compile.rkt"
-  (for-syntax
-   "private/leftrec-check.rkt"))
+ "private/forms.rkt"
+ "private/runtime.rkt"
+ "private/compile.rkt")
 
 (require
   "../../../main.rkt"
@@ -113,8 +110,7 @@
   (host-interface/definitions
    (define-pegs [name:nonterm p:peg] ...)
    #:binding (export name)
-   (run-leftrec-check! (attribute name) (attribute p))
-   #'(begin (define name (lambda (in) (with-reference-compilers ([var immutable-reference-compiler])
+   #'(begin (define name (lambda ([in : String]) (with-reference-compilers ([var immutable-reference-compiler])
                                         (compile-peg p in))))
             ...))
 

@@ -1,4 +1,4 @@
-#lang racket/base
+#lang typed/racket
 
 (provide
  (rename-out [compile-peg-top compile-peg])
@@ -11,8 +11,7 @@
   (except-in racket/base => *)
   "forms.rkt"
   "runtime.rkt"
-  (for-syntax "compile-alt-str.rkt"
-              syntax/parse
+  (for-syntax syntax/parse
               racket/base
               (rename-in syntax/parse [define/syntax-parse def/stx])))
 
@@ -32,14 +31,6 @@
       [_ '()])))
 
 (define v-tmps (make-parameter #f))
-
-(define-syntax generate-plain-alt
-  (syntax-parser
-    [(_ c1 c2)
-     #'(let-values ([(in^ res) c1])
-         (if (failure? in^)
-             c2
-             (values in^ res)))]))
 
 #|
 you have the PEG and input coming in
@@ -80,10 +71,7 @@ you need the result and the updated input out
         ; TODO deduplicate on-success?
         #'(compile-peg pe1 in result in^ on-success (compile-peg pe2 in result in^ on-success on-fail))]
        [(alt pe1 pe2)
-        #`(let-values ([(in^-tmp result-tmp) #,(optimize+compile-alts this-syntax #'in #'compile-peg-top #'generate-plain-alt)])
-            (if (failure? in^-tmp)
-                on-fail
-                (let ([in^ in^-tmp] [result result-tmp]) on-success)))]
+        #'(compile-peg pe1 in result in^ on-success (compile-peg pe2 in result in^ on-success on-fail))]
        [(? pe)
         (def/stx (v* ...) (bound-vars #'pe))
         ; assume result is not the same as any v*
