@@ -111,6 +111,10 @@ Returns @racket[#t] if the two DSL expressions are alpha-equivalent, @racket[#f]
 
 Host expressions currently are not supported.
 
+@defform[(get-racket-referenced-identifiers [binding-class-id ...] expr)]
+
+Returns an immutable symbol set containing identifiers of the specified binding classes that were referenced in racket (host) expressions in @racket[expr].
+
 @section{Expansion}
 
 @defform[(nonterminal-expander nonterminal-id)

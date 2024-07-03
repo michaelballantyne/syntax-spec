@@ -2,6 +2,7 @@
 
 (provide free-identifiers
          alpha-equivalent?
+         get-racket-referenced-identifiers
          (rename-out [identifier=? compiled-identifier=?]))
 
 (require racket/list
@@ -155,3 +156,26 @@
             (loop #'a-cdr #'b-cdr))]
       [(a b) (equal? (syntax->datum #'a)
                      (syntax->datum #'b))])))
+
+(define current-referenced-vars (make-parameter #f))
+
+; get the racket vars referenced in e of the provided binding classes
+(define-syntax-rule (get-racket-referenced-identifiers [binding-class ...] e)
+  (parameterize ([current-referenced-vars (local-symbol-set)])
+    (local-expand #`(with-reference-compilers ([binding-class recording-reference-compiler] ...)
+                      #,e)
+                  'expression
+                  '())
+
+    (for/fold ([references (immutable-symbol-set)])
+              ([x (in-symbol-set (current-referenced-vars))])
+      (symbol-set-add references x))))
+
+(define recording-reference-compiler
+  (make-variable-like-reference-compiler
+   (lambda (x) (symbol-set-add! (current-referenced-vars) x) x)
+   (lambda (e)
+     (syntax-parse e
+       [(set! x _)
+        (symbol-set-add! (current-referenced-vars) #'x)
+        #'x]))))
