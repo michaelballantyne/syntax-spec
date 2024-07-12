@@ -1,6 +1,6 @@
 #lang scribble/manual
 
-@(require (for-label racket "../../main.rkt"))
+@(require (for-label racket syntax/parse "../../main.rkt"))
 
 @;-----------------------
 
@@ -65,12 +65,24 @@ defined in the space.
 
 @section{Extension classes}
 
+Extension classes distinguish types of extensions to languages. A syntax transformer is tagged with a syntax
+class using @racket[define-extension].
+Nonterminals can be declared extensible by a certain extension class using @racket[#:allow-extension].
+These extensions are expanded away into core DSL forms before compilation.
+
 @defsubform[(extension-class id maybe-description maybe-binding-space)
             #:grammar
             [(maybe-description (code:line #:description string-literal)
                                 (code:line))
              (maybe-binding-space (code:line #:binding-space space-symbol)
                                   (code:line))]]
+
+The @racket[#:description] option provides a user-friendly phrase describing the
+kind of extension. This description is used in error messages.
+
+The @racket[#:binding-space] option specifies a @tech/reference{binding space}
+to use for all extensions with this class.
+
 @section{Nonterminals}
 
 @defsubform[(nonterminal id nonterminal-options production ...)]
@@ -129,24 +141,53 @@ defined in the space.
 @section{Binding specs}
 
 
-@racketgrammar[#:literals (bind import re-export export nest nest-one)
+@racketgrammar[#:literals (bind bind-syntax bind-syntaxes import re-export export export-syntax export-syntaxes nest nest-one)
                binding-spec spec-variable-id
                (bind spec-variable-id ...+)
+               (bind-syntax spec-variable-id spec-variable-id)
+               (bind-syntaxes spec-variable-id spec-variable-id)
                (scope spec ...)
                [spec ...]
                (nest spec-variable-id binding-spec)
                (nest-one spec-variable-id binding-spec)
                (import spec-variable-id ...+)
                (export spec-variable-id ...+)
+               (export-syntax spec-variable-id spec-variable-id)
+               (export-syntaxes spec-variable-id spec-variable-id)
                (re-export spec-variable-id ...+)]
 
 @section{Defining host interface forms}
+
+Host interface forms are the entry point to the DSL from the host language. They often invoke a compiler macro to translate
+the DSL forms into Racket expressions.
 
 @defsubform[(host-interface/expression
               (id . syntax-spec)
               maybe-binding-spec
               pattern-directive ...
               body ...+)]
+
+Defines a host interface to be used in expression positions.
+
+Can only be used inside of a @racket[syntax-spec] block.
+
+An example from the mini-kanren DSL:
+
+@racketblock[
+(syntax-spec
+  ...
+
+  (host-interface/expression
+    (run n:expr q:term-variable g:goal)
+    #:binding (scope (bind q) g)
+
+    #`(let ([q (var 'q)])
+        (map (reify q)
+             (run-goal n (compile-goal g))))))
+]
+
+This defines @racket[run], which takes in a Racket expression representing a number, a term variable, and a goal, and invokes
+the compiler @racket[compile-goal] to translate the dsl forms into Racket.
 
 @defsubform[#:literals (-> define)
             (host-interface/definition
@@ -159,17 +200,95 @@ defined in the space.
               [pattern-directive ...
                body ...+])]
 
+Defines a host interface to be used in a definition context.
+
+@racket[#:lhs] runs before the right-hand-sides of definitions in the current context expand and must produce the identifier being defined.
+
+@racket[#:rhs] runs after the left-hand-sides of definitions and must produce the Racket expression whose value will be
+bound to the identifier (don't emit the definition syntax, just the syntax for producing the value).
+
+Can only be used inside of a @racket[syntax-spec] block.
+
+An example from the mini-kanren DSL:
+
+@racketblock[
+(syntax-spec
+  ...
+
+  (host-interface/definition
+    (defrel (name:relation-name x:term-variable ...) g:goal)
+    #:binding [(export name) (scope (bind x) g)]
+
+    #:lhs
+    [(symbol-table-set!
+      relation-arity
+      #'name
+      (length (syntax->list #'(x ...))))
+     #'name]
+
+    #:rhs
+    [#`(lambda (x ...)
+         (lambda (s)
+           (lambda ()
+             (#%app (compile-goal g) s))))]))
+]
+
+This defines @racket[defrel], which defines a relation. In the @racket[#:lhs], We record arity information about the identifier before producing it. Since the left-hand-sides all run before the right-hand-sides, even if there is mutual recursion, all arity information will be available before any goals are compiled. Note that the @racket[#:rhs] produces a lambda expression, not a @racket[define].
+
 @defsubform[(host-interface/definitions
               (id . syntax-spec)
               maybe-binding-spec
               pattern-directive ...
               body ...+)]
 
+Defines a host interface to be used in a definition context.
+
+Can be used to produce multiple definitions.
+
+Can only be used inside of a @racket[syntax-spec] block.
+
+An example from the PEG DSL:
+
+@racketblock[
+(syntax-spec
+  (host-interface/definitions
+   (define-pegs [name:nonterm p:peg] ...)
+   #:binding (export name)
+   (run-leftrec-check! (attribute name) (attribute p))
+   #'(begin (define name (lambda (in) (with-reference-compilers ([var immutable-reference-compiler])
+                                        (compile-peg p in))))
+            ...)))
+]
+
+Unlike @racket[host-interface/definition], the definitions are directly produced by the host interface.
+
+@section{Defining macros for DSLs}
+
+@defform[(define-extension name extension-class-id transformer-expr)]
+
+Defines a macro of the specified extension class.
+
+Example:
+
+@racketblock[
+(define-extension conj goal-macro
+  (syntax-parser
+    [(_ g) #'g]
+    [(_ g1 g2 g* ...) #'(conj (conj2 g1 g2) g* ...)]))
+]
+
+This defines a macro @racket[conj] that expands to a goal in mini-kanren.
+
 @section{Embedding Racket syntax}
 
 @defidform[#:kind "nonterminal" racket-expr]
 
+A nonterminal that allows arbitrary host language expressions. Expressions are wrapped with @racket[#%host-expression] during DSL expansion.
+
 @defidform[#:kind "binding class" racket-var]
+
+A binding class for host language bindings.
 
 @defidform[#:kind "extension class" racket-macro]
 
+A binding class for arbitrary host language transformers.
