@@ -135,7 +135,7 @@
 
 (define-syntax-rule
   (define-state-syntax name trans)
-  (define-extension name state-macro trans))
+  (define-dsl-syntax name state-macro trans))
 
 (module+ test
   (define mchn

@@ -61,7 +61,7 @@
 (define-syntax define-match-expander
   (syntax-parser
     [(_ name:id trans:expr)
-     #`(define-extension name pat-macro trans)]))
+     #`(define-dsl-syntax name pat-macro trans)]))
 
 (define-match-expander _
   (syntax-parser

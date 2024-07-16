@@ -67,22 +67,22 @@
      
 
 ; Surface syntax
-(define-extension conj goal-macro
+(define-dsl-syntax conj goal-macro
   (syntax-parser
     [(_ g) #'g]
     [(_ g1 g2 g* ...) #'(conj (conj2 g1 g2) g* ...)]))
 
-(define-extension disj goal-macro
+(define-dsl-syntax disj goal-macro
   (syntax-parser
     [(_ g) #'g]
     [(_ g1 g* ...) #'(disj2 g1 (disj g* ...))]))
 
-(define-extension fresh goal-macro
+(define-dsl-syntax fresh goal-macro
   (syntax-parser
     [(_ (x:id ...+) b ...+)
      #'(fresh1 (x ...) (conj b ...))]))
 
-(define-extension conde goal-macro
+(define-dsl-syntax conde goal-macro
   (syntax-parser
     [(_ [g ...+] ...+)
      #'(disj

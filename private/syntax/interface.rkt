@@ -1,7 +1,7 @@
 #lang racket/base
 
 (provide syntax-spec
-         define-extension
+         define-dsl-syntax
          (for-syntax racket-expr
                      racket-var
                      racket-macro
@@ -349,7 +349,7 @@
 
 
 
-(define-syntax define-extension
+(define-syntax define-dsl-syntax
   (syntax-parser
     [(_ name eclass rhs)
      (define space (eval-transformer #'(extension-class-space eclass)))

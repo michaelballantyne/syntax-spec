@@ -260,7 +260,7 @@
 (define-syntax define-stlc-syntax
   (syntax-parser
     [(_ name:id trans:expr)
-     #'(define-extension name typed-macro trans)]))
+     #'(define-dsl-syntax name typed-macro trans)]))
 
 (define-stlc-syntax let
   (syntax-parser

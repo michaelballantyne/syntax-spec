@@ -556,10 +556,10 @@ syntax-spec allows us to make our DSLs macro-extensible. For example, let's allo
 
 (define-syntax-rule
   (define-state-syntax name trans)
-  (define-extension name state-macro trans))
+  (define-dsl-syntax name state-macro trans))
 ]
 
-By adding an extension class called @racket[state-macro] and allowing @racket[state-spec] to be extended by these state macros, transformers wrapped with @racket[state-macro] can be used in @racket[state-spec] positions. syntax-spec provides @racket[define-extension] for defining these wrapped transformers. These macros will be hygienic in our DSL. Since only certain nonterminals are extensible by certain extension classes, we can control what kinds of macros can be used where.
+By adding an extension class called @racket[state-macro] and allowing @racket[state-spec] to be extended by these state macros, transformers wrapped with @racket[state-macro] can be used in @racket[state-spec] positions. syntax-spec provides @racket[define-dsl-syntax] for defining these wrapped transformers. These macros will be hygienic in our DSL. Since only certain nonterminals are extensible by certain extension classes, we can control what kinds of macros can be used where.
 
 Now let's create a macro in our language!
 

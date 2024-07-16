@@ -71,7 +71,7 @@
 
 ;; TODO: use syntax-parse and syntax classes for better errors.
 
-(define-extension quasiquote term-macro
+(define-dsl-syntax quasiquote term-macro
   (syntax-parser 
     [(~describe
       "`<datum>"
@@ -85,19 +85,19 @@
          [(~or* v:identifier v:number) #'(quote v)]
          [() #'(quote ())]))]))
 
-(define-extension disj goal-macro
+(define-dsl-syntax disj goal-macro
   (syntax-rules ()
     ((disj) fail)
     ((disj g) g)
     ((disj g0 g ...) (disj2 g0 (disj g ...)))))
 
-(define-extension conj goal-macro
+(define-dsl-syntax conj goal-macro
   (syntax-rules ()
     ((conj) succeed)
     ((conj g) g)
     ((conj g0 g ...) (conj2 g0 (conj g ...)))))
 
-(define-extension fresh goal-macro
+(define-dsl-syntax fresh goal-macro
   (syntax-rules ()
     ((fresh () g ...) (conj g ...))
     ((fresh (x0 x ...) g ...)
@@ -105,18 +105,18 @@
        (fresh (x ...)
          g ...)))))
 
-(define-extension conde goal-macro
+(define-dsl-syntax conde goal-macro
   (syntax-rules ()
     ((conde (g ...) ...)
      (disj (conj g ...) ...))))
 
-(define-extension conda goal-macro
+(define-dsl-syntax conda goal-macro
   (syntax-rules ()
     ((conda (g0 g ...)) (conj g0 g ...))
     ((conda (g0 g ...) ln ...)
      (ifte g0 (conj g ...) (conda ln ...)))))
 
-(define-extension condu goal-macro
+(define-dsl-syntax condu goal-macro
   (syntax-rules ()
     ((condu (g0 g ...) ...)
      (conda ((once g0) g ...) ...))))
