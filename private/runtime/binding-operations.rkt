@@ -7,6 +7,7 @@
 
 (require racket/list
          racket/dict
+         racket/sequence
          syntax/parse
          syntax/id-table
          "../ee-lib/main.rkt"
@@ -161,15 +162,20 @@
 
 ; get the racket vars referenced in e of the provided binding classes
 (define-syntax-rule (get-racket-referenced-identifiers [binding-class ...] e)
+  (get-racket-referenced-identifiers/proc (list #'binding-class ...) e))
+
+; (listof Identifier) Syntax -> (listof Identifier)
+(define (get-racket-referenced-identifiers/proc binding-classes e)
+  (define/syntax-parse (binding-class ...) binding-classes)
   (parameterize ([current-referenced-vars (local-symbol-set)])
     (local-expand #`(with-reference-compilers ([binding-class recording-reference-compiler] ...)
                       #,e)
                   'expression
                   '())
 
-    (for/fold ([references (immutable-symbol-set)])
-              ([x (in-symbol-set (current-referenced-vars))])
-      (symbol-set-add references x))))
+    (sequence->list (in-symbol-set (for/fold ([references (immutable-symbol-set)])
+                                             ([x (in-symbol-set (current-referenced-vars))])
+                                     (symbol-set-add references x))))))
 
 (define recording-reference-compiler
   (make-variable-like-reference-compiler
