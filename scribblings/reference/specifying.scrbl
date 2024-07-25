@@ -65,8 +65,8 @@ defined in the space.
 
 @section{Extension classes}
 
-Extension classes distinguish types of extensions to languages. A syntax transformer is tagged with a syntax
-class using @racket[define-extension].
+@deftech{Extension classes} distinguish types of extensions to languages. A syntax transformer is tagged with an extension
+class using @racket[define-dsl-syntax].
 Nonterminals can be declared extensible by a certain extension class using @racket[#:allow-extension].
 These extensions are expanded away into core DSL forms before compilation.
 
@@ -171,7 +171,7 @@ Defines a host interface to be used in expression positions.
 
 Can only be used inside of a @racket[syntax-spec] block.
 
-An example from the mini-kanren DSL:
+An example from the miniKanren DSL:
 
 @racketblock[
 (syntax-spec
@@ -187,7 +187,7 @@ An example from the mini-kanren DSL:
 ]
 
 This defines @racket[run], which takes in a Racket expression representing a number, a term variable, and a goal, and invokes
-the compiler @racket[compile-goal] to translate the dsl forms into Racket.
+the compiler @racket[compile-goal] to translate the DSL forms into Racket.
 
 @defsubform[#:literals (-> define)
             (host-interface/definition
@@ -209,7 +209,7 @@ bound to the identifier (don't emit the definition syntax, just the syntax for p
 
 Can only be used inside of a @racket[syntax-spec] block.
 
-An example from the mini-kanren DSL:
+An example from the miniKanren DSL:
 
 @racketblock[
 (syntax-spec
@@ -264,20 +264,20 @@ Unlike @racket[host-interface/definition], the definitions are directly produced
 
 @section{Defining macros for DSLs}
 
-@defform[(define-extension name extension-class-id transformer-expr)]
+@defform[(define-dsl-syntax name extension-class-id transformer-expr)]
 
-Defines a macro of the specified extension class.
+Defines a macro of the specified extension class. The transformer expression can be any Racket expression that evaluates to a @racket[(-> syntax? syntax?)] procedure, so it is possible to use @racket[syntax-rules], @racket[syntax-case], @racket[syntax-parse], etc.
 
 Example:
 
 @racketblock[
-(define-extension conj goal-macro
+(define-dsl-syntax conj goal-macro
   (syntax-parser
     [(_ g) #'g]
     [(_ g1 g2 g* ...) #'(conj (conj2 g1 g2) g* ...)]))
 ]
 
-This defines a macro @racket[conj] that expands to a goal in mini-kanren.
+This defines a macro @racket[conj] that expands to a goal in miniKanren.
 
 @section{Embedding Racket syntax}
 
