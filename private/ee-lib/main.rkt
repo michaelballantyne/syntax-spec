@@ -629,9 +629,9 @@
          a)
   (check who immutable-symbol-set?
          b)
-  (for/fold ([s (immutable-symbol-set)])
+  (for/fold ([s (make-immutable-symbol-set)])
             ([id (in-symbol-set a)]
-             #:when (symbol-set-member? s b))
+             #:when (symbol-set-member? b id))
     (symbol-set-add s id)))
 
 (define/who (symbol-set-subtract a b)
@@ -639,9 +639,9 @@
          a)
   (check who immutable-symbol-set?
          b)
-  (for/fold ([s (immutable-symbol-set)])
+  (for/fold ([s (make-immutable-symbol-set)])
             ([id (in-symbol-set a)]
-             #:when (not (symbol-set-member? s b)))
+             #:when (not (symbol-set-member? b id)))
     (symbol-set-add s id)))
 
 (define/who (in-symbol-table t)
