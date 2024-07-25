@@ -2,6 +2,6 @@
 
 ; a program in the stlc language
 
-(provide x)
+;(provide x)
 
 (define x : Number 2)
