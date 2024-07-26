@@ -73,7 +73,6 @@
 ; var-info is one of:
 ;   bindclass-rep
 ;   nonterm-rep
-;   sequence-nonterm-rep
 ;   nested-binding
 (struct pvar-rep (var-info))
 

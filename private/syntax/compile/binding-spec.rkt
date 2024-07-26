@@ -29,25 +29,19 @@
   (define bspec-stx (or maybe-bspec #'[]))
 
   (define bspec-elaborated (elaborate-bspec bspec-stx))
-  (check-linear-pvar-use! bspec-elaborated)
+  (check-affine-pvar-use! bspec-elaborated)
   (define bspec-with-implicits (add-implicit-pvar-refs bspec-elaborated bound-pvars))
   (define bspec-flattened (bspec-flatten-groups bspec-with-implicits))
 
-  (define variant-compiler
-    (syntax-parse variant
-      [(~or #:simple (#:nesting _))
-       (lambda (spec)
-         (check-order/unscoped-expression spec)
-         (compile-bspec-term/single-pass spec))]
-      [#:pass1
-       (lambda (spec)
-         (check-order/exporting spec)
-         (compile-bspec-term/pass1 spec))]
-      [#:pass2
-       (lambda (spec)
-         #`(fresh-env-expr-ctx #,(compile-bspec-term/pass2 spec)))]))
-
-  (variant-compiler bspec-flattened))
+  (syntax-parse variant
+    [(~or #:simple (#:nesting _))
+     (check-order/unscoped-expression bspec-flattened)
+     (compile-bspec-term/single-pass bspec-flattened)]
+    [#:pass1
+     (check-order/exporting bspec-flattened)
+     (compile-bspec-term/pass1 bspec-flattened)]
+    [#:pass2
+     #`(fresh-env-expr-ctx #,(compile-bspec-term/pass2 bspec-flattened))]))
 
 ;; Elaborated representation; variables are associated with expander-environment information
 
@@ -245,7 +239,7 @@
         (wrong-syntax v "expected a reference to a pattern variable")))
   (pvar-rep-var-info binding))
 
-(define (check-linear-pvar-use! bspec)
+(define (check-affine-pvar-use! bspec)
   (define pvars (bspec-referenced-pvars bspec))
   (define maybe-dup (check-duplicates pvars free-identifier=?))
 
