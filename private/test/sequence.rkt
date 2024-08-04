@@ -49,7 +49,7 @@
       [(mylang-let* (b ...) e)
        ; #:binding (fold b e)
        (define bspec
-         (nest 'b mylang-expand-binding-group
+         (nest 1 'b mylang-expand-binding-group
                (subexp 'e mylang-expand-expr)))
 
        (expand-function-return

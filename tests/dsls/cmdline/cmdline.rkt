@@ -78,7 +78,7 @@
      ([option-name:racket-var opt:option] ...)
      (arg:arg-spec ...)
      rest:maybe-arg-spec)
-   #:binding [(export option-name) (re-export arg rest)]
+   #:binding [(export option-name) (re-export arg) (re-export rest)]
    #:lhs [#:with ([arg-name _] ...) (attribute arg)
           #:attr rest-name (syntax-parse (attribute rest) [[rest-name _] #'rest-name] [_ #f])
           #'(option-name ... arg-name ... (~? rest-name))]

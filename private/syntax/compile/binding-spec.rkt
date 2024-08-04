@@ -54,15 +54,16 @@
 (struct bind with-stx [pvar] #:transparent)
 (struct bind-syntax with-stx [pvar transformer-pvar] #:transparent)
 (struct bind-syntaxes with-stx [pvar transformer-pvar] #:transparent)
-(struct rec with-stx [pvars] #:transparent)
-(struct re-export with-stx [pvars] #:transparent)
+(struct rec with-stx [pvar] #:transparent)
+(struct re-export with-stx [pvar] #:transparent)
 (struct export with-stx [pvar] #:transparent)
 (struct export-syntax with-stx [pvar transformer-pvar] #:transparent)
 (struct export-syntaxes with-stx [pvar transformer-pvar] #:transparent)
-(struct nest with-stx [pvar spec] #:transparent)
+(struct nest with-stx [depth pvar spec] #:transparent)
 (struct nest-one with-stx [pvar spec] #:transparent) 
 (struct suspend with-stx [pvar] #:transparent)
 (struct scope with-stx [spec] #:transparent)
+(struct ellipsis with-stx [spec] #:transparent)
 (struct group [specs] #:transparent)
 
 (define-match-expander s*
@@ -74,9 +75,9 @@
 ; bottom-up mapping of spec
 (define (map-bspec f spec)
   (match spec
-    [(nest stx pv s)
+    [(nest stx depth pv s)
      (let ([s^ (map-bspec f s)])
-       (f (nest stx pv s^)))]
+       (f (nest stx depth pv s^)))]
     [(nest-one stx pv s)
      (let ([s^ (map-bspec f s)])
        (f (nest-one stx pv s^)))]
@@ -86,6 +87,8 @@
     [(group ss)
      (let ([ss^ (map (lambda (s) (map-bspec f s)) ss)])
        (f (group ss^)))]
+    [(ellipsis stx s)
+     (f (ellipsis stx (map-bspec f s)))]
     [_ (f spec)]))
 
 #;(∀ A ((BSpec (listof A) -> A) BSpec -> A))
@@ -94,7 +97,8 @@
   (match spec
     [(or (s* nest [spec s])
          (s* nest-one [spec s])
-         (s* scope [spec s]))
+         (s* scope [spec s])
+         (s* ellipsis [spec s]))
      (let ([s^ (fold-bspec f s)])
        (f spec (list s^)))]
     [(group ss)
@@ -112,14 +116,12 @@
     #:datum-literals (scope bind bind-syntax bind-syntaxes import export export-syntax export-syntaxes re-export nest nest-one host)
     [v:nonref-id
      (elaborate-ref (attribute v))]
-    [(bind ~! v:nonref-id ...+)
-     (group
-      (for/list ([v (attribute v)])
-        (bind
-         this-syntax
-         (elaborate-pvar v
-                         (s* bindclass-rep)
-                         "binding class"))))]
+    [(bind ~! v:nonref-id)
+     (bind
+      this-syntax
+      (elaborate-pvar (attribute v)
+                      (s* bindclass-rep)
+                      "binding class"))]
     [(bind-syntax ~! v:nonref-id v-transformer:nonref-id)
      (bind-syntax
       this-syntax
@@ -138,28 +140,24 @@
       (elaborate-pvar (attribute v-transformer)
                       (? stxclass-rep?)
                       "syntax class"))]
-    [(import ~! v:nonref-id ...+)
+    [(import ~! v:nonref-id)
      (rec
          this-syntax
-       (for/list ([v (attribute v)])
-         (elaborate-pvar v
+         (elaborate-pvar (attribute v)
                          (s* nonterm-rep [variant-info (s* exporting-nonterm-info)])
-                         "exporting nonterminal")))]
-    [(re-export ~! v:nonref-id ...+)
+                         "exporting nonterminal"))]
+    [(re-export ~! v:nonref-id)
      (re-export
       this-syntax
-      (for/list ([v (attribute v)])
-        (elaborate-pvar v
-                        (s* nonterm-rep [variant-info (s* exporting-nonterm-info)])
-                        "exporting nonterminal")))]
-    [(export ~! v:nonref-id ...+)
-     (group
-      (for/list ([v (attribute v)])
-        (export
-         this-syntax
-         (elaborate-pvar v
-                         (s* bindclass-rep)
-                         "binding class"))))]
+      (elaborate-pvar (attribute v)
+                      (s* nonterm-rep [variant-info (s* exporting-nonterm-info)])
+                      "exporting nonterminal"))]
+    [(export ~! v:nonref-id)
+     (export
+      this-syntax
+      (elaborate-pvar (attribute v)
+                      (s* bindclass-rep)
+                      "binding class"))]
     [(export-syntax ~! v:nonref-id v-transformer:nonref-id)
      (export-syntax
       this-syntax
@@ -178,16 +176,21 @@
       (elaborate-pvar (attribute v-transformer)
                       (? stxclass-rep?)
                       "syntax class"))]
-    [(nest ~! v:nonref-id spec:bspec-term)
-     (nest
+    [(nest-one ~! v:nonref-id spec:bspec-term) #;(nest v:nonref-id spec:bspec-term)
+     ; TODO update syntax after old examples work
+     (nest-one
       this-syntax
       (elaborate-pvar (attribute v)
                       (s* nonterm-rep [variant-info (s* nesting-nonterm-info)])
                       "nesting nonterminal")
       (elaborate-bspec (attribute spec)))]
-    [(nest-one ~! v:nonref-id spec:bspec-term)
-     (nest-one
+    [(nest ~! v:nonref-id spec:bspec-term)
+     #;(nest ~! v:nonref-id (~and (~literal ...) ooo) ...+ spec:bspec-term)
+     ; TODO update syntax after old examples work
+     (nest
       this-syntax
+      1
+      #;(length (attribute ooo))
       (elaborate-pvar (attribute v)
                       (s* nonterm-rep [variant-info (s* nesting-nonterm-info)])
                       "nesting nonterminal")
@@ -199,10 +202,22 @@
     [(scope ~! spec ...)
      (scope
       this-syntax
-      (group (map elaborate-bspec (attribute spec))))]
+      (group (elaborate-group (attribute spec))))]
     [(spec ...)
-     (group (map elaborate-bspec (attribute spec)))]))
+     (group (elaborate-group (attribute spec)))]))
 
+; (Listof Syntax) -> (Listof BSpec)
+; handles ellipses
+(define elaborate-group
+  (syntax-parser
+    [(spec (~and ooo (~literal ...)) ... . specs)
+     ; however many ellipses follow the pattern, wrap the elaborated spec with
+     ; the ellipses struct that many times.
+     (cons (for/fold ([spec (elaborate-bspec (attribute spec))])
+                     ([_ (attribute ooo)])
+             (ellipsis spec))
+           (elaborate-group (attribute specs)))]
+    [() '()]))
 
 ;; Elaborator helpers
 
@@ -268,16 +283,15 @@
               (s* export [pvar (pvar v _)])
               (s* nest [pvar (pvar v _)])
               (s* nest-one [pvar (pvar v _)])
-              (s* suspend [pvar (pvar v _)]))
+              (s* suspend [pvar (pvar v _)])
+              (s* rec [pvar (pvar v _)])
+              (s* re-export [pvar (pvar v _)]))
           (list v)]
          [(or (s* bind-syntax [pvar (pvar v1 _)] [transformer-pvar (pvar v2 _)])
               (s* bind-syntaxes [pvar (pvar v1 _)] [transformer-pvar (pvar v2 _)])
               (s* export-syntax [pvar (pvar v1 _)] [transformer-pvar (pvar v2 _)])
               (s* export-syntaxes [pvar (pvar v1 _)] [transformer-pvar (pvar v2 _)]))
           (list v1 v2)]
-         [(or (s* rec [pvars (list (pvar vs _) ...)])
-              (s* re-export [pvars (list (pvar vs _) ...)]))
-          vs]
          [_ '()]))
      (append* node-vars children))
    spec))
@@ -359,6 +373,8 @@
 (define (check-order/unscoped-expression spec)
   (define (refs+subexps spec)
     (match spec
+      [(s* ellipsis [spec s])
+       (refs+subexps s)]
       [(or (s* ref) (s* suspend)) (void)]
       [(and (or (s* bind) (s* bind-syntax) (s* bind-syntaxes)) (with-stx stx))
        (binding-scope-error stx)]
@@ -380,6 +396,8 @@
 (define (check-order/scoped-expression spec)
   (define (bindings spec specs)
     (match spec
+      [(s* ellipsis [spec s])
+       (bindings s specs)]
       [(or (s* bind) (s* bind-syntax) (s* bind-syntaxes))
        (check-sequence bindings specs)]
       [(and (or (s* export) (s* export-syntax) (s* export-syntaxes)) (with-stx stx))
@@ -392,12 +410,16 @@
 
   (define (no-more-recs spec specs)
     (match spec
+      [(s* ellipsis [spec s])
+       (no-more-recs s specs)]
       [(and (s* rec) (with-stx stx))
        (wrong-syntax/orig stx "only one import binding group may appear in a scope")]
       [_ (check-sequence refs+subexps (cons spec specs))]))
 
   (define (refs+subexps spec specs)
     (match spec
+      [(s* ellipsis [spec s])
+       (refs+subexps s specs)]
       [(and (or (s* bind) (s* bind-syntax) (s* bind-syntaxes)) (with-stx stx))
        (wrong-syntax/orig stx "bindings must appear first within a scope")]
       [(and (or (s* export) (s* export-syntax) (s* export-syntaxes)) (with-stx stx))
@@ -421,12 +443,16 @@
 (define (check-order/exporting spec)
   (define (exports spec specs)
     (match spec
+      [(s* ellipsis [spec s])
+       (exports s specs)]
       [(or (s* export) (s* export-syntax) (s* export-syntaxes))
        (check-sequence exports specs)]
       [_ (check-sequence re-exports (cons spec specs))]))
 
   (define (re-exports spec specs)
     (match spec
+      [(s* ellipsis [spec s])
+       (re-exports s specs)]
       [(s* re-export)
        (check-sequence re-exports specs)]
       [_
@@ -434,6 +460,8 @@
   
   (define (refs+subexps spec specs)
     (match spec
+      [(s* ellipsis [spec s])
+       (refs+subexps s specs)]
       [(and (or (s* bind) (s* bind-syntax) (s* bind-syntaxes)) (with-stx stx))
        (binding-scope-error stx)]
       [(and (or (s* export) (s* export-syntax) (s* export-syntaxes)) (with-stx stx))
@@ -481,24 +509,24 @@
      #`(group (list (bind-syntax '#,v '#,space #'#,constr '#,v-transformer) (rename-bind '#,v '#,space)))]
     [(bind-syntaxes _ (pvar v (extclass-rep constr _ _ space)) (pvar v-transformer _))
      #`(group (list (bind-syntaxes '#,v '#,space #'#,constr '#,v-transformer) (rename-bind '#,v '#,space)))]
-    [(rec _ pvars)
-     (with-syntax ([(s-cp1 ...) (for/list ([pv pvars])
-                                  (match-define (pvar v (nonterm-rep (exporting-nonterm-info pass1-expander _))) pv)
-                                  #`(subexp '#,v #,pass1-expander))]
-                   [(s-cp2 ...) (for/list ([pv pvars])
-                                  (match-define (pvar v (nonterm-rep (exporting-nonterm-info _ pass2-expander))) pv)
-                                  ;; avoid adding the local-scopes to syntax moved in by first pass expansion
-                                  #`(subexp/no-scope '#,v #,pass2-expander))])
-       #`(group (list s-cp1 ... s-cp2 ...)))]
+    [(rec _ pv)
+     (with-syntax ([s-cp1 (match pv
+                            [(pvar v (nonterm-rep (exporting-nonterm-info pass1-expander _)))
+                             #`(subexp '#,v #,pass1-expander)])]
+                   [s-cp2 (match pv
+                            [(pvar v (nonterm-rep (exporting-nonterm-info _ pass2-expander)))
+                             ;; avoid adding the local-scopes to syntax moved in by first pass expansion
+                             #`(subexp/no-scope '#,v #,pass2-expander)])])
+       #`(group (list s-cp1 s-cp2)))]
     [(or (s* export) (s* export-syntax) (s* export-syntaxes))
      (invariant-error 'compile-bspec-term/single-pass)]
     [(re-export _ (pvar v _))
      (invariant-error 'compile-bspec-term/single-pass)]
-    [(nest _ (pvar v info) spec)
+    [(nest _ depth (pvar v info) spec)
      (match info
        [(nonterm-rep (nesting-nonterm-info expander))
         (with-syntax ([spec-c (compile-bspec-term/single-pass spec)])
-          #`(nest '#,v #,expander spec-c))])]
+          #`(nest #,depth '#,v #,expander spec-c))])]
     [(nest-one _ (pvar v info) spec)
      (match info
        [(nonterm-rep (nesting-nonterm-info expander))
@@ -509,7 +537,11 @@
        #'(scope spec-c))]
     [(group specs)
      (with-syntax ([(spec-c ...) (map compile-bspec-term/single-pass specs)])
-       #'(group (list spec-c ...)))]))
+       #'(group (list spec-c ...)))]
+    [(ellipsis _ spec)
+     (define vs (bspec-referenced-pvars spec))
+     (with-syntax ([spec-c (compile-bspec-term/single-pass spec)])
+       #`(ellipsis #,vs spec-c))]))
 
 (define no-op #'(group (list)))
 
@@ -522,7 +554,7 @@
        #'(group (list spec-c ...)))]
     
     [(or (ref _)
-         (nest _ _ _)
+         (nest _ _ _ _)
          (nest-one _ _ _)
          (scope _ _)
          (suspend _ _))
@@ -534,11 +566,13 @@
      #`(group (list (bind-syntax '#,v '#,space #'#,constr '#,v-transformer) (rename-bind '#,v '#,space)))]
     [(export-syntaxes _ (pvar v (extclass-rep constr _ _ space)) (pvar v-transformer _))
      #`(group (list (bind-syntaxes '#,v '#,space #'#,constr '#,v-transformer) (rename-bind '#,v '#,space)))]
-    [(re-export _ pvars)
-     (with-syntax ([(s-c ...) (for/list ([pv pvars])
-                                (match-define (pvar v (nonterm-rep (exporting-nonterm-info pass1-expander _))) pv)
-                                #`(subexp '#,v #,pass1-expander))])
-       #`(group (list s-c ...)))]))
+    [(re-export _ pv)
+     (match-define (pvar v (nonterm-rep (exporting-nonterm-info pass1-expander _))) pv)
+     #`(subexp '#,v #,pass1-expander)]
+    [(ellipsis _ spec)
+     (define vs (bspec-referenced-pvars spec))
+     (with-syntax ([spec-c (compile-bspec-term/pass1 spec)])
+       #`(ellipsis #,vs spec-c))]))
 
 (define (compile-bspec-term/pass2 spec)
   (match spec
@@ -549,7 +583,7 @@
        #'(group (list spec-c ...)))]
 
     [(or (ref _)
-         (nest _ _ _)
+         (nest _ _ _ _)
          (nest-one _ _ _)
          (scope _ _)
          (suspend _ _))
@@ -557,9 +591,11 @@
 
     [(or (s* export) (s* export-syntax) (s* export-syntaxes))
      no-op]
-    [(re-export _ pvars)
-     (with-syntax ([(s-c ...) (for/list ([pv pvars])
-                                (match-define (pvar v (nonterm-rep (exporting-nonterm-info _ pass2-expander))) pv)
-                                ;; avoid adding the local-scopes to syntax moved in by first pass expansion
-                                #`(subexp/no-scope '#,v #,pass2-expander))])
-       #`(group (list s-c ...)))]))
+    [(re-export _ pv)
+     (match-define (pvar v (nonterm-rep (exporting-nonterm-info _ pass2-expander))) pv)
+     ;; avoid adding the local-scopes to syntax moved in by first pass expansion
+     #`(subexp/no-scope '#,v #,pass2-expander)]
+    [(ellipsis _ spec)
+     (define vs (bspec-referenced-pvars spec))
+     (with-syntax ([spec-c (compile-bspec-term/pass2 spec)])
+       #`(ellipsis #,vs spec-c))]))
