@@ -214,8 +214,8 @@
      ; however many ellipses follow the pattern, wrap the elaborated spec with
      ; the ellipses struct that many times.
      (cons (for/fold ([spec (elaborate-bspec (attribute spec))])
-                     ([_ (attribute ooo)])
-             (ellipsis spec))
+                     ([ooo (attribute ooo)])
+             (ellipsis ooo spec))
            (elaborate-group (attribute specs)))]
     [() '()]))
 
@@ -541,7 +541,7 @@
     [(ellipsis _ spec)
      (define vs (bspec-referenced-pvars spec))
      (with-syntax ([spec-c (compile-bspec-term/single-pass spec)])
-       #`(ellipsis #,vs spec-c))]))
+       #`(ellipsis '#,vs spec-c))]))
 
 (define no-op #'(group (list)))
 
@@ -572,7 +572,7 @@
     [(ellipsis _ spec)
      (define vs (bspec-referenced-pvars spec))
      (with-syntax ([spec-c (compile-bspec-term/pass1 spec)])
-       #`(ellipsis #,vs spec-c))]))
+       #`(ellipsis '#,vs spec-c))]))
 
 (define (compile-bspec-term/pass2 spec)
   (match spec
@@ -598,4 +598,4 @@
     [(ellipsis _ spec)
      (define vs (bspec-referenced-pvars spec))
      (with-syntax ([spec-c (compile-bspec-term/pass2 spec)])
-       #`(ellipsis #,vs spec-c))]))
+       #`(ellipsis '#,vs spec-c))]))

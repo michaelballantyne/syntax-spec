@@ -320,7 +320,7 @@
      ; unsplit the sub-environments and merge that into the initial env.
      (for/fold ([st st])
                ([pv pvs])
-       (set-pvar st pv (for/list ([st^ sts^]) (hash-ref st^ pv))))]))
+       (set-pvar st pv (for/list ([st^ sts^]) (hash-ref (exp-state-pvar-vals st^) pv))))]))
 
 ; f is nonterm-transformer
 ; seq is (listof (treeof syntax?))
@@ -350,8 +350,8 @@
 (define (exp-state-split/ellipsis st pvars)
   (match st
     [(exp-state pvar-vals nest-state)
-     (exp-state (env-split/ellipsis pvar-vals pvars)
-                nest-state)]))
+     (for/list ([env (env-split/ellipsis pvar-vals pvars)])
+       (exp-state env nest-state))]))
 
 ; (hash symbol? (treeof syntax?)) (listof symbol?) -> (listof (hash symbol? (treeof syntax?)))
 ; Spit up the environment into a list of envs. One per element of a pvar's value.
