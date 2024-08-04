@@ -24,11 +24,11 @@
         body:racket-expr
         ...
         ((~datum goto) next-state-name:state-name))
-    #:binding (scope (bind arg) body))
+    #:binding (scope (bind arg) ... body ...))
 
   (host-interface/expression
     (machine #:initial initial-state:state-name s:state-spec ...)
-    #:binding (scope (import s) initial-state)
+    #:binding (scope (import s ...) initial-state)
 
     (check-for-inaccessible-states #'initial-state (attribute s))
     #'(compile-machine initial-state s ...)))

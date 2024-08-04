@@ -53,12 +53,12 @@
 (struct ref [pvar] #:transparent)
 (struct bind with-stx [pvar] #:transparent)
 (struct bind-syntax with-stx [pvar transformer-pvar] #:transparent)
-(struct bind-syntaxes with-stx [pvar transformer-pvar] #:transparent)
-(struct rec with-stx [pvar] #:transparent)
+(struct bind-syntaxes with-stx [depth pvar transformer-pvar] #:transparent)
+(struct rec with-stx [depth pvar] #:transparent)
 (struct re-export with-stx [pvar] #:transparent)
 (struct export with-stx [pvar] #:transparent)
 (struct export-syntax with-stx [pvar transformer-pvar] #:transparent)
-(struct export-syntaxes with-stx [pvar transformer-pvar] #:transparent)
+(struct export-syntaxes with-stx [depth pvar transformer-pvar] #:transparent)
 (struct nest with-stx [depth pvar spec] #:transparent)
 (struct nest-one with-stx [pvar spec] #:transparent) 
 (struct suspend with-stx [pvar] #:transparent)
@@ -132,17 +132,22 @@
                       (? stxclass-rep?)
                       "syntax class"))]
     [(bind-syntaxes ~! v:nonref-id v-transformer:nonref-id)
+     #;(bind-syntaxes ~! v:nonref-id (~and ooo (~literal ...)) ... v-transformer:nonref-id)
+     ; TODO update syntax
      (bind-syntaxes
       this-syntax
+      1
+      #;(length (attribute ooo))
       (elaborate-pvar (attribute v)
                       (s* extclass-rep)
                       "extension class")
       (elaborate-pvar (attribute v-transformer)
                       (? stxclass-rep?)
                       "syntax class"))]
-    [(import ~! v:nonref-id)
+    [(import ~! v:nonref-id (~and ooo (~literal ...)) ...)
      (rec
          this-syntax
+         (length (attribute ooo))
          (elaborate-pvar (attribute v)
                          (s* nonterm-rep [variant-info (s* exporting-nonterm-info)])
                          "exporting nonterminal"))]
@@ -168,8 +173,12 @@
                       (? stxclass-rep?)
                       "syntax class"))]
     [(export-syntaxes ~! v:nonref-id v-transformer:nonref-id)
+     #;(export-syntaxes ~! v:nonref-id (~and ooo (~literal ...)) ... v-transformer:nonref-id)
+     ; TODO update syntax
      (export-syntaxes
       this-syntax
+      1
+      #;(length (attribute ooo))
       (elaborate-pvar (attribute v)
                       (s* extclass-rep)
                       "extension class")
@@ -507,9 +516,9 @@
      #`(group (list (bind '#,v '#,space #'#,constr) (rename-bind '#,v '#,space)))]
     [(bind-syntax _ (pvar v (extclass-rep constr _ _ space)) (pvar v-transformer _))
      #`(group (list (bind-syntax '#,v '#,space #'#,constr '#,v-transformer) (rename-bind '#,v '#,space)))]
-    [(bind-syntaxes _ (pvar v (extclass-rep constr _ _ space)) (pvar v-transformer _))
-     #`(group (list (bind-syntaxes '#,v '#,space #'#,constr '#,v-transformer) (rename-bind '#,v '#,space)))]
-    [(rec _ pv)
+    [(bind-syntaxes _ depth (pvar v (extclass-rep constr _ _ space)) (pvar v-transformer _))
+     #`(group (list (bind-syntaxes #,depth '#,v '#,space #'#,constr '#,v-transformer) (rename-bind '#,v '#,space)))]
+    [(rec _ _ pv)
      (with-syntax ([s-cp1 (match pv
                             [(pvar v (nonterm-rep (exporting-nonterm-info pass1-expander _)))
                              #`(subexp '#,v #,pass1-expander)])]
@@ -564,8 +573,8 @@
      #`(group (list (bind '#,v '#,space #'#,constr) (rename-bind '#,v '#,space)))]
     [(export-syntax _ (pvar v (extclass-rep constr _ _ space)) (pvar v-transformer _))
      #`(group (list (bind-syntax '#,v '#,space #'#,constr '#,v-transformer) (rename-bind '#,v '#,space)))]
-    [(export-syntaxes _ (pvar v (extclass-rep constr _ _ space)) (pvar v-transformer _))
-     #`(group (list (bind-syntaxes '#,v '#,space #'#,constr '#,v-transformer) (rename-bind '#,v '#,space)))]
+    [(export-syntaxes _ depth (pvar v (extclass-rep constr _ _ space)) (pvar v-transformer _))
+     #`(group (list (bind-syntaxes #,depth '#,v '#,space #'#,constr '#,v-transformer) (rename-bind '#,v '#,space)))]
     [(re-export _ pv)
      (match-define (pvar v (nonterm-rep (exporting-nonterm-info pass1-expander _))) pv)
      #`(subexp '#,v #,pass1-expander)]
