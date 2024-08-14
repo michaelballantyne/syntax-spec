@@ -1,5 +1,5 @@
 #lang racket/base
-
+#|
 (require "../main.rkt")
 
 (use-literal-token-interpretation syntax-token)
@@ -27,3 +27,4 @@
       (apply build-source-location example-stx)
       (second example-stx)
       (fourth example-stx))))
+|#

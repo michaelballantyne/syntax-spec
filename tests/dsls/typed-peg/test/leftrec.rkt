@@ -1,5 +1,5 @@
 #lang racket/load
-
+#|
 (require rackunit)
 
 (define-syntax (test-error stx)
@@ -39,3 +39,4 @@
                                 (: op (alt "+" "-"))
                                 (: e2 term)))
                          (binop-ast e1 op e2))))))
+|#

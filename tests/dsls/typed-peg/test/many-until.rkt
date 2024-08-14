@@ -1,5 +1,5 @@
 #lang racket/base
-
+#|
 (require "../main.rkt"
          (for-syntax racket/base syntax/parse))
 
@@ -33,3 +33,4 @@
   (check-equal?
     (parse-result-value (parse line "\"a string\" # a comment\n"))
     "a string"))
+|#

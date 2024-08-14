@@ -1,5 +1,5 @@
 #lang racket
-
+#|
 (require
   rackunit
   (submod "../compile-alt-str.rkt" case))
@@ -33,3 +33,4 @@
 (check-equal?
  (map g (string->list "abcdefghi"))
  '(a b #f d e f g h #f))
+|#

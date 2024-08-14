@@ -85,7 +85,8 @@ you need the result and the updated input out
         ; bound to the list of values of its corresponding variable
         (def/stx (iter-v* ...) (generate-temporaries (attribute v*)))
         #'(let ([iter-v* '()] ...)
-            (let loop ([in in])
+            (: loop (-> text-rep (values text-rep Any)))
+            (define (loop in)
               (compile-peg pe in ignored in-tmp
                            (begin (set! iter-v* (cons v* iter-v*)) ...
                                   (loop in-tmp))
@@ -96,7 +97,8 @@ you need the result and the updated input out
                                  ...
                                  [in^ in]
                                  [result (void)])
-                             on-success))))]
+                             on-success)))
+            (loop in))]
        [(src-span v e)
         ; TODO figure out how to pull some of this back into rt
         ; trickier now since bindings in e must escape and we do nesting let style

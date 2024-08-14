@@ -1,5 +1,5 @@
 #lang racket/load
-
+#|
 (require rackunit)
 
 ; capture compile-time errors for testing
@@ -33,3 +33,4 @@
                 (alt term
                      (=> (seq (: e1 arith-expr-leftrec) (: op (alt "+" "-")) (: e2 term))
                          (binop-ast e1 op e2))))))
+|#

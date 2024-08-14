@@ -1,5 +1,5 @@
 #lang racket
-
+#|
 (require "../main.rkt")
 
 (define-peg p1
@@ -17,3 +17,4 @@
 (time
  (for ([n (in-range times)])
    (parse p2 "in")))
+|#

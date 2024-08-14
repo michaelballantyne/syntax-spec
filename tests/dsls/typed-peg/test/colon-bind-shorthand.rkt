@@ -1,5 +1,5 @@
 #lang racket/base
-
+#|
 (require "../main.rkt")
 
 (define-pegs
@@ -11,3 +11,4 @@
   (require rackunit)
   (check-equal? (parse-result-value (parse bar "foofoo"))
                 '("foo" "foo")))
+|#

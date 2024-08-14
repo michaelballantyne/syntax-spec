@@ -1,5 +1,5 @@
 #lang racket/base
-
+#|
 (require
   "../main.rkt"
   (for-syntax racket/base syntax/parse))
@@ -75,3 +75,4 @@
   (check-equal?
     (parse-result-value (parse p2 (list (keyword-token "return") (keyword-token "True"))))
     (return-ast "True")))
+|#

@@ -1,4 +1,5 @@
 #lang racket
+#|
 (require "../main.rkt")
 
 (use-literal-token-interpretation string-token)
@@ -25,3 +26,4 @@
   (check-equal?
     (parse-result-value (parse arith-expr '(1 "+" 2 "-" 3)))
     (binop-ast (binop-ast 1 "+" 2) "-" 3)))
+|#

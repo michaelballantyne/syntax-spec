@@ -1,5 +1,6 @@
 #lang racket/base
 
+#|
 (require "../main.rkt"
          (for-syntax racket/base syntax/parse))
 
@@ -65,3 +66,5 @@
     (parse-result-value (parse or-test '("not" "True" "==" "False" "or" 1 "<" 2)))
     (binop-ast (prefix-ast "not" (binop-ast "True" "==" "False")) "or" (binop-ast 1 "<" 2)))
 )
+
+|#

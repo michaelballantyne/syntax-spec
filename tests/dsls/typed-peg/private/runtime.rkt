@@ -10,7 +10,7 @@
 (struct failure [])
 (define the-failure (failure))
 
-(struct (T) parse-result ([index : Integer] [value : T]) #:transparent)
+(struct (T) parse-result ([index : text-rep] [value : T]) #:transparent)
 
 (struct text-rep ([str : String] [source : (Union #f String)] [ix : Integer] [ln : Integer] [col : Integer]) #:transparent)
 

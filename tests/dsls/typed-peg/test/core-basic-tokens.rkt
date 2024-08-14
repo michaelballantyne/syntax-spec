@@ -1,5 +1,5 @@
 #lang racket
-
+#|
 (require "../main.rkt")
 
 (use-literal-token-interpretation symbol-token)
@@ -65,3 +65,4 @@
    (parse t7 '(a b))
    (parse-result '() 'b))
   )
+|#

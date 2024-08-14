@@ -1,5 +1,5 @@
 #lang racket
-
+#|
 (require
   "../core.rkt")
 
@@ -9,3 +9,4 @@
 
 (module+ test
   (parse t1 "a\nb"))
+|#

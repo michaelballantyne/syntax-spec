@@ -110,13 +110,17 @@
   (host-interface/definitions
    (define-pegs [name:nonterm p:peg] ...)
    #:binding (export name)
-   #'(begin (define name (lambda ([in : String]) (with-reference-compilers ([var immutable-reference-compiler])
+   #'(begin (define name (lambda ([in : text-rep]) (with-reference-compilers ([var immutable-reference-compiler])
                                         (compile-peg p in))))
             ...))
 
   (host-interface/expression
    (parse name:nonterm in-e:expr)
    #'(compile-parse name in-e)))
+
+(define-syntax show-expanded
+  (syntax-parser
+    [(_ stx) #`'#,(local-expand #'stx 'module '())]))
 
 ; Interface macros
 
@@ -131,3 +135,28 @@
 
 (begin-for-syntax
   (define local-expand-peg (nonterminal-expander peg)))
+
+(module+ test
+  (require/typed rackunit
+    [check-equal? (-> Any Any Any)]
+    [check-exn (-> Any Any Any)])
+  (define-peg foo "foo")
+  (check-equal? (parse-result-value (parse foo "foo"))
+                "foo")
+  (define-peg paren-foo (=> (seq "(" (seq (bind x foo) ")"))
+                            x))
+  (check-equal? (parse-result-value (parse paren-foo "(foo)"))
+                "foo")
+  (define-peg foos (=> (* (bind x foo))
+                       x))
+  (check-equal? (parse-result-value (parse foos "foofoofoo"))
+                '("foo" "foo" "foo"))
+  (define-peg foobar (alt foo "bar"))
+  (check-equal? (parse-result-value (parse foobar "bar"))
+                '"bar")
+  ; TODO figure out how to do type annotations nicely
+  #;(define-type (Peg T) (-> text-rep (values text-rep T)))
+  #;(define-type (Sexpr T) (U T (Listof (Sexpr T))))
+  #;#;(: foo-sexpr (Peg (Sexpr String)))
+  (define-peg foo-sexpr (alt foo (=> (seq "(" (seq (* (bind x foo-sexpr)) ")"))
+                                     x))))

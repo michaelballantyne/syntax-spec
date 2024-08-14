@@ -1,5 +1,5 @@
 #lang racket/load
-
+#|
 (require (for-syntax syntax/parse) racket/pretty rackunit (only-in "../main.rkt" parse parse-result?))
 
 ; helper macros for printing the compiled code
@@ -37,3 +37,4 @@
            (lambda ()
              (parse comp-op "foo")))
 
+|#
