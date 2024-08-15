@@ -192,7 +192,7 @@ A @deftech{rewrite production} allows certain terms to be re-written into other 
     ...))
 ]
 
-Rewrite productions don't have binding specs since they declare an expansion of surface syntax into a another DSL form. The don't necessarily have to expand into a core form like one declared by a form production or a syntax production. A rewrite production can expand into a DSL macro usage or another rewrite production.
+Rewrite productions don't have binding specs since they declare an expansion of @tech{surface syntax} into a another DSL form. The don't necessarily have to expand into a core form like one declared by a form production or a syntax production. A rewrite production can expand into a DSL macro usage or another rewrite production.
 
 Form productions and syntax productions declare core forms in the nonterminal which may have binding specs. If a binding spec is not provided, one is implicitly created. In this case, or if any spec variable is excluded from a binding spec in general, it will be treated as a reference position and implicitly added to the binding spec.
 

@@ -42,7 +42,7 @@
           symbol-set-add
           symbol-set-remove
           symbol-set-union
-          symbol-set-intersection
+          symbol-set-intersect
           symbol-set-subtract
 
           in-symbol-table

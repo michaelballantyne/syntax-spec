@@ -90,7 +90,7 @@
  symbol-set-add
  symbol-set-remove
  symbol-set-union
- symbol-set-intersection
+ symbol-set-intersect
  symbol-set-subtract
 
  in-symbol-table
@@ -624,7 +624,12 @@
             ([id (in-symbol-set b)])
     (symbol-set-add s id)))
 
-(define/who (symbol-set-intersection a b)
+(define (symbol-set-intersect s . sets)
+  (for/fold ([n s])
+            ([s sets])
+    (symbol-set-intersect/bin s n)))
+
+(define/who (symbol-set-intersect/bin a b)
   (check who immutable-symbol-set?
          a)
   (check who immutable-symbol-set?
@@ -634,7 +639,12 @@
              #:when (symbol-set-member? b id))
     (symbol-set-add s id)))
 
-(define/who (symbol-set-subtract a b)
+(define (symbol-set-subtract s . sets)
+  (for/fold ([diff s])
+            ([s sets])
+    (symbol-set-subtract/bin diff s)))
+
+(define/who (symbol-set-subtract/bin a b)
   (check who immutable-symbol-set?
          a)
   (check who immutable-symbol-set?

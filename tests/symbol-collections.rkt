@@ -67,7 +67,7 @@
      (define operation
        (syntax-parse #'op
          #:datum-literals (intersection union subtract)
-         [intersection symbol-set-intersection]
+         [intersection symbol-set-intersect]
          [union symbol-set-union]
          [subtract symbol-set-subtract]))
      (let ([xs (for/fold ([xs (immutable-symbol-set)])
