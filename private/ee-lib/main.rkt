@@ -504,11 +504,12 @@
 (define (local-symbol-table)
   (mutable-symbol-table (make-free-id-table)))
 
-(define/who (symbol-table-set! t id val)
+(define/who (symbol-table-set! t id val #:allow-overwrite? [allow-overwrite? #f])
   (check who mutable-symbol-table?
          t)
 
-  (check-symbol-table-new-id who t id)
+  (unless allow-overwrite?
+    (check-symbol-table-new-id who t id))
 
   (table-set! (mutable-symbol-table-id-table t) (compiled-from id) val))
 
@@ -579,16 +580,16 @@
 (define (make-immutable-symbol-table)
   (immutable-symbol-table (make-immutable-free-id-table)))
 
-(define/who (symbol-table-set t id val)
+(define/who (symbol-table-set t id val #:allow-overwrite? [allow-overwrite? #f])
   (check who immutable-symbol-table?
          t)
-  (check-symbol-table-new-id who t id)
+  (unless allow-overwrite?
+    (check-symbol-table-new-id who t id))
   (immutable-symbol-table (free-id-table-set (immutable-symbol-table-id-table t) (flip-intro-scope (compiled-from id)) val)))
 
 (define/who (symbol-table-remove t id val)
   (check who immutable-symbol-table?
          t)
-  (check-symbol-table-new-id who t id)
   (immutable-symbol-table (free-id-table-remove (immutable-symbol-table-id-table t) id val)))
 
 (struct immutable-symbol-set [table])

@@ -108,9 +108,10 @@ This includes pairs, vectors, symbols, numbers, booleans, etc.
 
 @defproc[(symbol-table-set! [table mutable-symbol-table?]
                             [id identifier?]
-                            [v (or/c syntax? syntax-datum?)]) void?]
+                            [v (or/c syntax? syntax-datum?)]
+                            [#:allow-overwrite? allow-overwrite? any/c #t]) void?]
 
-Like @racket[free-id-table-set!].
+Like @racket[free-id-table-set!]. Errors by default when setting the value of an identifier already present in the table. Pass @racket[#:allow-overwrite? #t] to allow this.
 
 @defproc[(symbol-table-ref [table symbol-table?] [id identifier?] [failure any/c]) any/c]
 
@@ -130,9 +131,10 @@ Creates an immutable, local symbol table. There are no persistent immutable symb
 
 @defproc[(symbol-table-set [table immutable-symbol-table?]
                            [id identifier?]
-                           [v (or/c syntax? syntax-datum?)]) immutable-symbol-table?]
+                           [v (or/c syntax? syntax-datum?)]
+                           [#:allow-overwrite? allow-overwrite? any/c #t]) immutable-symbol-table?]
 
-like @racket[free-id-table-set]
+like @racket[free-id-table-set]. Errors by default when setting the value of an identifier already present in the table. Pass @racket[#:allow-overwrite? #t] to allow this.
 
 @defproc[(symbol-table-remove [table immutable-symbol-table?]
                               [id identifier?]) immutable-symbol-table?]
