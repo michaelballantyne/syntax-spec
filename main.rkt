@@ -42,7 +42,7 @@
           symbol-set-add
           symbol-set-remove
           symbol-set-union
-          symbol-set-intersection
+          symbol-set-intersect
           symbol-set-subtract
 
           in-symbol-table
@@ -50,7 +50,8 @@
 
           compiled-identifier=?
           free-identifiers
-          alpha-equivalent?))
+          alpha-equivalent?
+          get-racket-referenced-identifiers))
 
 (require "private/syntax/interface.rkt"
          "private/runtime/compile.rkt"

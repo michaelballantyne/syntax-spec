@@ -520,7 +520,7 @@ In our language's compiler, we can use symbol set to raise an error when a state
 
 We build up a symbol set of accessible states with a depth-first search over the possible transitions starting from the initial state, and if we find a state that isn't accessible, we error.
 
-This static check runs before we generate the compiled code. Compilers may have many static analysis passes like this one, or even passes that emit an intermediate representation like ANF. There are some special considerations to be made when creating multi-pass compilers with intermediate representations in syntax-spec which are covered in @secref["multipass example"]
+This static check runs before we generate the compiled code. Compilers may have many static analysis passes like this one, or even passes that emit an intermediate representation like ANF. There are some special considerations to be made when creating multi-pass compilers with intermediate representations in syntax-spec which are covered in @secref["multipass"]
 
 @examples[
 #:label #f

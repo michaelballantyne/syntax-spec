@@ -1,7 +1,7 @@
 #lang scribble/manual
 
 @(require scribble/example
-          (for-label racket "../../main.rkt" syntax/id-table syntax/transformer))
+          (for-label racket "../../main.rkt" syntax/id-table syntax/id-set syntax/transformer))
 
 @;-----------------------
 
@@ -60,8 +60,31 @@ Here is an example for a @racket[match] DSL where pattern-bound variables cannot
         (match-clauses target-pv c ...)))))
 ]
 
+@section{Compiled identifiers vs surface syntax}
 
-@section{Symbol tables}
+The syntax of a DSL program in its initial, un-expanded, un-compiled state is called the @deftech{surface syntax}. During the expansion of a host interface usage, before your compiler is invoked, syntax-spec renames and compiles surface identifiers. The resulting identifiers are called @deftech{compiled identifiers} and have unique names and have special scopes according to your DSL's binding rules.
+
+Another concept that comes up when discussing identifiers and compilation is positive vs negative space. This has to do with @tech/reference{macro-introduction scopes}. To ensure macro hygiene, the Racket expander distinguishes between syntax that was introduced by a macro and syntax that originated from elsewhere. To do this, it adds an introduction scope to the macro invocation's syntax, expands the invocation by running the macro's transformer, and then flips the scope, removing it from syntax that has it and adding it to syntax that doesn't.
+
+During the expansion of the invocation, when a macro's transformer is running, the macro transformer will see this introduction scope on the incoming syntax. This syntax is in @deftech{negative space}. After the scope is flipped off on the result, the syntax is in @deftech{positive space}. It's important to note that positive vs negative space depends on the @emph{current} introduction scope, as there may be many introduction scopes floating around. It is also possible to manually flip this scope in a transformer to convert syntax between positive and negative space.
+
+@section{Symbol collections}
+
+Symbol collections allow compilers to track information related to dsl variables. Symbol collections expect to receive @tech{compiled identifiers} in @tech{negative space}.
+
+@subsection{Symbol tables}
+
+@defproc[(symbol-table? [v any/c]) boolean?]
+
+Returns @racket[#t] if @racket[v] is a symbol table, @racket[#f] otherwise.
+
+@defproc[(in-symbol-table [table symbol-table?]) (sequence/c identifier? (or/c syntax-datum? syntax?))]
+
+Like @racket[in-free-id-table].
+
+@defproc[(mutable-symbol-table? [v any/c]) boolean?]
+
+Returns @racket[#t] if @racket[v] is a mutable symbol table, @racket[#f] otherwise.
 
 @defform[(define-persistent-symbol-table id)]
 
@@ -73,21 +96,108 @@ you can store each identifier's type in a persistent symbol table.
 
 Can only be used at the top-level of a module.
 
-@defform[(define-local-symbol-table id)]
+@defproc[(local-symbol-table) mutable-symbol-table?]
 
-Defines (mutable) a symbol table for local use.
+Creates a (mutable) symbol table for local use.
 
 @defproc[(syntax-datum? [v any/c]) boolean?]
 
-@defproc[(symbol-table-set! [table any/c]
+Roughly, returns @racket[#t] if @racket[v] is something that could be the result of @racket[syntax->datum], @racket[#f] otherwise.
+
+This includes pairs, vectors, symbols, numbers, booleans, etc.
+
+@defproc[(symbol-table-set! [table mutable-symbol-table?]
                             [id identifier?]
-                            [v (or/c syntax? syntax-datum?)]) void?]
+                            [v (or/c syntax? syntax-datum?)]
+                            [#:allow-overwrite? allow-overwrite? any/c #t]) void?]
 
-Like @racket[free-id-table-set!]
+Like @racket[free-id-table-set!]. Errors by default when setting the value of an identifier already present in the table. Pass @racket[#:allow-overwrite? #t] to allow this.
 
-@defproc[(symbol-table-ref [table any/c] [id identifier?] [failure any/c]) any/c]
+@defproc[(symbol-table-ref [table symbol-table?] [id identifier?] [failure any/c]) any/c]
 
 Like @racket[free-id-table-ref]
+
+@defproc[(symbol-table-has-key? [table symbol-table?] [id identifier?]) boolean?]
+
+Returns @racket[#t] if @racket[table] has an entry for @racket[id], @racket[#f] otherwise.
+
+@defproc[(immutable-symbol-table? [v any/c]) boolean?]
+
+Returns @racket[#t] if @racket[v] is an immutable symbol table, @racket[#f] otherwise.
+
+@defproc[(immutable-symbol-table) immutable-symbol-table?]
+
+Creates an immutable, local symbol table. There are no persistent immutable symbol tables.
+
+@defproc[(symbol-table-set [table immutable-symbol-table?]
+                           [id identifier?]
+                           [v (or/c syntax? syntax-datum?)]
+                           [#:allow-overwrite? allow-overwrite? any/c #t]) immutable-symbol-table?]
+
+like @racket[free-id-table-set]. Errors by default when setting the value of an identifier already present in the table. Pass @racket[#:allow-overwrite? #t] to allow this.
+
+@defproc[(symbol-table-remove [table immutable-symbol-table?]
+                              [id identifier?]) immutable-symbol-table?]
+
+like @racket[free-id-table-remove]
+
+@subsection{Symbol sets}
+
+@defproc[(symbol-set? [v any/c]) boolean?]
+
+Returns @racket[#t] if @racket[v] is a symbol set, @racket[#f] otherwise.
+
+@defproc[(in-symbol-set [table symbol-set?]) (sequence/c identifier?)]
+
+Like @racket[in-free-id-set].
+
+@defproc[(mutable-symbol-set? [v any/c]) boolean?]
+
+Returns @racket[#t] if @racket[v] is a mutable symbol set, @racket[#f] otherwise.
+
+@defform[(define-persistent-symbol-set id)]
+
+Defines a (mutable) symbol set for global use like @racket[define-persistent-symbol-table].
+
+@defproc[(local-symbol-set [id identifier?] ...) mutable-symbol-set?]
+
+Creates a local (mutable) symbol set containing the given identifiers.
+
+@defproc[(symbol-set-add! [s mutable-symbol-set?] [id identifier?]) void?]
+
+Like @racket[free-id-set-add!]
+
+@defproc[(symbol-set-member? [s mutable-symbol-set?] [id identifier?]) boolean?]
+
+Like @racket[free-id-set-member?]
+
+@defproc[(immutable-symbol-set? [v any/c]) boolean?]
+
+Returns @racket[#t] if @racket[v] is an immutable symbol set, @racket[#f] otherwise.
+
+@defproc[(immutable-symbol-set [id identifier?] ...) immutable-symbol-set?]
+
+Creates a (local) immutable symbol set containing the given identifiers. There are no persistent immutable symbol sets.
+
+@defproc[(symbol-set-add [s immutable-symbol-set?] [id identifier?]) immutable-symbol-set?]
+
+Like @racket[free-id-set-add]
+
+@defproc[(symbol-set-remove [s immutable-symbol-set?] [id identifier?]) immutable-symbol-set?]
+
+Like @racket[free-id-set-remove]
+
+@defproc[(symbol-set-union [s immutable-symbol-set?] ...) immutable-symbol-set?]
+
+Like @racket[free-id-set-union]
+
+@defproc[(symbol-set-intersect [s0 immutable-symbol-set?] [s immutable-symbol-set?] ...) immutable-symbol-set?]
+
+Like @racket[free-id-set-intersect].
+
+@defproc[(symbol-set-subtract [s0 immutable-symbol-set?] [s immutable-symbol-set?] ...) immutable-symbol-set?]
+
+Like @racket[free-id-set-subtract].
 
 @section{Binding Operations}
 
@@ -110,6 +220,10 @@ Host expressions currently are not supported.
 Returns @racket[#t] if the two DSL expressions are alpha-equivalent, @racket[#f] otherwise.
 
 Host expressions currently are not supported.
+
+@defform[(get-racket-referenced-identifiers [binding-class-id ...] expr)]
+
+Returns an immutable symbol set containing identifiers of the specified binding classes that were referenced in racket (host) expressions in @racket[expr].
 
 @section{Expansion}
 

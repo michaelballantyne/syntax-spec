@@ -9,7 +9,7 @@
          (for-space stlc (all-defined-out)))
 (require "../../testing.rkt"
          racket/contract
-         (for-syntax racket/match syntax/transformer))
+         (for-syntax (only-in "../../private/ee-lib/main.rkt" compiled-from) racket/sequence racket/match syntax/transformer))
 
 (syntax-spec
   (binding-class typed-var)
@@ -66,7 +66,14 @@
    #:binding (re-export body)
    (type-check-defn-or-expr/pass1 #'(begin body ...))
    (type-check-defn-or-expr/pass2 #'(begin body ...))
-   #'(compile-defn-or-expr/top (begin body ...))))
+   #'(compile-defn-or-expr/top (begin body ...)))
+  (host-interface/definitions
+   (stlc/module-begin body:typed-definition-or-expr ...+)
+   #:binding (re-export body)
+   (type-check-defn-or-expr/pass1 #'(begin body ...))
+   (type-check-defn-or-expr/pass2 #'(begin body ...))
+   (define/syntax-parse (name ...) (sequence->list (sequence-map compiled-from (in-symbol-set (definition-names #'(begin body ...))))))
+   #'(begin (provide name ...) (compile-defn-or-expr/top (begin body ...)))))
 
 (begin-for-syntax
   ; a Type is one of
@@ -179,7 +186,18 @@
       [(function-type arg-types return-type)
        (append (list '->)
                (map type->datum arg-types)
-               (list (type->datum return-type)))])))
+               (list (type->datum return-type)))]))
+
+  (define (definition-names stx)
+    (syntax-parse stx
+      #:datum-literals (begin #%define)
+      [(begin defn-or-expr ...)
+       (apply symbol-set-union
+              (for/list ([defn-or-expr (attribute defn-or-expr)])
+                (definition-names defn-or-expr)))]
+      [(#%define x . _)
+       (immutable-symbol-set #'x)]
+      [_ (immutable-symbol-set)])))
 
 ; inserts with-reference-compilers, and contract check
 (define-syntax compile-expr/top
