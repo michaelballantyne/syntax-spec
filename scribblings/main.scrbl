@@ -5,6 +5,7 @@
 @title{syntax-spec: A Metalanguage for Hosted DSLs}
 @;@title{syntax-spec: Declaring DSL syntaxes}
 @author+email["Michael Ballantyne" "michael.ballantyne@gmail.com"]
+@author+email["Michael Delmonaco" "mdelmonacochs@gmail.com"]
 
 
 This package provides a metalanguage for creating hosted DSLs. @deftech{Hosted DSLs} extend

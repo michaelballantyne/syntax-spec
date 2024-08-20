@@ -404,7 +404,7 @@ When a form production's form is used outside of the context of a syntax-spec DS
 }
 ]
 
-@section{Defining host interface forms}
+@section{Host interface forms}
 
 Host interface forms are the entry point to the DSL from the host language. They often invoke a compiler macro to translate
 the DSL forms into Racket expressions.
@@ -419,7 +419,7 @@ Defines a host interface to be used in expression positions.
 
 Can only be used inside of a @racket[syntax-spec] block.
 
-An example from the miniKanren DSL:
+An example from the @hyperlink["https://github.com/michaelballantyne/syntax-spec/blob/b19d995f7fd8418ef2f867df9cdaff6283ca7280/tests/dsls/minikanren-rs2e/mk.rkt#L146-L152"]{miniKanren DSL}:
 
 @racketblock[
 (syntax-spec
@@ -457,7 +457,7 @@ bound to the identifier (don't emit the definition syntax, just the syntax for p
 
 Can only be used inside of a @racket[syntax-spec] block.
 
-An example from the miniKanren DSL:
+An example from the @hyperlink["https://github.com/michaelballantyne/syntax-spec/blob/b19d995f7fd8418ef2f867df9cdaff6283ca7280/tests/dsls/minikanren-rs2e/mk.rkt#L129-L144"]{miniKanren DSL}:
 
 @racketblock[
 (syntax-spec
@@ -495,7 +495,7 @@ Can be used to produce multiple definitions.
 
 Can only be used inside of a @racket[syntax-spec] block.
 
-An example from the PEG DSL:
+An example from the @hyperlink["https://github.com/michaelballantyne/syntax-spec/blob/b19d995f7fd8418ef2f867df9cdaff6283ca7280/tests/dsls/peg/core.rkt#L113-L119"]{PEG DSL}:
 
 @racketblock[
 (syntax-spec
