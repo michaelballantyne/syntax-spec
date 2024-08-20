@@ -17,36 +17,43 @@
 
 @section{Compiling references to DSL bindings within Racket code}
 
+@margin-note{@secref["compilation" #:doc '(lib "syntax-spec/scribblings/main.scrbl")] in the @secref["Basic_Tutorial__State_Machine_Language"
+         #:doc '(lib "syntax-spec/scribblings/main.scrbl")] introduces the use of reference compilers.}
+
+By default, Racket code cannot reference names bound with DSL @tech{binding classes}. To allow such references, specify a @deftech{reference compiler} for each class of bindings that should be usable in Racket code. The reference compiler is a @tech/reference{syntax transformer} that will be applied to compile the syntax including each reference.
+
+When a reference appears in the head of a form, such as @racket[x] in @racket[(x 1 2)], the reference compiler receives the entire form to transform. If the reference appears in a @racket[set!], the reference compiler will be invoked if it is a @racket[set!-transformer?]; otherwise the expansion of the @racket[set!] form results in an error.
+
+In all cases, the reference identifier in the syntax provided to the reference compiler is a @tech{compiled identifier}.
+
+DSL compilers specify the reference compilers to use by emitting compiled code containing @racket[with-reference-compiler] forms.
+
 @defform[(with-reference-compilers
              ([binding-class-id reference-compiler-expr] ...)
            body ...+)]
 
-Declares which reference compiler to use when expanding DSL-bound identifiers of the specified binding classes when expanding
+Declares the reference compilers to use when expanding DSL-bound identifiers of the specified binding classes when expanding
 @racket[body]. Evaluates to @racket[body].
 
-@defthing[immutable-reference-compiler set!-transformer?]
 
-Raises a syntax error when identifiers are used in @racket[set!] expressions.
-
-@defthing[mutable-reference-compiler set!-transformer?]
-
-Allows identifiers to be used in @racket[set!] expressions. Identifiers behave as they usually do in plain Racket.
 
 @defproc[(make-variable-like-reference-compiler [reference-stx (or/c syntax? (-> identifier? syntax?))]
                                                 [setter-stx (or/c syntax? (-> syntax? syntax?)) #f])
         set!-transformer?]
 
-Like @racket[make-variable-like-transformer].
+Like @racket[make-variable-like-transformer], but works properly as a @tech{reference compiler} that receives @tech{compiled identifiers}.
 
-If @racket[reference-stx] is syntax, replace references with it.
-If @racket[reference-stx] is a procedure, apply it to the reference syntax.
+If @racket[reference-stx] is syntax, references expand to that syntax.
+If @racket[reference-stx] is a procedure, it is called with the reference identifier to produce the reference's expansion.
 
-If @racket[setter-stx] is syntax, it should be syntax for a procedure which receives
-the new value for the variable.
-If @racket[setter-stx] is a procedure, apply it to the entire @racket[set!] expression.
+If @racket[setter-stx] is syntax, it should be syntax that evaluates to a procedure. The procedure will be invoked with the new value for the variable.
 
-When the identifier is used in an application position,
-wrap the reference with @racket[#%expression].
+If @racket[setter-stx] is a procedure, it is called with the entire @racket[set!] expression to produce its expansion.
+
+If @racket[setter-stx] is not provided, references within @racket[set!] position raise a syntax error.
+
+When a reference is used in the head position of a form such as @racket[(x 1 2)], the variable-like reference compiler ensures that the form is parsed as a function application (not a macro call) and uses the @racket[reference-stx] to expand only the identifier in head position.
+
 
 Here is an example for a @racket[match] DSL where pattern-bound variables cannot be mutated:
 
@@ -55,10 +62,26 @@ Here is an example for a @racket[match] DSL where pattern-bound variables cannot
 (syntax-spec
  (host-interface/expression
   (match target:racket-expr c:clause ...)
-  #'(with-reference-compilers ([pat-var immutable-reference-compiler])
+  #'(with-reference-compilers ([pat-var (make-variable-like-reference-compiler (lambda (id) id))])
       (let ([target-pv target])
         (match-clauses target-pv c ...)))))
 ]
+
+Alternately we could provide @racket[immutable-reference-compiler] as the reference compiler, which behaves exactly the same.
+
+
+@defthing[immutable-reference-compiler set!-transformer?]
+
+A variable-like reference compiler that allows references but raises a syntax error when identifiers are used in @racket[set!] expressions.
+
+References expand to their @tech{compiled identifier}.
+
+@defthing[mutable-reference-compiler set!-transformer?]
+
+A variable-like reference compiler that allows references as well as mutations via @racket[set!] expressions.
+
+References expand to their @tech{compiled identifier}.
+
 
 @section{Compiled identifiers vs surface syntax}
 

@@ -36,7 +36,7 @@ The following subsections address each kind of declaration allowed within the
 
 @section{Binding classes}
 
-Binding classes distinguish types of binding. When a reference resolves to a
+@deftech{Binding classes} distinguish types of binding. When a reference resolves to a
 binder, it is an error if the binding class declared for the reference position
 does not match the binding class of the binding position.
 
