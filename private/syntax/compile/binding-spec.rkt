@@ -145,6 +145,9 @@
                       (? stxclass-rep?)
                       "syntax class"))]
     [(import ~! v:nonref-id (~and ooo (~literal ...)) ...)
+     (define depth (length (attribute ooo)))
+     (when (> depth 1)
+       (wrong-syntax/orig this-syntax "import cannot contain more than one ellipsis"))
      (rec
          this-syntax
          (length (attribute ooo))
