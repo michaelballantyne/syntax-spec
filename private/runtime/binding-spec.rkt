@@ -281,7 +281,7 @@
        (simple-expand-internal spec st local-scopes))]
     
     [(nest depth pv f inner-spec)
-     (unless (< 1 depth)
+     (when (> depth 1)
        (error "don't know how to handle depth > 1 yet"))
 
      (define init-seq (if (= 0 depth)

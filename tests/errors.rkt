@@ -149,15 +149,23 @@
      #:binding (scope e (import d)))))
 
 (check-decl-error
- #rx"nonterminal: only one import binding group may appear in a scope"
+ #rx"import cannot contain more than one ellipsis"
  (syntax-spec
-   (binding-class var)
-   (nonterminal/exporting def
-     (define x:var e:expr)
-     #:binding [(export x) e])
+   (nonterminal/exporting decl
+     ())
    (nonterminal expr
-     (block d1:def d2:def)
-     #:binding (scope (import d1) (import d2)))))
+     (m (d:decl (... ...)) (... ...))
+     #:binding (import d (... ...) (... ...)))))
+
+(check-decl-error
+ #rx"import cannot contain more than one ellipsis"
+ (syntax-spec
+   (nonterminal/exporting decl
+     ())
+   (nonterminal expr
+     (m (d:decl (... ...)) (... ...))
+     ; this one tests that we get the error even on [(import ...) ...] ~> (import ... ...)
+     #:binding [(import d (... ...)) (... ...)])))
 
 (check-decl-error
  #rx"exports must appear first in a exporting spec"
