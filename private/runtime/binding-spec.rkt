@@ -281,18 +281,23 @@
        (simple-expand-internal spec st local-scopes))]
     
     [(nest depth pv f inner-spec)
-     (unless (= 1 depth)
+     (unless (< 1 depth)
        (error "don't know how to handle depth > 1 yet"))
 
-     (define init-seq (get-pvar st pv))
+     (define init-seq (if (= 0 depth)
+                          (list (get-pvar st pv))
+                          (get-pvar st pv)))
 
      (define res
        (start-nest f init-seq st inner-spec local-scopes))
      
      (match-define (nest-ret done-seq st^) res)
      
-     (set-pvar st^ pv done-seq)]
+     (set-pvar st^ pv (if (= 0 depth)
+                          (car done-seq)
+                          done-seq))]
 
+    ; TODO deprecate
     [(nest-one pv f inner-spec)
      (define init-seq (list (get-pvar st pv)))
 
