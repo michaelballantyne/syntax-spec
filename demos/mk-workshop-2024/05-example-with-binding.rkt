@@ -23,7 +23,6 @@
 
 ;; DrRacket understands binding structure now,
 ;; and unbound references are errors.
-
 (run 1 (q)
   (fresh1 (x)
     (fresh1 (x)

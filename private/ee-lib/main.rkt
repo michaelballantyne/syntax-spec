@@ -103,7 +103,9 @@
  expression-macro
  definition-macro
 
- syntax-local-get-shadower/including-module)
+ syntax-local-get-shadower/including-module
+
+ show-var-numbers)
 
 ;; TODO / bug: when the template is just a reference to a pattern variable,
 ;; these change the source location and properties on the result.
@@ -402,9 +404,21 @@
    (syntax-local-get-shadower id)
    'add))
 
-(define/who (generate-same-name-temporary id)
+#;(define/who (generate-same-name-temporary id)
   (check who identifier? id)
   ((make-syntax-introducer) (datum->syntax #f (syntax-e id) id id)))
+
+(define show-var-numbers (make-parameter #f))
+(define counter 0)
+(define/who (generate-same-name-temporary id)
+  (check who identifier? id)
+  (set! counter (+ 1 counter))
+  ((make-syntax-introducer)
+   (datum->syntax #f
+                  (if (show-var-numbers)
+                      (string->symbol (format "~a_~a" (symbol->string (syntax-e id)) counter))
+                      (syntax-e id))
+                  id id)))
 
 
 (define (table-ref table id fail)

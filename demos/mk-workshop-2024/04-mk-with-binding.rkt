@@ -53,3 +53,7 @@
 
 
 
+
+(begin-for-syntax
+  (require (only-in syntax-spec/private/ee-lib/main show-var-numbers))
+  (show-var-numbers #t))
