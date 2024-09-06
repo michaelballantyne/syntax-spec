@@ -1,6 +1,6 @@
 #lang racket/base
 
-(require "mk.rkt")
+(require "08-mk-compiled.rkt")
 
 (defrel (appendo l1 l2 l3)
   (conde

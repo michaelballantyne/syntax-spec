@@ -14,5 +14,5 @@
   (appendo l1 l2 (list 1 2 3 4)))
 
 ;; What if I call a relation with the wrong number of arguments?
-#;(run* (l1 l2)
-    (appendo l1 (list 1 2 3 4)))
+(run* (l1 l2)
+  (appendo l1 (list 1 2 3 4)))

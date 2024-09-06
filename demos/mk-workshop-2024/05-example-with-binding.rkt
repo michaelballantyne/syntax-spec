@@ -2,6 +2,8 @@
 
 (require "04-mk-with-binding.rkt")
 
+;; DrRacket understands binding structure now
+
 (defrel (appendo l1 l2 l3)
   (disj2
    (conj2 (== l1 '()) (== l2 l3))
@@ -21,8 +23,15 @@
              (appendo l1 l2 (cons 1 (cons 2 (cons 3 (cons 4 '())))))))))
 
 
-;; DrRacket understands binding structure now,
-;; and unbound references are errors.
+;; Unbound or incorrect references are an error now.
+
+#;(run 1 (q)
+  (+ 1 2))
+
+
+
+;; The compiler receives alphatized syntax.
+
 (run 1 (q)
   (fresh1 (x)
     (fresh1 (x)

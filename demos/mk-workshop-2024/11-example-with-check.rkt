@@ -17,7 +17,7 @@
            (submod ".." def))
   
   (run* (l1 l2)
-    ;; What if I make an arity mistake?
+    ;; Now arity mistakes get friendly errors.
     (appendo l1 (list 1 2 3 4))))  
 
 (require 'use)

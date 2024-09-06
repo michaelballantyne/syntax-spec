@@ -23,8 +23,14 @@
 
 
 
+
+
 ;; What if I make a grammar mistake?
 
 #;(run 1 (q)
     (== q
         (== q q)))
+
+#;(run 1 (q)
+  (fresh1 (x)
+    (+ 1 2)))
