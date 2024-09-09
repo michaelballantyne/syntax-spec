@@ -522,6 +522,9 @@
   (check who mutable-symbol-table?
          t)
 
+  (when (and allow-overwrite? (persistent-free-id-table? (mutable-symbol-table-id-table t)))
+    (error 'symbol-table-set! "cannot allow overwrite on persistent symbol table"))
+
   (unless allow-overwrite?
     (check-symbol-table-new-id who t id))
 

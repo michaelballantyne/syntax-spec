@@ -134,7 +134,7 @@ This includes pairs, vectors, symbols, numbers, booleans, etc.
                             [v (or/c syntax? syntax-datum?)]
                             [#:allow-overwrite? allow-overwrite? any/c #t]) void?]
 
-Like @racket[free-id-table-set!]. Errors by default when setting the value of an identifier already present in the table. Pass @racket[#:allow-overwrite? #t] to allow this.
+Like @racket[free-id-table-set!]. Errors by default when setting the value of an identifier already present in the table. Pass @racket[#:allow-overwrite? #t] to allow this. However, persistent symbol tables do not support this flag.
 
 @defproc[(symbol-table-ref [table symbol-table?] [id identifier?] [failure any/c]) any/c]
 
