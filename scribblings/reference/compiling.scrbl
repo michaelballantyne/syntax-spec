@@ -17,8 +17,8 @@
 
 @section{Compiling references to DSL bindings within Racket code}
 
-@margin-note{@secref["compilation" #:doc '(lib "syntax-spec/scribblings/main.scrbl")] in the @secref["Basic_Tutorial__State_Machine_Language"
-         #:doc '(lib "syntax-spec/scribblings/main.scrbl")] introduces the use of reference compilers.}
+@margin-note{@secref["compilation" #:doc '(lib "syntax-spec-v2/scribblings/main.scrbl")] in the @secref["Basic_Tutorial__State_Machine_Language"
+         #:doc '(lib "syntax-spec-v2/scribblings/main.scrbl")] introduces the use of reference compilers.}
 
 By default, Racket code cannot reference names bound with DSL @tech{binding classes}. To allow such references, specify a @deftech{reference compiler} for each class of bindings that should be usable in Racket code. The reference compiler is a @tech/reference{syntax transformer} that will be applied to compile the syntax including each reference.
 

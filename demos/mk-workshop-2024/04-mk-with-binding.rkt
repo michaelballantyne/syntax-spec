@@ -55,5 +55,5 @@
 
 
 (begin-for-syntax
-  (require (only-in syntax-spec/private/ee-lib/main show-var-numbers))
+  (require (only-in syntax-spec-v2/private/ee-lib/main show-var-numbers))
   (show-var-numbers #t))
