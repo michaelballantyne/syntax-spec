@@ -437,7 +437,7 @@ Now we have all the pieces to run programs using state machines:
 @examples[
 #:label #f
 (require racket/class
-         syntax-spec/tests/dsls/state-machine-for-tutorial)
+         syntax-spec-v2/tests/dsls/state-machine-for-tutorial)
 (define vending-machine
   (machine
    #:initial idle
@@ -525,7 +525,7 @@ This static check runs before we generate the compiled code. Compilers may have 
 @examples[
 #:label #f
 (require racket/class
-         syntax-spec/tests/dsls/state-machine-for-tutorial)
+         syntax-spec-v2/tests/dsls/state-machine-for-tutorial)
 (eval:error
  (define gas-tank
    (machine
@@ -565,7 +565,7 @@ Now let's create a macro in our language!
 
 @examples[#:label #f
 (require racket/class
-         syntax-spec/tests/dsls/state-machine-for-tutorial)
+         syntax-spec-v2/tests/dsls/state-machine-for-tutorial)
 (define-state-syntax simple-state
     (syntax-rules ()
       [(_ name [evt next] ...)
