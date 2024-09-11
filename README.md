@@ -6,20 +6,20 @@ There are a few relatively-complete example DSL implementations: [miniKanren](te
 
 If you'd like to learn more about syntax-spec, you can check out our [ICFP 2024 paper](https://mballantyne.net/publications/icfp2024.pdf) and associated [15-minute talk](https://youtu.be/F70QZaMoYJQ?t=10756), or my longer [demo](demos/mk-workshop-2024) at the 2024 miniKanren workshop.
 
-A release is available on the Racket package server as [`syntax-spec-v1`](https://pkgs.racket-lang.org/package/syntax-spec-v1). 
+A release is available on the Racket package server as [`syntax-spec-v2`](https://pkgs.racket-lang.org/package/syntax-spec-v2). 
 
 This is still a prototype: future releases will likely contain breaking changes, and the documentation is incomplete. However, breaking changes will be released under an updated package name.
 
 To use the released package, install via:
 
 ```
-raco pkg install syntax-spec-v1
+raco pkg install syntax-spec-v2
 ```
 
 and import as
 
 ```
-(require syntax-spec-v1)
+(require syntax-spec-v2)
 ```
 
 
