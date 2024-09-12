@@ -2,7 +2,8 @@
 
 A metalanguage for creating sophisticated DSLs in Racket. You provide a grammar and binding rules, and the metalanguage provides a front-end that checks binding, expands macros to your DSL core langauge, and provides tools for working with binding in your DSL's compiler.
 
-There are a few relatively-complete example DSL implementations: [miniKanren](tests/dsls/minikanren-rs2e), [miniclass](tests/dsls/miniclass), and [TinyHDL](tests/dsls/tiny-hdl). There is also a small [state machine DSL](demos/visser-symposium).
+`syntax-spec` is used in the [Qi](https://github.com/drym-org/qi) and [hosted-minikanren](https://github.com/michaelballantyne/hosted-minikanren) projects.
+This repository also includes a number of example DSL implementations: [peg](tests/dsls/peg), [cmdline](tests/dsls/cmdline), [miniKanren](tests/dsls/minikanren-rs2e), [miniclass](tests/dsls/miniclass), and [TinyHDL](tests/dsls/tiny-hdl). There is also a small [state machine DSL](demos/visser-symposium).
 
 If you'd like to learn more about syntax-spec, you can check out our [ICFP 2024 paper](https://mballantyne.net/publications/icfp2024.pdf) and associated [15-minute talk](https://youtu.be/F70QZaMoYJQ?t=10756), or my longer [demo](demos/mk-workshop-2024) at the 2024 miniKanren workshop.
 
