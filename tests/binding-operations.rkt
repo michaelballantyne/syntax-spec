@@ -15,7 +15,7 @@
    #:binding (scope (bind x) e)
 
    (letrec ([x:var e:expr] ...) body:expr)
-   #:binding (scope (bind x) e (scope body)))
+   #:binding (scope (bind x) ... e ... (scope body)))
 
  (host-interface/definition
   (define-var v:var)

@@ -27,7 +27,7 @@
   (host-interface/expression
     (run n:expr (qvar:term-variable ...)
       g:goal ...)
-    #:binding (scope (bind qvar) g)
+    #:binding (scope (bind qvar) ... g ...)
 
     #'(void))
 

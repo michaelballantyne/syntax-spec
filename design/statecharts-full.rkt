@@ -19,7 +19,7 @@
 
     (state n:state-name
       sb:state-body ...)
-    #:binding [(export n) (scope (import sb))]
+    #:binding [(export n) (scope (import sb) ...)]
 
     (use scn:statechart-name #:as sn:state-name
          e:event ...))
@@ -27,7 +27,7 @@
   (nonterminal event
     (on (evt:id arg:var ...)
       ab:action ...+)
-    #:binding (scope (bind arg) ab)
+    #:binding (scope (bind arg) ... ab ...)
 
     (on-enter ab:action ...)
     (on-exit ab:action ...))
@@ -40,7 +40,7 @@
     (emit (name:id arg:racket-expr ...))
 
     (let* (b:binding-group ...) body:action ...)
-    #:binding (nest b body))
+    #:binding (nest b ... [body ...]))
 
   (nonterminal/nesting binding-group (tail)
     [v:var e:racket-expr]

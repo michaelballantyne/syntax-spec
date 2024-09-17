@@ -16,14 +16,14 @@
     (+ e1:expr e2:expr)
     
     (block d:def-or-expr ...)
-    #:binding (nest d []))
+    #:binding (nest d ... []))
 
   (nonterminal/nesting def-or-expr (tail)
     #:description "mylang definition context"
     #:allow-extension mylang-macro
 
     (begin d:def-or-expr ...)
-    #:binding (nest d tail)
+    #:binding (nest d ... tail)
     
     (define*-values (v:var ...) e:expr)
     #:binding [e (scope (bind v) ... tail)]

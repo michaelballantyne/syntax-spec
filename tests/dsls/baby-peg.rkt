@@ -39,7 +39,7 @@
 
   (host-interface/definitions
    (define-pegs [name:nonterm p:peg] ...)
-   #:binding (export name)
+   #:binding [(export name) ...]
    #'(begin (define name (lambda (s) (compile-peg p s)))
             ...))
 

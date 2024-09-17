@@ -30,6 +30,7 @@
 
   (define bspec-elaborated (elaborate-bspec bspec-stx))
   (check-affine-pvar-use! bspec-elaborated)
+  (check-ellipsis-depth bspec-elaborated)
   (define bspec-with-implicits (add-implicit-pvar-refs bspec-elaborated bound-pvars))
   (define bspec-flattened (bspec-flatten-groups bspec-with-implicits))
   (define bspec-combined-recs (bspec-combine-recs bspec-flattened))
@@ -195,7 +196,8 @@
       (elaborate-pvar (attribute v-transformer)
                       (? stxclass-rep?)
                       "syntax class"))]
-    [(nest-one ~! v:nonref-id spec:bspec-term) #;(nest v:nonref-id spec:bspec-term)
+    [#;(nest-one ~! v:nonref-id spec:bspec-term)
+     (nest v:nonref-id spec:bspec-term)
      ; TODO update syntax after old examples work
      (nest-one
       this-syntax
@@ -203,13 +205,11 @@
                       (s* nonterm-rep [variant-info (s* nesting-nonterm-info)])
                       "nesting nonterminal")
       (elaborate-bspec (attribute spec)))]
-    [(nest ~! v:nonref-id spec:bspec-term)
-     #;(nest ~! v:nonref-id (~and (~literal ...) ooo) ...+ spec:bspec-term)
-     ; TODO update syntax after old examples work
+    [#;(nest ~! v:nonref-id spec:bspec-term)
+     (nest ~! v:nonref-id (~and (~literal ...) ooo) ...+ spec:bspec-term)
      (nest
       this-syntax
-      1
-      #;(length (attribute ooo))
+      (length (attribute ooo))
       (elaborate-pvar (attribute v)
                       (s* nonterm-rep [variant-info (s* nesting-nonterm-info)])
                       "nesting nonterminal")
@@ -278,12 +278,62 @@
         (wrong-syntax v "expected a reference to a pattern variable")))
   (pvar-rep-var-info binding))
 
+(define (lookup-pvar-depth v)
+  (define binding (lookup v pvar-rep?))
+  (when (not binding)
+    (if (identifier? (current-syntax-context))
+        (wrong-syntax/orig v "binding spec expected a reference to a pattern variable")
+        (wrong-syntax v "expected a reference to a pattern variable")))
+  (pvar-rep-depth binding))
+
 (define (check-affine-pvar-use! bspec)
   (define pvars (bspec-referenced-pvars bspec))
   (define maybe-dup (check-duplicates pvars free-identifier=?))
 
   (when maybe-dup
     (wrong-syntax/orig maybe-dup "each pattern variable must occur in the binding spec at most once")))
+
+(define (check-ellipsis-depth bspec)
+  (let loop ([bspec bspec] [depth 0])
+    (match bspec
+      [(ref (pvar v _))
+       (check-ellipsis-depth/pvar depth v)]
+      [(or (export stx (pvar v _))
+           (re-export stx (pvar v _))
+           (bind stx (pvar v _))
+           (suspend stx (pvar v _)))
+       (check-ellipsis-depth/pvar depth v stx)]
+      [(or (export-syntax stx (pvar v _) (pvar tv _))
+           (bind-syntax stx (pvar v _) (pvar tv _)))
+       (check-ellipsis-depth/pvar depth v stx)
+       (check-ellipsis-depth/pvar depth tv stx)]
+      [(or (export-syntaxes stx v-depth (pvar v _) (pvar tv _))
+           (bind-syntaxes stx v-depth (pvar v _) (pvar tv _)))
+       (check-ellipsis-depth/pvar (+ v-depth depth) v stx)
+       (check-ellipsis-depth/pvar depth tv stx)]
+      [(rec stx rec-depth (pvar v _))
+       (check-ellipsis-depth/pvar (+ rec-depth depth) v stx)]
+      [(or (group ss) (recs ss))
+       (for ([s ss])
+         (loop s depth))]
+      [(nest stx nest-depth (pvar v _) s)
+       (check-ellipsis-depth/pvar (+ nest-depth depth) v stx)
+       (loop s depth)]
+      [(nest-one stx (pvar v _) s)
+       (check-ellipsis-depth/pvar depth v stx)
+       (loop s depth)]
+      [(scope _ s)
+       (loop s depth)]
+      [(ellipsis _ s)
+       (loop s (add1 depth))])))
+
+(define (check-ellipsis-depth/pvar bs-depth v [stx #f])
+  (define ss-depth (lookup-pvar-depth v))
+  (cond
+    [(< ss-depth bs-depth)
+     (wrong-syntax/orig v "too many ellipses for pattern variable in binding spec")]
+    [(< bs-depth ss-depth)
+     (wrong-syntax/orig v "missing ellipses with pattern variable in binding spec")]))
 
 ;; Infer implicit pvar refs
 

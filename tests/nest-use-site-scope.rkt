@@ -17,7 +17,7 @@
 
   (host-interface/expression
     (my-match [p:pat e:dsl-expr])
-    #:binding (nest-one p e)
+    #:binding (nest p e)
     #''success))
 
 ;; I'm not sure why, but the problem didn't occur at the module level. Perhaps
@@ -31,13 +31,13 @@
 (syntax-spec
   (nonterminal my-expr
     (block d:my-def ...)
-    #:binding (scope (import d)))
+    #:binding (scope (import d ...)))
  
   (nonterminal/exporting my-def
     ((~literal define-syntax) x:pat-macro e:expr)
     #:binding (export-syntax x e)
     ((~literal my-match) [p:pat e:dsl-expr])
-    #:binding (nest-one p e))
+    #:binding (nest p e))
  
   (host-interface/expression
     (eval-my-expr e:my-expr)

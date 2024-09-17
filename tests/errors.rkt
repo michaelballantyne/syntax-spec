@@ -81,7 +81,7 @@
      #:binding (nest e []))))
 
 (check-decl-error
- #rx"nest: expected more terms starting with binding spec term"
+ #rx"nest: expected more terms"
  (syntax-spec
    (nonterminal expr
      b:expr
@@ -154,8 +154,8 @@
    (nonterminal/exporting decl
      ())
    (nonterminal expr
-     (m (d:decl (... ...)) (... ...))
-     #:binding (import d (... ...) (... ...)))))
+     (m (d:decl ...) ...)
+     #:binding (import d ... ...))))
 
 (check-decl-error
  #rx"import cannot contain more than one ellipsis"
@@ -163,9 +163,9 @@
    (nonterminal/exporting decl
      ())
    (nonterminal expr
-     (m (d:decl (... ...)) (... ...))
+     (m (d:decl ...) ...)
      ; this one tests that we get the error even on [(import ...) ...] ~> (import ... ...)
-     #:binding [(import d (... ...)) (... ...)])))
+     #:binding [(import d ...) ...])))
 
 (check-decl-error
  #rx"exports must appear first in a exporting spec"
@@ -206,6 +206,20 @@
      (baz)
      (~>/form (foo #:bar) #'(foo)))))
 
+(check-decl-error
+ #rx"nonterminal: missing ellipses with pattern variable in binding spec"
+ (syntax-spec
+   (nonterminal expr
+     (foo a:racket-var ...)
+     #:binding a)))
+
+(check-decl-error
+ #rx"nonterminal: too many ellipses for pattern variable in binding spec"
+ (syntax-spec
+   (nonterminal expr
+     (foo a:racket-var)
+     #:binding [a ...])))
+
 ;;
 ;; Valid definitions used to exercise errors
 ;;
@@ -220,8 +234,11 @@
     n:number
     v:dsl-var2
     (dsl-begin e:expr1 ...+)
+    ; for testing incompatible ellipsis match counts
+    (dsl-groups (a:dsl-var2 ...+) (b:dsl-var2 ...+))
+    #:binding [(scope (bind a) (bind b)) ...]
     [b:dsl-var2 e:expr1 ...+]
-    #:binding (scope (bind b) e))
+    #:binding (scope (bind b) e ...))
   (nonterminal expr2
     #:description "DSL expression"
     n:number)
@@ -426,3 +443,8 @@
   (check-syntax-error
    #rx"foo: identifier's binding is ambiguous"
    (expand-nonterminal/datum expr3 (foo))))
+
+; incompatible ellipsis match counts
+(check-syntax-error
+ #rx"incompatible ellipsis match counts for binding spec"
+ (dsl-expr1 (dsl-groups (x y z) (a b c d))))

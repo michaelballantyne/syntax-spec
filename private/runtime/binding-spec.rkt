@@ -389,14 +389,14 @@
     (or (for/first ([(_ vs) (in-hash env)])
           (unless (list? vs)
             ; TODO check in compiler
-            (error "too many ellipses in template"))
+            (error "too many ellipses in binding spec"))
           (length vs))
         0))
   (for ([(_ vs) (in-hash env)])
     (unless (= (length vs) result)
       ; TODO Can this be checked in the compiler? Would need to make sure ellipsized bs vars
       ; come from the same ss ellipsis.
-      (error "incompatible ellipsis match counts for template")))
+      (error "incompatible ellipsis match counts for binding spec")))
   result)
 
 (module+ test

@@ -69,7 +69,7 @@
    #'(compile-defn-or-expr/top (begin body ...)))
   (host-interface/definitions
    (stlc/module-begin body:typed-definition-or-expr ...+)
-   #:binding (re-export body)
+   #:binding [(re-export body) ...]
    (type-check-defn-or-expr/pass1 #'(begin body ...))
    (type-check-defn-or-expr/pass2 #'(begin body ...))
    (define/syntax-parse (name ...) (sequence->list (sequence-map compiled-from (in-symbol-set (definition-names #'(begin body ...))))))

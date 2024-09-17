@@ -18,7 +18,7 @@
     (list e:expr ...))
 
   (nonterminal peg-top
-    n:peg #:binding (nest-one n []))
+    n:peg #:binding (nest n []))
   
   (nonterminal/nesting peg (tail)
     #:description "PEG expression"
@@ -28,29 +28,29 @@
     (eps)               ; can't just be `eps` yet.
     
     (seq e1:peg e2:peg)
-    #:binding (nest-one e1 (nest-one e2 tail))
+    #:binding (nest e1 (nest e2 tail))
     
     (alt e1:peg e2:peg)
-    #:binding [(nest-one e1 []) (nest-one e2 [])]
+    #:binding [(nest e1 []) (nest e2 [])]
     
     (repeat e:peg)      ; *
-    #:binding (nest-one e [])
+    #:binding (nest e [])
     
     (not e:peg)         ; !
-    #:binding (nest-one e [])
+    #:binding (nest e [])
     
     (bind x:var e:peg)  ; :
-    #:binding (scope (bind x) (nest-one e []) tail)
+    #:binding (scope (bind x) (nest e []) tail)
     
     (=> pe:peg e:expr)
-    #:binding (nest-one pe e)
+    #:binding (nest pe e)
     
     (text e:expr) ; right now these are referring to the expr syntax class. Need escape to Racket...
     
     (char e:expr)
     (token e:expr)
     (src-span v:var e:peg)
-    #:binding (scope (nest-one e []))
+    #:binding (scope (nest e []))
     
     ;; can't do implicit #%peg-datum yet.
     

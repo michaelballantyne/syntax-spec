@@ -22,7 +22,7 @@
     #:binding (scope (bind v) ... ... rhs ... (scope (import d)))
 
     (dsl-let* (b:binding ...) e:expr)
-    #:binding (nest b e)
+    #:binding (nest b ... e)
 
     (v:var e:expr ...))
 

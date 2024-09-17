@@ -61,7 +61,7 @@
     (set! x:js-var e:js-expr)
     
     (function (x:js-var ...) body:js-stmt ...)
-    #:binding (scope (bind x) (scope (import body)))
+    #:binding (scope (bind x) ... (scope (import body ...)))
      
     (e:js-expr e*:js-expr ...))
   
@@ -80,11 +80,11 @@
     (return e:js-expr)
 
     (while c:js-expr body:js-stmt ...)
-    #:binding (scope (import body))
+    #:binding (scope (import body ...))
                         
     (if c:js-expr (b1:js-stmt ...) (b2:js-stmt ...))
-    #:binding [(scope (import b1)) (scope (import b2))]
-                        
+    #:binding [(scope (import b1 ...)) (scope (import b2 ...))]
+
     e:js-expr))
 
 

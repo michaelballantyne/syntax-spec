@@ -8,7 +8,7 @@
     #:binding (scope (bind v) nested)
 
     (thread f:binding-floe ...)
-    #:binding (nest f nested)
+    #:binding (nest f ... nested)
 
     f:simple-floe
     #:binding [f nested])
@@ -20,7 +20,7 @@
 
   (nonterminal floe
     f:binding-floe
-    #:binding (nest-one f [])))
+    #:binding (nest f [])))
 
 (void
  (expand-nonterminal/datum floe
