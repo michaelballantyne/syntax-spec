@@ -20,7 +20,7 @@
     #:binding (scope (bind-syntax v e) ... b)
 
     (racket-letrec-syntaxes ([(v:racket-macro ...) e:expr] ...) b:racket-like-expr)
-    #:binding (scope (bind-syntaxes v e) ... b)
+    #:binding (scope (bind-syntaxes v ... e) ... b)
     e:racket-expr)
 
   (host-interface/expression
@@ -56,7 +56,7 @@
     #:binding (scope (bind-syntax v e) ... b)
 
     (my-letrec-syntaxes ([(v:my-macro ...) e:expr] ...) b:my-expr)
-    #:binding (scope (bind-syntaxes v e) ... b)
+    #:binding (scope (bind-syntaxes v ... e) ... b)
 
     ; this binds racket-macros, which cannot be used in my-exprs
     ; uses of bound macros should error.
@@ -64,7 +64,7 @@
     #:binding (scope (bind-syntax v e) ... b)
 
     (bad-my-letrec-syntaxes ([(v:racket-macro ...) e:expr] ...) b:my-expr)
-    #:binding (scope (bind-syntaxes v e) ... b))
+    #:binding (scope (bind-syntaxes v ... e) ... b))
 
   (host-interface/expression
     (my-lang e:my-expr)

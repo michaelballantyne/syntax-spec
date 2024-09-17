@@ -46,7 +46,7 @@
                         #:binding (export m)
 
                         ((~literal define-syntaxes) (x:racket-macro ...) e:expr)
-                        #:binding (export-syntaxes x e)
+                        #:binding (export-syntaxes x ... e)
 
                         ((~literal begin) e:class-form ...)
                         #:binding [(re-export e) ...]

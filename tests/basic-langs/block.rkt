@@ -16,7 +16,7 @@
     #:binding [(export x) ...]
 
     ((~literal define-syntaxes) (x:racket-macro ...) e:expr)
-    #:binding (export-syntaxes x e)
+    #:binding (export-syntaxes x ... e)
 
     e:racket-expr)
 

@@ -139,13 +139,10 @@
       (elaborate-pvar (attribute v-transformer)
                       (? stxclass-rep?)
                       "syntax class"))]
-    [(bind-syntaxes ~! v:nonref-id v-transformer:nonref-id)
-     #;(bind-syntaxes ~! v:nonref-id (~and ooo (~literal ...)) ... v-transformer:nonref-id)
-     ; TODO update syntax
+    [(bind-syntaxes ~! v:nonref-id (~and ooo (~literal ...)) ... v-transformer:nonref-id)
      (bind-syntaxes
       this-syntax
-      1
-      #;(length (attribute ooo))
+      (length (attribute ooo))
       (elaborate-pvar (attribute v)
                       (s* extclass-rep)
                       "extension class")
@@ -157,11 +154,11 @@
      (when (> depth 1)
        (wrong-syntax/orig this-syntax "import cannot contain more than one ellipsis"))
      (rec
-         this-syntax
-         (length (attribute ooo))
-         (elaborate-pvar (attribute v)
-                         (s* nonterm-rep [variant-info (s* exporting-nonterm-info)])
-                         "exporting nonterminal"))]
+      this-syntax
+      (length (attribute ooo))
+      (elaborate-pvar (attribute v)
+                      (s* nonterm-rep [variant-info (s* exporting-nonterm-info)])
+                      "exporting nonterminal"))]
     [(re-export ~! v:nonref-id)
      (re-export
       this-syntax
@@ -183,30 +180,24 @@
       (elaborate-pvar (attribute v-transformer)
                       (? stxclass-rep?)
                       "syntax class"))]
-    [(export-syntaxes ~! v:nonref-id v-transformer:nonref-id)
-     #;(export-syntaxes ~! v:nonref-id (~and ooo (~literal ...)) ... v-transformer:nonref-id)
-     ; TODO update syntax
+    [(export-syntaxes ~! v:nonref-id (~and ooo (~literal ...)) ... v-transformer:nonref-id)
      (export-syntaxes
       this-syntax
-      1
-      #;(length (attribute ooo))
+      (length (attribute ooo))
       (elaborate-pvar (attribute v)
                       (s* extclass-rep)
                       "extension class")
       (elaborate-pvar (attribute v-transformer)
                       (? stxclass-rep?)
                       "syntax class"))]
-    [#;(nest-one ~! v:nonref-id spec:bspec-term)
-     (nest v:nonref-id spec:bspec-term)
-     ; TODO update syntax after old examples work
+    [(nest v:nonref-id spec:bspec-term)
      (nest-one
       this-syntax
       (elaborate-pvar (attribute v)
                       (s* nonterm-rep [variant-info (s* nesting-nonterm-info)])
                       "nesting nonterminal")
       (elaborate-bspec (attribute spec)))]
-    [#;(nest ~! v:nonref-id spec:bspec-term)
-     (nest ~! v:nonref-id (~and (~literal ...) ooo) ...+ spec:bspec-term)
+    [(nest ~! v:nonref-id (~and (~literal ...) ooo) ...+ spec:bspec-term)
      (nest
       this-syntax
       (length (attribute ooo))
