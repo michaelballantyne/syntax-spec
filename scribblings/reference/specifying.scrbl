@@ -98,8 +98,8 @@ Example:
         (nonterminal my-expr
           n:number
           x:my-var
-          (my-let ([x:my-var e:my-expr]) body:my-expr)
-          #:binding (scope (bind x) body)))))
+          (my-let ([x:my-var e:my-expr] ...) body:my-expr)
+          #:binding (scope (bind x) ... body)))))
 
 @let-example
 
@@ -117,7 +117,7 @@ Example:
     n:number
     x:my-var
     (my-let* (b:binding-pair ...) body:my-expr)
-    #:binding (nest b body))
+    #:binding (nest b ... body))
   (nonterminal/nesting binding-pair (nested)
     [x:my-var e:my-expr]
     #:binding (scope (bind x) nested)))
@@ -138,7 +138,7 @@ Example:
     #:binding (export x)
 
     (my-begin d:my-defn ...)
-    #:binding (re-export d))
+    #:binding [(re-export d) ...])
   (nonterminal my-expr
     n:number))
 ]
@@ -204,10 +204,10 @@ A form production defines a form with the specified name. You may want to use a 
     #:allow-extension racket-macro
 
     ((~literal define-values) (x:racket-var ...) e:racket-expr)
-    #:binding (export x)
+    #:binding [(export x) ...]
 
     ((~literal define-syntaxes) (x:racket-macro ...) e:expr)
-    #:binding (export-syntaxes x e)
+    #:binding (export-syntaxes x ... e)
 
     e:racket-expr))
 ]
@@ -269,22 +269,29 @@ When a form production's form is used outside of the context of a syntax-spec DS
 @section{Binding specs}
 
 
-@racketgrammar[#:literals (bind bind-syntax bind-syntaxes import re-export export export-syntax export-syntaxes nest nest-one)
-               binding-spec spec-variable-id
-               (bind spec-variable-id ...+)
-               (bind-syntax spec-variable-id spec-variable-id)
-               (bind-syntaxes spec-variable-id spec-variable-id)
-               (scope spec ...)
-               [spec ...]
-               (nest spec-variable-id binding-spec)
-               (nest-one spec-variable-id binding-spec)
-               (import spec-variable-id ...+)
-               (export spec-variable-id ...+)
-               (export-syntax spec-variable-id spec-variable-id)
-               (export-syntaxes spec-variable-id spec-variable-id)
-               (re-export spec-variable-id ...+)]
+@racketgrammar*[#:literals (bind bind-syntax bind-syntaxes import re-export export export-syntax export-syntaxes nest ...)
+               (binding-spec
+                 spec-variable-id
+                 (bind spec-variable-id)
+                 (bind-syntax spec-variable-id spec-variable-id)
+                 (bind-syntaxes spec-variable-id ooo ... spec-variable-id)
+                 (scope spec-or-ooo ...)
+                 [spec-or-ooo ...]
+                 (nest spec-variable-id ooo ... binding-spec)
+                 (import spec-variable-id)
+                 (export spec-variable-id)
+                 (export-syntax spec-variable-id spec-variable-id)
+                 (export-syntaxes spec-variable-id ooo ... spec-variable-id)
+                 (re-export spec-variable-id))
+               (ooo
+                 ...)
+               (spec-or-ooo
+                 binding-spec
+                 ooo)]
 
-@deftech{Binding specs} declare the binding rules of a DSL's forms. They allow us to control the scope of bound variables and to check that programs are well-bound before compilation. A binding spec is associated with a production and refers to spec variables from the production
+@deftech{Binding specs} declare the binding rules of a DSL's forms. They allow us to control the scope of bound variables and to check that programs are well-bound before compilation. A binding spec is associated with a production and refers to spec variables from the production.
+
+Similar to syntax patterns and templates, syntax specs and binding specs have a notion of ellipsis depth. However, all spec references in binding specs must have the exact same ellipsis depth as their syntax spec counterparts. Ellipses in binding specs are used to declare the scoping structure of syntax that includes sequences.
 
 @itemlist[
 @item{
@@ -295,6 +302,8 @@ When a form production's form is used outside of the context of a syntax-spec DS
 
   Example:
   @let-example
+
+  Notice how there are ellipses after the @racket[(bind x)] since @racket[x] occurred inside of an ellipsized syntax spec.
 }
 @item{
   @racket[(bind-syntax x e)] declares that the variable specified by @racket[x] is bound to the transformer specified by @racket[e]. @racket[bind-syntax] must be used inside of a @racket[scope], @racket[x] must be specified with a binding class in its syntax spec like @racket[x:my-var], and @racket[e] must be specified with an extension class in its syntax spec like @racket[e:my-macro].
@@ -323,9 +332,11 @@ When a form production's form is used outside of the context of a syntax-spec DS
       #:allow-extension my-macro
       n:number
       (my-let-syntaxes ([(x:my-var ...) trans:my-macro]) body:my-expr)
-      #:binding (scope (bind-syntaxes x trans) body)))
+      #:binding (scope (bind-syntaxes x ... trans) body)))
   ]
   Here, @racket[trans] should evaluate to multiple transformers using @racket[values].
+
+  Note that the ellipses for @racket[x] occur inside of the @racket[bind-syntaxes].
 }
 @item{
   @racket[scope] declares that bindings and sub-expressions in the sub-specs are in a particular scope. Local bindings binding specs like @racket[bind] must occur directly in a @racket[scope] binding spec.
@@ -342,9 +353,11 @@ When a form production's form is used outside of the context of a syntax-spec DS
     #:binding [(scope (bind x) body) e]
   ]
   Which adds that @racket[e] is a sub-expression outside of the scope of the @racket[let]. All un-referenced syntax spec variables get implicitly added to a group with the provided binding spec, so the former example is equivalent to the latter.
+
+  Ellipses can occur after a binding spec in a group.
 }
 @item{
-  @racket[nest] is used with @tech{nesting nonterminals}. In particular, the first argument to nest must be a spec variable associated with a nesting nonterminal. The second argument is treated as the "base case" of the "fold". @racket[nest] should only be used when the first argument has ellipsis depth 1.
+  @racket[nest] is used with @tech{nesting nonterminals}. In particular, the first argument to nest must be a spec variable associated with a nesting nonterminal. The second argument is treated as the "base case" of the "fold".
 
   Example:
 
@@ -353,9 +366,8 @@ When a form production's form is used outside of the context of a syntax-spec DS
   The @racket[nest] binding spec sort of folds over the binding pairs. In this example, it'll produce binding structure like
 
   @racketblock[[e1 (scope (bind x1) [e2 (scope (bind x2) [... [en (scope (bind xn) body)]])])]]
-}
-@item{
-  @racket[nest-one] is similar to @racket[nest], except it is used when the first argument has ellipsis depth 0.
+
+  @racket[nest] does not necessarily have to be used with a sequence.
 
   Example:
   @racketblock[
@@ -363,13 +375,15 @@ When a form production's form is used outside of the context of a syntax-spec DS
       (binding-class pattern-var)
       (nonterminal clause
         [p:pat e:racket-expr]
-        #:binding (nest-one p e))
+        #:binding (nest p e))
       (nonterminal/nesting pat (nested)
         x:pattern-var
         #:binding (scope (bind x) nested)
         ((~literal cons) car-pat:pat cdr-pat:pat)
-        #:binding (nest-one car-pat (nest-one cdr-pat nested))))
+        #:binding (nest car-pat (nest cdr-pat nested))))
   ]
+
+  However, the first arguemnt of @racket[nest] cannot have ellipsis depth exceeding one.
 }
 @item{
   @racket[(import d)] imports the bindings exported from the sub-expression specified by @racket[d]. @racket[import] must be used inside of a @racket[scope] and must refer to a syntax spec associated with an @tech{exporting nonterminal}.
@@ -383,21 +397,23 @@ When a form production's form is used outside of the context of a syntax-spec DS
       #:binding (export x)
 
       (my-begin d:my-defn ...)
-      #:binding (re-export d))
+      #:binding [(re-export d) ...])
     (nonterminal my-expr
       n:number
       (my-local [d:my-defn ...] body:my-expr)
-      #:binding (scope (import d) body)))
+      #:binding (scope (import d) ... body)))
   ]
+
+  The argument to @racket[import] cannot have ellipsis depth exceeding one.
 }
 @item{
   @racket[(export x)] exports the variable specified by @racket[x]. @racket[x] must refer to a syntax spec variable associated with a binding class and @racket[export] can only be used in an @tech{exporting nonterminal}. See @racket[import] for an example of usage.
 }
 @item{
-  @racket[(export-syntax x e)] is like @racket[bind-syntax], except it exports the binding instead of binding the identifier locally to the current scope. Like @racket[export], it can only be used in an @tech{exporting nonterminal}.
+  @racket[export-syntax] is like @racket[bind-syntax], except it exports the binding instead of binding the identifier locally to the current scope. Like @racket[export], it can only be used in an @tech{exporting nonterminal}.
 }
 @item{
-  @racket[(export-syntaxes x e)] is like @racket[bind-syntaxes], except it exports the bindings instead of binding the identifiers locally to the current scope. Like @racket[export], it can only be used in an @tech{exporting nonterminal}.
+  @racket[export-syntaxes] is like @racket[bind-syntaxes], except it exports the bindings instead of binding the identifiers locally to the current scope. Like @racket[export], it can only be used in an @tech{exporting nonterminal}.
 }
 @item{
   @racket[(re-export d)] @racket[export]s all bindings that are exported by @racket[d]. @racket[d] must be associated with an @tech{exporting nonterminal} and @racket[re-export] can only be used in an @tech{exporting nonterminal}. See @racket[import] for an example of usage.
@@ -465,7 +481,7 @@ An example from the @hyperlink["https://github.com/michaelballantyne/syntax-spec
 
   (host-interface/definition
     (defrel (name:relation-name x:term-variable ...) g:goal)
-    #:binding [(export name) (scope (bind x) g)]
+    #:binding [(export name) (scope (bind x) ... g)]
 
     #:lhs
     [(symbol-table-set!
@@ -501,7 +517,7 @@ An example from the @hyperlink["https://github.com/michaelballantyne/syntax-spec
 (syntax-spec
   (host-interface/definitions
    (define-pegs [name:nonterm p:peg] ...)
-   #:binding (export name)
+   #:binding [(export name) ...]
    (run-leftrec-check! (attribute name) (attribute p))
    #'(begin (define name (lambda (in) (with-reference-compilers ([var immutable-reference-compiler])
                                         (compile-peg p in))))
