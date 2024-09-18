@@ -198,9 +198,12 @@
                       "nesting nonterminal")
       (elaborate-bspec (attribute spec)))]
     [(nest ~! v:nonref-id (~and (~literal ...) ooo) ...+ spec:bspec-term)
+     (define depth (length (attribute ooo)))
+     (when (> depth 1)
+       (wrong-syntax/orig this-syntax "nest cannot contain more than one ellipsis"))
      (nest
       this-syntax
-      (length (attribute ooo))
+      depth
       (elaborate-pvar (attribute v)
                       (s* nonterm-rep [variant-info (s* nesting-nonterm-info)])
                       "nesting nonterminal")

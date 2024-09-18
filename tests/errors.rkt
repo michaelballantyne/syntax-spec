@@ -168,6 +168,16 @@
      #:binding [(import d ...) ...])))
 
 (check-decl-error
+ #rx"nest cannot contain more than one ellipsis"
+ (syntax-spec
+   (nonterminal/nesting binding (nested)
+     ())
+   (nonterminal expr
+     (m (b:binding ...) ...)
+     ; this one tests that we get the error even on [(import ...) ...] ~> (import ... ...)
+     #:binding (nest d ... ... []))))
+
+(check-decl-error
  #rx"exports must appear first in a exporting spec"
  (syntax-spec
    (binding-class var)
