@@ -317,10 +317,7 @@
      (define sts^
        (for/list ([st sts])
          (simple-expand-internal spec st local-scopes)))
-     ; unsplit the sub-environments and merge that into the initial env.
-     (for/fold ([st st])
-               ([pv pvs])
-       (set-pvar st pv (for/list ([st^ sts^]) (hash-ref (exp-state-pvar-vals st^) pv))))]))
+     (st-merge/ellipses st pvs sts^)]))
 
 ; f is nonterm-transformer
 ; seq is (listof (treeof syntax?))
@@ -346,7 +343,23 @@
       (call-reconstruct-function (exp-state-pvar-vals st^) reconstruct-f)
       (exp-state-nest-state st^))]))
 
+; ellipsis expansion
+; when expanding syntax with an ellipsized binding spec, we expect the syntax to be a list.
+; For example:
+; (e:my-expr ...)
+; #:binding [e ...]
+; #'(f x y z)
+; We'll start with e mapped to (list #'f #'x #'y #'z)
+; But since it's ellipsized, we want to run the expander for each element of that list.
+; This means we need to expand under an environment mapping e to #'f,
+; then expand under an environment mapping e to #'x, and so on.
+; Then we'll have a list of environments, each mapping e to an expanded #'f, #'x, #'y, or #'z.
+; Let's call those expanded syntaxes #'f^, #'x^, #'y^, #'z^
+; Finally, we need to merge those sub-environments back into the same shape as the original
+; so we end up with e mapped to (list #'f^ #'x^ #'y^ #'z^).
+
 ; exp-state? (listof symbol?) -> (listof exp-state?)
+; split an environment mapping pvars to lists into a list of environments mapping pvars to list elements.
 (define (exp-state-split/ellipsis st pvars)
   (match st
     [(exp-state pvar-vals nest-state)
@@ -395,6 +408,18 @@
 (module+ test
   (check-equal? (env-repetition-length (hash 'a '(1 2 3) 'b '(4 5 6)))
                 3))
+
+; exp-state? (listof symbol?) (listof exp-state?) -> exp-state?
+; merge expanded sub-environments into the original environment.
+; st is original state.
+; sts^ is a list of states from sub-expansions of each ellipsis repetition.
+; pvs is the pvars referenced in the ellipsized binding spec.
+(define (st-merge/ellipses st pvs sts^)
+  ; can maintain st's nest state because nested will never occur inside ellipses,
+  ; so nest state will not have changed in any of the sub-expansions.
+  (for/fold ([st st])
+            ([pv pvs])
+    (set-pvar st pv (for/list ([st^ sts^]) (hash-ref (exp-state-pvar-vals st^) pv)))))
 
 ;; When entering a `nest-one` or `nest` form, add an extra scope. This means that the
 ;; expansion within is in a new definition context with a scope distinguishing it from
