@@ -61,7 +61,7 @@
 (struct rename-bind [pvar space] #:transparent)
 (struct bind [pvar space bvalc] #:transparent)
 (struct bind-syntax [pvar space bvalc transformer-pvar] #:transparent)
-(struct bind-syntaxes [depth pvar space bvalc transformer-pvar] #:transparent)
+(struct bind-syntaxes [pvar space bvalc transformer-pvar] #:transparent)
 (struct scope [spec] #:transparent)
 (struct group [specs] #:transparent)
 (struct nest [pvar nonterm spec] #:transparent)
@@ -233,9 +233,7 @@
        (define scoped-transformer-stx (add-scopes transformer-stx local-scopes))
        (let ([bound-id (bind-and-record-rename! (add-scopes id local-scopes) #`(#,constr-id #,(flip-intro-scope scoped-transformer-stx)) space)])
          (values scoped-transformer-stx bound-id)))]
-    [(bind-syntaxes depth pv space constr-id transformer-pv)
-     (unless (= 1 depth)
-       (error "don't know how to handle depth > 1 yet"))
+    [(bind-syntaxes pv space constr-id transformer-pv)
      (for/pv-state-tree ([transformer-stx transformer-pv] [ids pv])
        (when DEBUG-RENAME
          (displayln 'bind-syntaxes)

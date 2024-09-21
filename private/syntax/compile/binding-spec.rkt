@@ -598,7 +598,7 @@
     [(bind-syntax _ (pvar v (extclass-rep constr _ _ space)) (pvar v-transformer _))
      #`(group (list (bind-syntax '#,v '#,space #'#,constr '#,v-transformer) (rename-bind '#,v '#,space)))]
     [(bind-syntaxes _ depth (pvar v (extclass-rep constr _ _ space)) (pvar v-transformer _))
-     #`(group (list (bind-syntaxes #,depth '#,v '#,space #'#,constr '#,v-transformer) (rename-bind '#,v '#,space)))]
+     #`(group (list (bind-syntaxes '#,v '#,space #'#,constr '#,v-transformer) (rename-bind '#,v '#,space)))]
     [(recs ss)
      (match ss
        [(list (rec _ _ pvs) ...)
@@ -664,7 +664,7 @@
     [(export-syntax _ (pvar v (extclass-rep constr _ _ space)) (pvar v-transformer _))
      #`(group (list (bind-syntax '#,v '#,space #'#,constr '#,v-transformer) (rename-bind '#,v '#,space)))]
     [(export-syntaxes _ depth (pvar v (extclass-rep constr _ _ space)) (pvar v-transformer _))
-     #`(group (list (bind-syntaxes #,depth '#,v '#,space #'#,constr '#,v-transformer) (rename-bind '#,v '#,space)))]
+     #`(group (list (bind-syntaxes '#,v '#,space #'#,constr '#,v-transformer) (rename-bind '#,v '#,space)))]
     [(re-export _ pv)
      (match-define (pvar v (nonterm-rep (exporting-nonterm-info pass1-expander _))) pv)
      #`(subexp '#,v #,pass1-expander)]
