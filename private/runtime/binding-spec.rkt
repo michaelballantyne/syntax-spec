@@ -75,8 +75,10 @@
 ;; Expansion
 ;;
 
+; A NestState is one of
+;; #f, nest-call, or nest-ret
+
 ;; pvar-vals is (hashof symbol? (treeof syntax?))
-;; nest-state is #f, nest-call, or nest-ret
 (struct exp-state [pvar-vals nest-state])
 
 ;; Helpers for accessing and updating parts of the exp-state
@@ -85,7 +87,7 @@
 (define (get-pvar st pv)
   (hash-ref (exp-state-pvar-vals st) pv))
 
-; exp-state? symbol? (treeof syntax?) -> (treeof syntax?)
+; exp-state? symbol? (treeof syntax?) -> exp-state?
 (define (set-pvar st pv val)
   (struct-copy
    exp-state st
@@ -107,7 +109,7 @@
    exp-state st
    [pvar-vals env^]))
 
-; exp-state? ((or/c #f nest-call? nest-ret?) -> (or/c #f nest-call? nest-ret?)) -> exp-state?
+; exp-state? (NestState -> NestState) -> exp-state?
 (define (update-nest-state st f)
   (struct-copy
    exp-state st
