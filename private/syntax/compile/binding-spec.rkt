@@ -625,7 +625,7 @@
      (match info
        [(nonterm-rep (nesting-nonterm-info expander))
         (with-syntax ([spec-c (compile-bspec-term/single-pass spec)])
-          #`(nest #,depth '#,v #,expander spec-c))])]
+          #`(nest '#,v #,expander spec-c))])]
     [(nest-one _ (pvar v info) spec)
      (match info
        [(nonterm-rep (nesting-nonterm-info expander))

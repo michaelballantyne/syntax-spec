@@ -64,7 +64,7 @@
 (struct bind-syntaxes [depth pvar space bvalc transformer-pvar] #:transparent)
 (struct scope [spec] #:transparent)
 (struct group [specs] #:transparent)
-(struct nest [depth pvar nonterm spec] #:transparent)
+(struct nest [pvar nonterm spec] #:transparent)
 (struct nest-one [pvar nonterm spec] #:transparent)
 (struct nested [] #:transparent)
 (struct suspend [pvar] #:transparent)
@@ -280,22 +280,15 @@
                ([spec specs])
        (simple-expand-internal spec st local-scopes))]
     
-    [(nest depth pv f inner-spec)
-     (when (> depth 1)
-       (error "don't know how to handle depth > 1 yet"))
-
-     (define init-seq (if (= 0 depth)
-                          (list (get-pvar st pv))
-                          (get-pvar st pv)))
+    [(nest pv f inner-spec)
+     (define init-seq (get-pvar st pv))
 
      (define res
        (start-nest f init-seq st inner-spec local-scopes))
      
      (match-define (nest-ret done-seq st^) res)
      
-     (set-pvar st^ pv (if (= 0 depth)
-                          (car done-seq)
-                          done-seq))]
+     (set-pvar st^ pv done-seq)]
 
     ; TODO deprecate
     [(nest-one pv f inner-spec)
