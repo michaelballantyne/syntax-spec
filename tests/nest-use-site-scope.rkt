@@ -31,7 +31,7 @@
 (syntax-spec
   (nonterminal my-expr
     (block d:my-def ...)
-    #:binding (scope (import d ...)))
+    #:binding (scope [(import d) ...]))
  
   (nonterminal/exporting my-def
     ((~literal define-syntax) x:pat-macro e:expr)

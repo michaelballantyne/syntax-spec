@@ -22,7 +22,7 @@
 
   (host-interface/expression
     (block body:block-form ...)
-    #:binding (scope (import body ...))
+    #:binding (scope (import body) ...)
     #'(compile-block body ...)))
 
 (define-syntax compile-block

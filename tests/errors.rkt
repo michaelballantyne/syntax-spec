@@ -149,25 +149,6 @@
      #:binding (scope e (import d)))))
 
 (check-decl-error
- #rx"import cannot contain more than one ellipsis"
- (syntax-spec
-   (nonterminal/exporting decl
-     ())
-   (nonterminal expr
-     (m (d:decl ...) ...)
-     #:binding (import d ... ...))))
-
-(check-decl-error
- #rx"import cannot contain more than one ellipsis"
- (syntax-spec
-   (nonterminal/exporting decl
-     ())
-   (nonterminal expr
-     (m (d:decl ...) ...)
-     ; this one tests that we get the error even on [(import ...) ...] ~> (import ... ...)
-     #:binding [(import d ...) ...])))
-
-(check-decl-error
  #rx"nest cannot contain more than one ellipsis"
  (syntax-spec
    (nonterminal/nesting binding (nested)

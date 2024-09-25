@@ -36,7 +36,7 @@
     (rkt e:racket-expr (~datum :) t:type)
 
     (block d:typed-definition-or-expr ... e:typed-expr)
-    #:binding (scope (import d ...) e)
+    #:binding (scope (import d) ... e)
 
     ; rewrite for tagging applications
     (~> (fun arg ...)

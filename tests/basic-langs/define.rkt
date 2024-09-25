@@ -16,7 +16,7 @@
     (dsl-+ e1:expr e2:expr)
                
     (dsl-lambda (v:var ...) d:def-or-expr ...)
-    #:binding (scope (bind v) ... (scope (import d ...)))
+    #:binding (scope (bind v) ... (scope (import d) ...))
 
     (dsl-letrec-values ([(v:var ...) rhs:expr] ...) d:def-or-expr)
     #:binding (scope (bind v) ... ... rhs ... (scope (import d)))

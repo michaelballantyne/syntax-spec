@@ -10,7 +10,7 @@
 
   (host-interface/expression
     (machine #:initial-state s:state-name d:machine-decl ...)
-    #:binding (scope (import d ...) s)
+    #:binding (scope (import d) ... s)
     #'(compile-machine s d ...))
   
   (nonterminal/exporting machine-decl

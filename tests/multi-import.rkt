@@ -11,17 +11,22 @@
 
   (host-interface/expression
     (double-local ([d1:defn ...] [d2:defn ...]) body:racket-expr)
-    #:binding (scope (import d1 ...) (import d2 ...) body)
-    #'(compile-expr ([d1 ...] [d2 ...]) body)))
+    #:binding (scope (import d1) ... (import d2) ... body)
+    #'(compile-expr ([d1 ...] [d2 ...]) body))
+
+  (host-interface/expression
+    (many-local ([d:defn ...] ...) body:racket-expr)
+    ; this group is unnecessary, but we want to test the behavior of ellipsized groups with imports
+    #:binding (scope [[[[(import d)]] ...] ...] body)
+    #'(compile-expr ([d ...] ...) body)))
 
 (define-syntax compile-expr
   (syntax-parser
     #:literals (define)
-    [(_ ([(define x1 e1) ...] [(define x2 e2) ...]) body)
+    [(_ ([(define x e1) ...] ...) body)
      #'(let ()
-         (define x1 e1)
+         (define x e1)
          ...
-         (define x2 e2)
          ...
          body)]))
 

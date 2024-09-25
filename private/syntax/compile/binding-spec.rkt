@@ -33,17 +33,20 @@
   (check-ellipsis-depth bspec-elaborated)
   (define bspec-with-implicits (add-implicit-pvar-refs bspec-elaborated bound-pvars))
   (define bspec-flattened (bspec-flatten-groups bspec-with-implicits))
-  (define bspec-combined-recs (bspec-combine-recs bspec-flattened))
+  ; might need to re-flatten after distributing
+  (define bspec-distributed-ellipses (bspec-flatten-groups (bspec-distribute-ellipses bspec-flattened)))
+  (define bspec-absorbed-ellipses (bspec-absorb-ellipses-into-imports bspec-distributed-ellipses))
+  (define bspec-combined-imports (bspec-combine-imports bspec-absorbed-ellipses))
 
   (syntax-parse variant
     [(~or #:simple (#:nesting _))
-     (check-order/unscoped-expression bspec-combined-recs)
-     (compile-bspec-term/single-pass bspec-combined-recs)]
+     (check-order/unscoped-expression bspec-combined-imports)
+     (compile-bspec-term/single-pass bspec-combined-imports)]
     [#:pass1
-     (check-order/exporting bspec-combined-recs)
-     (compile-bspec-term/pass1 bspec-combined-recs)]
+     (check-order/exporting bspec-combined-imports)
+     (compile-bspec-term/pass1 bspec-combined-imports)]
     [#:pass2
-     #`(fresh-env-expr-ctx #,(compile-bspec-term/pass2 bspec-combined-recs))]))
+     #`(fresh-env-expr-ctx #,(compile-bspec-term/pass2 bspec-combined-imports))]))
 
 ;; Elaborated representation; variables are associated with expander-environment information
 
@@ -56,10 +59,10 @@
 (struct bind with-stx [pvar] #:transparent)
 (struct bind-syntax with-stx [pvar transformer-pvar] #:transparent)
 (struct bind-syntaxes with-stx [depth pvar transformer-pvar] #:transparent)
-(struct rec with-stx [depth pvar] #:transparent)
-; no surface syntax, just a mechanism to combine recs
-; something like [(import x) (import y)] ~> (recs (list (rec x) (rec y)))
-(struct recs [specs] #:transparent)
+(struct import with-stx [pvar] #:transparent)
+; no surface syntax, just a mechanism to combine imports
+; something like [(import x) (import y)] ~> (imports (list (import x) (import y)))
+(struct imports [specs] #:transparent)
 (struct re-export with-stx [pvar] #:transparent)
 (struct export with-stx [pvar] #:transparent)
 (struct export-syntax with-stx [pvar transformer-pvar] #:transparent)
@@ -92,9 +95,9 @@
     [(group ss)
      (let ([ss^ (map (lambda (s) (map-bspec f s)) ss)])
        (f (group ss^)))]
-    [(recs ss)
+    [(imports ss)
      (let ([ss^ (map (lambda (s) (map-bspec f s)) ss)])
-       (f (recs ss^)))]
+       (f (imports ss^)))]
     [(ellipsis stx s)
      (f (ellipsis stx (map-bspec f s)))]
     [_ (f spec)]))
@@ -109,7 +112,7 @@
          (s* ellipsis [spec s]))
      (let ([s^ (fold-bspec f s)])
        (f spec (list s^)))]
-    [(or (recs ss) (group ss))
+    [(or (imports ss) (group ss))
      (let ([ss^ (map (lambda (s) (fold-bspec f s)) ss)])
        (f spec ss^))]
     [_ (f spec '())]))
@@ -149,13 +152,9 @@
       (elaborate-pvar (attribute v-transformer)
                       (? stxclass-rep?)
                       "syntax class"))]
-    [(import ~! v:nonref-id (~and ooo (~literal ...)) ...)
-     (define depth (length (attribute ooo)))
-     (when (> depth 1)
-       (wrong-syntax/orig this-syntax "import cannot contain more than one ellipsis"))
-     (rec
+    [(import ~! v:nonref-id)
+     (import
       this-syntax
-      (length (attribute ooo))
       (elaborate-pvar (attribute v)
                       (s* nonterm-rep [variant-info (s* exporting-nonterm-info)])
                       "exporting nonterminal"))]
@@ -224,10 +223,6 @@
 (define elaborate-group
   (syntax-parser
     #:datum-literals (import)
-    [((import v:id (~and ooo/inside (~literal ...)) ...) (~and ooo/outside (~literal ...)) ... . specs)
-     ; move ellipses outside of import into the import
-     (cons (elaborate-bspec #'(import v ooo/inside ... ooo/outside ...))
-           (elaborate-group (attribute specs)))]
     [(spec (~and ooo (~literal ...)) ... . specs)
      ; however many ellipses follow the pattern, wrap the elaborated spec with
      ; the ellipses struct that many times.
@@ -305,9 +300,9 @@
            (bind-syntaxes stx v-depth (pvar v _) (pvar tv _)))
        (check-ellipsis-depth/pvar (+ v-depth depth) v stx)
        (check-ellipsis-depth/pvar depth tv stx)]
-      [(rec stx rec-depth (pvar v _))
-       (check-ellipsis-depth/pvar (+ rec-depth depth) v stx)]
-      [(or (group ss) (recs ss))
+      [(import stx (pvar v _))
+       (check-ellipsis-depth/pvar depth v stx)]
+      [(or (group ss) (imports ss))
        (for ([s ss])
          (loop s depth))]
       [(nest stx nest-depth (pvar v _) s)
@@ -352,7 +347,7 @@
               (s* nest [pvar (pvar v _)])
               (s* nest-one [pvar (pvar v _)])
               (s* suspend [pvar (pvar v _)])
-              (s* rec [pvar (pvar v _)])
+              (s* import [pvar (pvar v _)])
               (s* re-export [pvar (pvar v _)]))
           (list v)]
          [(or (s* bind-syntax [pvar (pvar v1 _)] [transformer-pvar (pvar v2 _)])
@@ -370,6 +365,7 @@
   (map-bspec
    (lambda (spec)
      (match spec
+       [(group (list spec)) spec]
        [(group l) (group (append* (map flat-bspec-top-elements l)))] 
        [_ spec]))
    bspec))
@@ -379,16 +375,39 @@
     [(group l) l]
     [_ (list el)]))
 
-; combine consecutive recs in a group
-(define (bspec-combine-recs bspec)
+; convert ([a b c] ...) to [a ... b ... c ...]
+(define (bspec-distribute-ellipses bspec)
   (map-bspec
    (lambda (spec)
      (match spec
+       [(ellipsis stx (group specs))
+        (group (for/list ([spec specs]) (ellipsis stx spec)))]
+       [_ spec]))
+   bspec))
+
+; convert ((import x) ...) to (import x)
+; only do this after checking ellipses since it erases them
+(define (bspec-absorb-ellipses-into-imports bspec)
+  (map-bspec
+   (lambda (spec)
+     (match spec
+       [(ellipsis _ (import stx pv))
+        (import stx pv)]
+       [_ spec]))
+   bspec))
+
+; combine consecutive imports in a group
+(define (bspec-combine-imports bspec)
+  (map-bspec
+   (lambda (spec)
+     (match spec
+       [(scope stx (and imp (s* import)))
+        (scope stx (imports (list imp)))]
        [(group l)
         (group (let loop ([l l])
                  (match l
-                   [(list (and rs (s* rec)) ..1 ss ...)
-                    (cons (recs rs) (loop ss))]
+                   [(list (and imps (s* import)) ..1 ss ...)
+                    (cons (imports imps) (loop ss))]
                    [(cons s ss)
                     (cons s (loop ss))]
                    [(list) (list)])))]
@@ -405,9 +424,9 @@
 ;       - (scope (nest a [(bind x) x)])) shouldn't be legal as it would imply binding
 ;         in a scope created by the nesting non-terminal, and the binding might
 ;         come after a reference created in the nesting non-terminal.
-;   - Bindings should come before rec and references within a scope
+;   - Bindings should come before import and references within a scope
 ;   - Exports may only occur at the top-level of a exporting non-terminal,
-;     and appear before rec and references
+;     and appear before import and references
 ;   - Imports can appear after bindings and before
 ;     references.
 ;
@@ -430,7 +449,7 @@
 ; exporting-spec: (seq (* (or (export _) (export-syntax _ _) (export-syntaxes _ _))) (* (re-export _)) refs+subexps)
 ; unscoped-spec: refs+subexps
 ; refs+subexps: (* (or (ref _) (nest _ unscoped-spec) (nest-one _ unscoped-spec) (scope scoped-spec)))
-; scoped-spec:   (seq (* (or (bind-syntax _ _) (bind-syntaxes _ _) (bind _))) (? (recs _)) refs+subexps)
+; scoped-spec:   (seq (* (or (bind-syntax _ _) (bind-syntaxes _ _) (bind _))) (? (imports _)) refs+subexps)
 ;
 ; The implementation below separately implements refs+subexps for each context in which it occurs to
 ; provide specific error messages.
@@ -462,10 +481,10 @@
       [(or (s* ref) (s* suspend)) (void)]
       [(and (or (s* bind) (s* bind-syntax) (s* bind-syntaxes)) (with-stx stx))
        (binding-scope-error stx)]
-      [(or (and (s* rec) (with-stx stx))
-           (recs (cons (and (s* rec) (with-stx stx)) _)))
+      [(or (and (s* import) (with-stx stx))
+           (imports (cons (and (s* import) (with-stx stx)) _)))
        (wrong-syntax/orig stx "import binding groups must occur within a scope")]
-      [(recs (list))
+      [(imports (list))
        ; impossible
        (void)]
       [(and (or (s* export) (s* export-syntax) (s* export-syntaxes)) (with-stx stx))
@@ -492,9 +511,9 @@
        (export-context-error stx)]
       [(and (s* re-export) (with-stx stx))
        (re-export-context-error stx)]
-      [(s* rec)
+      [(s* import)
        (check-sequence refs+subexps specs)]
-      [(s* recs)
+      [(s* imports)
        (check-sequence refs+subexps specs)]
       [_ (check-sequence refs+subexps (cons spec specs))]))
 
@@ -508,10 +527,10 @@
        (export-context-error stx)]
       [(and (s* re-export) (with-stx stx))
        (re-export-context-error stx)]
-      [(or (and (s* rec) (with-stx stx))
-           (recs (cons (and (s* rec) (with-stx stx)) _)))
+      [(or (and (s* import) (with-stx stx))
+           (imports (cons (and (s* import) (with-stx stx)) _)))
        (wrong-syntax/orig stx "an import binding group must appear before references and subexpressions")]
-      [(recs (list))
+      [(imports (list))
        ; impossible
        (void)]
       [(or (s* ref) (s* suspend))
@@ -554,10 +573,10 @@
        (wrong-syntax/orig stx "exports must appear first in a exporting spec")]
       [(and (s* re-export) (with-stx stx))
        (wrong-syntax/orig stx "re-exports must occur before references and subexpressions")]
-      [(or (and (s* rec) (with-stx stx))
-           (recs (cons (and (s* rec) (with-stx stx)) _)))
+      [(or (and (s* import) (with-stx stx))
+           (imports (cons (and (s* import) (with-stx stx)) _)))
        (wrong-syntax/orig stx "import must occur within a scope")]
-      [(recs (list))
+      [(imports (list))
        ; impossible
        (void)]
       [(or (s* ref) (s* suspend))
@@ -599,9 +618,9 @@
      #`(group (list (bind-syntax '#,v '#,space #'#,constr '#,v-transformer) (rename-bind '#,v '#,space)))]
     [(bind-syntaxes _ depth (pvar v (extclass-rep constr _ _ space)) (pvar v-transformer _))
      #`(group (list (bind-syntaxes '#,v '#,space #'#,constr '#,v-transformer) (rename-bind '#,v '#,space)))]
-    [(recs ss)
+    [(imports ss)
      (match ss
-       [(list (rec _ _ pvs) ...)
+       [(list (import _ pvs) ...)
         (define/syntax-parse (s-cp1 ...)
           (for/list ([pv pvs])
             (match pv
@@ -614,9 +633,9 @@
                ;; avoid adding the local-scopes to syntax moved in by first pass expansion
                #`(subexp/no-scope '#,v #,pass2-expander)])))
         #'(group (list s-cp1 ... s-cp2 ...))]
-       [_ (error "unexpected specs in recs")])]
-    [(rec _ _ _)
-     (error "shouldn't encounter rec")]
+       [_ (error "unexpected specs in imports")])]
+    [(import _ _)
+     (error "shouldn't encounter import")]
     [(or (s* export) (s* export-syntax) (s* export-syntaxes))
      (invariant-error 'compile-bspec-term/single-pass)]
     [(re-export _ (pvar v _))
