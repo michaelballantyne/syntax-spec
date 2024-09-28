@@ -420,6 +420,44 @@ Similar to syntax patterns and templates, syntax specs and binding specs have a 
 }
 ]
 
+There are several other constraints on binding specs:
+
+@itemlist[
+@item{
+  Specs of different categories cannot occur within the same ellipsis. The categories of specs are:
+  @itemlist[
+    @item{
+      @racket[refs+subexps] include references, @racket[nest], and @racket[scope].
+    }
+    @item{
+      @racket[binds] include @racket[bind], @racket[bind-syntax], and @racket[bind-syntaxes].
+    }
+    @item{
+      @racket[imports] include @racket[import].
+    }
+    @item{
+      @racket[exports] include @racket[export], @racket[export-syntax], @racket[export-syntaxes], and @racket[re-export].
+    }
+  ]
+  For example, the spec @racket[(scope [(bind x) e] ...)] is illegal since it mixes @racket[refs+subexps] and @racket[binds] in an ellipsis.
+}
+@item{
+  @racket[binds] and @racket[imports] can only occur within a @racket[scope]
+}
+@item{
+  @racket[exports] cannot occur within a scope.
+}
+@item{
+  Within a scope, there can be zero or more @racket[binds], followed by zero or more @racket[imports], followed by zero or more @racket[refs+subexps].
+}
+@item{
+  The second argument to nest must be @racket[refs+subexps].
+}
+@item{
+  Spec variables can be used at most once. For example, @racket[(scope (bind x) e e)] is illegal.
+}
+]
+
 @section{Host interface forms}
 
 Host interface forms are the entry point to the DSL from the host language. They often invoke a compiler macro to translate
