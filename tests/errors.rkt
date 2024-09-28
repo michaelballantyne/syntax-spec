@@ -158,6 +158,18 @@
      ; this one tests that we get the error even on [(import ...) ...] ~> (import ... ...)
      #:binding (nest d ... ... []))))
 
+
+(check-decl-error
+ #rx"cannot mix different binding spec categories inside of ellipses"
+ (syntax-spec
+   (nonterminal my-expr
+     (my-letrec ([x:racket-var e:racket-expr] ...) body:racket-expr)
+     #:binding (scope [(bind x) e] ... body))
+   (nonterminal expr
+     (m (b:binding ...) ...)
+     ; this one tests that we get the error even on [(import ...) ...] ~> (import ... ...)
+     #:binding (nest d ... ... []))))
+
 (check-decl-error
  #rx"exports must appear first in a exporting spec"
  (syntax-spec

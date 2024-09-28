@@ -31,6 +31,7 @@
   (define bspec-elaborated (elaborate-bspec bspec-stx))
   (check-affine-pvar-use! bspec-elaborated)
   (check-ellipsis-depth bspec-elaborated)
+  (check-ellipsis-homogeneity! bspec-elaborated)
   (define bspec-with-implicits (add-implicit-pvar-refs bspec-elaborated bound-pvars))
   (define bspec-flattened (bspec-flatten-groups bspec-with-implicits))
   ; might need to re-flatten after distributing
@@ -323,6 +324,75 @@
      (wrong-syntax/orig v "too many ellipses for pattern variable in binding spec")]
     [(< bs-depth ss-depth)
      (wrong-syntax/orig v "missing ellipses with pattern variable in binding spec")]))
+
+; makes sure you don't mix categories like refs+subexps and binds in the same ellipsis
+(define (check-ellipsis-homogeneity! bspec)
+  (map-bspec
+   (lambda (bspec)
+     (match bspec
+       [(ellipsis stx spec)
+        (define ref+subexp (find-immediate-ref+subexp spec))
+        (define bind (find-immediate-bind spec))
+        (define import (find-immediate-import spec))
+        (define export (find-immediate-export spec))
+        (define representatives (filter values (list ref+subexp bind import export)))
+        (when (< 1 (length representatives))
+            (wrong-syntax/orig stx "cannot mix different binding spec categories inside of ellipses"))
+        bspec]
+       [_ bspec]))
+   bspec))
+
+; BSpec -> (or/c #f BSpec)
+; finds a ref or a subexp. doesn't recur into scopes
+(define (find-immediate-ref+subexp bspec)
+  (match bspec
+    [(or (s* ref)
+         (s* scope)
+         (s* nest)
+         (s* nest-one))
+     bspec]
+    [(group specs)
+     (findf find-immediate-ref+subexp specs)]
+    [(ellipsis _ spec) (find-immediate-ref+subexp spec)]
+    [_ #f]))
+
+; BSpec -> (or/c #f BSpec)
+; finds a bind. doesn't recur into scopes
+(define (find-immediate-bind bspec)
+  (match bspec
+    [(or (s* bind)
+         (s* bind-syntax)
+         (s* bind-syntaxes))
+     bspec]
+    [(group specs)
+     (findf find-immediate-bind specs)]
+    [(ellipsis _ spec) (find-immediate-bind spec)]
+    [_ #f]))
+
+; BSpec -> (or/c #f BSpec)
+; finds an import. doesn't recur into scopes
+(define (find-immediate-import bspec)
+  (match bspec
+    [(or (s* import)
+         (s* imports))
+     bspec]
+    [(group specs)
+     (findf find-immediate-import specs)]
+    [(ellipsis _ spec) (find-immediate-import spec)]
+    [_ #f]))
+
+; BSpec -> (or/c #f BSpec)
+; finds an export. doesn't recur into scopes
+(define (find-immediate-export bspec)
+  (match bspec
+    [(or (s* export)
+         (s* export-syntax)
+         (s* export-syntaxes))
+     bspec]
+    [(group specs)
+     (findf find-immediate-export specs)]
+    [(ellipsis _ spec) (find-immediate-export spec)]
+    [_ #f]))
 
 ;; Infer implicit pvar refs
 
