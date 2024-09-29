@@ -550,6 +550,10 @@
     (match spec
       [(s* ellipsis [spec s])
        (bindings s specs)]
+      [(group (cons group-spec group-specs))
+       ; inline flatten
+       (bindings group-spec (append group-specs specs))]
+      [(group (list)) (check-sequence bindings specs)]
       [(or (s* bind) (s* bind-syntax) (s* bind-syntaxes))
        (check-sequence bindings specs)]
       [(and (or (s* export) (s* export-syntax) (s* export-syntaxes)) (with-stx stx))
@@ -566,6 +570,10 @@
     (match spec
       [(s* ellipsis [spec s])
        (refs+subexps s specs)]
+      [(group (cons group-spec group-specs))
+       ; inline flatten
+       (refs+subexps group-spec (append group-specs specs))]
+      [(group (list)) (check-sequence refs+subexps specs)]
       [(and (or (s* bind) (s* bind-syntax) (s* bind-syntaxes)) (with-stx stx))
        (wrong-syntax/orig stx "bindings must appear first within a scope")]
       [(and (or (s* export) (s* export-syntax) (s* export-syntaxes)) (with-stx stx))
@@ -595,6 +603,10 @@
     (match spec
       [(s* ellipsis [spec s])
        (exports s specs)]
+      [(group (cons group-spec group-specs))
+       ; inline flatten
+       (exports group-spec (append group-specs specs))]
+      [(group (list)) (check-sequence exports specs)]
       [(or (s* export) (s* export-syntax) (s* export-syntaxes))
        (check-sequence exports specs)]
       [_ (check-sequence re-exports (cons spec specs))]))
@@ -603,6 +615,10 @@
     (match spec
       [(s* ellipsis [spec s])
        (re-exports s specs)]
+      [(group (cons group-spec group-specs))
+       ; inline flatten
+       (re-exports group-spec (append group-specs specs))]
+      [(group (list)) (check-sequence re-exports specs)]
       [(s* re-export)
        (check-sequence re-exports specs)]
       [_
@@ -612,6 +628,10 @@
     (match spec
       [(s* ellipsis [spec s])
        (refs+subexps s specs)]
+      [(group (cons group-spec group-specs))
+       ; inline flatten
+       (refs+subexps group-spec (append group-specs specs))]
+      [(group (list)) (check-sequence refs+subexps specs)]
       [(and (or (s* bind) (s* bind-syntax) (s* bind-syntaxes)) (with-stx stx))
        (binding-scope-error stx)]
       [(and (or (s* export) (s* export-syntax) (s* export-syntaxes)) (with-stx stx))
