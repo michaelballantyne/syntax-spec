@@ -33,8 +33,7 @@
   (check-ellipsis-depth! bspec-elaborated)
   (check-ellipsis-homogeneity! bspec-elaborated)
   (define bspec-with-implicits (add-implicit-pvar-refs bspec-elaborated bound-pvars))
-  (define bspec-flattened (bspec-flatten-groups bspec-with-implicits))
-  (define bspec-combined-imports (bspec-combine-imports bspec-flattened))
+  (define bspec-combined-imports (bspec-combine-imports bspec-with-implicits))
 
   (syntax-parse variant
     [(~or #:simple (#:nesting _))
@@ -428,16 +427,6 @@
      (append* node-vars children))
    spec))
 
-;; Flatten groups for easier order analysis
-
-(define (bspec-flatten-groups bspec)
-  (map-bspec
-   (lambda (spec)
-     (match spec
-       [(group l) (group (append* (map flat-bspec-top-elements l)))]
-       [_ spec]))
-   bspec))
-
 (define (flat-bspec-top-elements el)
   (match el
     [(group l) l]
@@ -551,7 +540,6 @@
       [(s* ellipsis [spec s])
        (bindings s specs)]
       [(group (cons group-spec group-specs))
-       ; inline flatten
        (bindings group-spec (append group-specs specs))]
       [(group (list)) (check-sequence bindings specs)]
       [(or (s* bind) (s* bind-syntax) (s* bind-syntaxes))
@@ -604,7 +592,6 @@
       [(s* ellipsis [spec s])
        (exports s specs)]
       [(group (cons group-spec group-specs))
-       ; inline flatten
        (exports group-spec (append group-specs specs))]
       [(group (list)) (check-sequence exports specs)]
       [(or (s* export) (s* export-syntax) (s* export-syntaxes))
@@ -616,7 +603,6 @@
       [(s* ellipsis [spec s])
        (re-exports s specs)]
       [(group (cons group-spec group-specs))
-       ; inline flatten
        (re-exports group-spec (append group-specs specs))]
       [(group (list)) (check-sequence re-exports specs)]
       [(s* re-export)
@@ -629,7 +615,6 @@
       [(s* ellipsis [spec s])
        (refs+subexps s specs)]
       [(group (cons group-spec group-specs))
-       ; inline flatten
        (refs+subexps group-spec (append group-specs specs))]
       [(group (list)) (check-sequence refs+subexps specs)]
       [(and (or (s* bind) (s* bind-syntax) (s* bind-syntaxes)) (with-stx stx))
