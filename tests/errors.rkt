@@ -103,7 +103,7 @@
 
 
 (check-decl-error
- #rx"nonterminal: exports may only occur at the top-level of a exporting binding spec"
+ #rx"nonterminal: exports may only occur at the top-level of an exporting binding spec"
  (syntax-spec
    (binding-class var #:description "var")
    (nonterminal expr
