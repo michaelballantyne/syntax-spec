@@ -223,6 +223,13 @@
      (foo a:racket-var)
      #:binding [a ...])))
 
+(check-decl-error
+ #rx"nonterminal/nesting: too many ellipses for pattern variable in binding spec"
+ (syntax-spec
+   (nonterminal/nesting expr (nested)
+     (foo a:racket-var)
+     #:binding (scope (bind a) nested ...))))
+
 ;;
 ;; Valid definitions used to exercise errors
 ;;
