@@ -26,7 +26,7 @@ You might find the metalanguage useful when you both:
 
 @itemlist[
  @item{want to perform static analysis or optimizing compilation}
- @item{you want your DSL to be macro-extensible}
+ @item{want your DSL to be macro-extensible}
 ]
 
 @local-table-of-contents[]
