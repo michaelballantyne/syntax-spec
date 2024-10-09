@@ -33,7 +33,8 @@
   (check-ellipsis-depth! bspec-elaborated)
   (check-ellipsis-homogeneity! bspec-elaborated)
   (define bspec-with-implicits (add-implicit-pvar-refs bspec-elaborated bound-pvars))
-  (define bspec-combined-imports (bspec-combine-imports bspec-with-implicits))
+  (define bspec-flattened (bspec-flatten-groups bspec-with-implicits))
+  (define bspec-combined-imports (bspec-combine-imports bspec-flattened))
 
   (syntax-parse variant
     [(~or #:simple (#:nesting _))
@@ -428,6 +429,16 @@
      (append* node-vars children))
    spec))
 
+;; Flatten groups for easier order analysis
+
+(define (bspec-flatten-groups bspec)
+  (map-bspec
+   (lambda (spec)
+     (match spec
+       [(group stx l) (group stx (append* (map flat-bspec-top-elements l)))]
+       [_ spec]))
+   bspec))
+
 (define (flat-bspec-top-elements el)
   (match el
     [(group _ l) l]
@@ -551,9 +562,8 @@
        (export-context-error stx)]
       [(and (s* re-export) (with-stx stx))
        (re-export-context-error stx)]
-      [(s* import)
-       (check-sequence refs+subexps specs)]
-      [(s* imports)
+      [(or (s* import) (s* imports))
+      ; assumes imports only contains imports, groups, and ellipses of imports by now
        (check-sequence refs+subexps specs)]
       [_ (check-sequence refs+subexps (cons spec specs))]))
 
@@ -572,7 +582,7 @@
       [(and (s* re-export) (with-stx stx))
        (re-export-context-error stx)]
       [(or (and (s* import) (with-stx stx))
-           (imports _ (cons (and (s* import) (with-stx stx)) _)))
+           (imports _ (cons (with-stx stx) _)))
        (wrong-syntax/orig stx "an import binding group must appear before references and subexpressions")]
       [(imports _ (list))
        ; impossible

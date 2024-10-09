@@ -9,6 +9,8 @@
   (nonterminal my-expr
     (my-let ([x:racket-var e:racket-expr] ...) body:racket-expr ...)
     #:binding [[e] ... (scope [(bind x)] ... [body] ...)]
+    (my-weird-let (d1:my-exporting ...) (d2:my-exporting ...) ([x:racket-var e:racket-expr] ...) b:racket-expr)
+    #:binding (scope [(bind x) ... (import d2) ...] (import d1) ...)
     (my-imporing d:my-exporting ...)
     #:binding (scope [(import d)] ...))
  (nonterminal/exporting my-exporting
