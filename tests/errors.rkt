@@ -130,6 +130,17 @@
      #:binding (import d))))
 
 (check-decl-error
+ #rx"nonterminal: import binding groups must occur within a scope"
+ (syntax-spec
+   (binding-class var #:description "var")
+   (nonterminal/exporting def
+     (define x:var e:expr)
+     #:binding [(export x) e])
+   (nonterminal expr
+     (block d:def)
+     #:binding [(import d)])))
+
+(check-decl-error
  #rx"nonterminal: bindings must appear first within a scope"
  (syntax-spec
    (binding-class var)
