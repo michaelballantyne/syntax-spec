@@ -154,8 +154,9 @@ First, let's declare that the arguments to an action are in scope in the guard e
       (on (event-name:id arg:event-var ...)
         action:action-spec
         ...
-        ((~datum goto) next-state:id)))
-    #:binding (scope (bind arg) body)
+        ((~datum goto) next-state:id))
+      #:binding (scope (bind arg) ... action ...))
+
 
     (nonterminal action-spec
       ((~datum displayln) x:event-var))))
@@ -169,12 +170,16 @@ These simple binding rules behave like @racket[let]:
   (binding-class my-var)
   (nonterminal my-expr
     (my-let ([x:my-var e:my-expr] ...) body:my-expr)
-    #:binding [e (scope (bind x) body)]
+    #:binding [e ... (scope (bind x) ... body)]
     x:my-var
     n:number))
 ]
 
-We could've just written @racket[(scope (bind x) body)]. syntax-spec will automatically treat @racket[e] as a reference position outside of the new scope. That's why we don't have to mention @racket[event-name] in the binding rules for transitions. Additionally, for @racket[action-spec] expressions, there is an implicit @racket[#:binding] rule generated that treats @racket[x] as a reference position.
+We could've just written @racket[(scope (bind x) ... body)]. syntax-spec will automatically treat @racket[e] as a reference position outside of the new scope. That's why we don't have to mention @racket[event-name] in the binding rules for transitions. Additionally, for @racket[action-spec] expressions, there is an implicit @racket[#:binding] rule generated that treats @racket[x] as a reference position.
+
+Notice that there are ellipses in the binding spec corresponding to the ellipses in the syntax spec. Like with syntax patterns and syntax templates, ellipses allow us to control the binding structure of syntax with sequences like @racket[[x:my-var e:my-expr] ...].
+
+All spec references in a binding spec must have the same depth as their syntax spec counterparts. This is stricter than syntax templates, where it is possible for a template variable to occur with greater ellipsis depth than its associated pattern variable.
 
 @subsection{Separate scope and binding forms}
 
@@ -186,7 +191,7 @@ Now let's add binding rules for state names. We can't just use @racket[scope] an
 @(racketblock
   (host-interface/expression
     (machine #:initial initial-state:state-name s:state-spec ...)
-    #:binding (scope (import s) initial-state)
+    #:binding (scope (import s) ... initial-state)
     (error 'machine "compiler not yet implemented"))
 
   (nonterminal/exporting state-spec
@@ -215,7 +220,7 @@ There is another type of binding rule that doesn't fit into our state machine la
     (binding-class my-var)
     (nonterminal my-expr
       (my-let* (b:binding-pair ...) body:my-expr)
-      #:binding (nest b body)
+      #:binding (nest b ... body)
       n:number
       x:my-var)
     (nonterminal/nesting binding-pair (nested)
@@ -227,6 +232,8 @@ We create a nesting nonterminal for a binding pair, which has @racket[nested], w
 The @deftech{scope tree} is a first-class representation of the binding structure of the program. It's not something that you explicitly work with, but it's useful to know about. Conceptually, syntax-spec uses your language's binding rules to construct this scope tree during expansion.
 
 From the simple nonterminal @racket[my-expr], we put the @racket[binding-pair]'s bindings in scope using @racket[nest], providing @racket[body] as the intial value of @racket[nested], like the base case value of @racket[foldr].
+
+Since we're folding over the sequence of @racket[b]s, the ellipses are inside of the @racket[nest].
 
 @section[#:tag "racket"]{Integrating Racket Subexpressions}
 
@@ -254,7 +261,7 @@ An action expression can only @racket[displayln] the value of a variable. What i
          body:racket-expr
          ...
          ((~datum goto) next-state-name:state-name))
-       #:binding (scope (bind arg) body))
+       #:binding (scope (bind arg) ... body))
 
      ...))
 
@@ -271,7 +278,7 @@ Now that we have our grammar and binding rules defined, we must write a compiler
   ...
   (host-interface/expression
     (machine #:initial initial-state:state-name s:state-spec ...)
-    #:binding (scope (import s) initial-state)
+    #:binding (scope (import s) ... initial-state)
     (error 'machine "compiler not yet implemented"))
   ...)
 ]
@@ -360,7 +367,7 @@ Now Let's start to write the compiler:
   ...
   (host-interface/expression
     (machine #:initial initial-state:state-name s:state-spec ...)
-    #:binding (scope (import s) initial-state)
+    #:binding (scope (import s) ... initial-state)
     #'(compile-machine initial-state s ...))
   ...)
 
@@ -475,7 +482,7 @@ In our language's compiler, we can use symbol set to raise an error when a state
   ...
   (host-interface/expression
     (machine #:initial initial-state:state-name s:state-spec ...)
-    #:binding (scope (import s) initial-state)
+    #:binding (scope (import s) ... initial-state)
     (check-for-inaccessible-states #'initial-state (attribute s))
     #'(compile-machine initial-state s ...))
   ...)

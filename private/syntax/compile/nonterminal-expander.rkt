@@ -49,7 +49,7 @@
        (syntax-parse (attribute variant)
          [(#:nesting nested-id:id)
           (with-scope sc
-            (define id^ (bind! (add-scope (attribute nested-id) sc) (pvar-rep (nested-binding))))
+            (define id^ (bind! (add-scope (attribute nested-id) sc) (pvar-rep (nested-binding) 0)))
             #`(wrap-hygiene
                (lambda (stx-a)
                  #,(generate-loop (add-scope #'(prod-arg ...) sc) id^ #'stx-a))

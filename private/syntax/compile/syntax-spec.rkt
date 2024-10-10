@@ -134,17 +134,17 @@
   (define res '())
 
   ;; records left-to-right
-  (let rec ([stx stx])
+  (let rec ([stx stx] [depth 0])
     (syntax-parse stx
       #:context 'extract-var-mapping
-      [(a . d)
-       (rec #'a)
-       (rec #'d)]
+      [(a (~and ooo (~or (~literal ...) (~literal ...+))) ... . d)
+       (rec #'a (+ depth (length (attribute ooo))))
+       (rec #'d depth)]
       [r:ref-id
        #:with c:special-syntax-class #'r.ref
        (when (member #'r.var res bound-identifier=?)
          (wrong-syntax/orig #'r.ref "duplicate pattern variable"))
-       (bind! #'r.var (pvar-rep (special-syntax-class-binding)))
+       (bind! #'r.var (pvar-rep (special-syntax-class-binding) depth))
        (set! res (cons #'r.var res))]
       [r:ref-id
        (define binding (lookup #'r.ref
@@ -157,7 +157,7 @@
          (wrong-syntax/orig #'r.ref "expected a reference to a binding class, extension class, syntax class, or nonterminal"))
        (when (member #'r.var res bound-identifier=?)
          (wrong-syntax/orig #'r.ref "duplicate pattern variable"))
-       (bind! #'r.var (pvar-rep binding))
+       (bind! #'r.var (pvar-rep binding depth))
        (set! res (cons #'r.var res))]
       [_ (void)]))
   

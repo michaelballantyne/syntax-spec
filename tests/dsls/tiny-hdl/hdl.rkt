@@ -23,7 +23,7 @@
     #:binding (export name)
 
     (architecture name:arch-name e:entity-name stmt:statement ...)
-    #:binding [(export name) (scope (import stmt))])
+    #:binding [(export name) (scope (import stmt) ...)])
   
   (nonterminal port-spec
     (m:mode name:id))
@@ -57,7 +57,7 @@
 
   (host-interface/definitions
     (begin-tiny-hdl t:top-item ...)
-    #:binding (re-export t)
+    #:binding [(re-export t) ...]
 
     (for ([t (attribute t)])
       (register-entities! t))

@@ -19,7 +19,7 @@
    #'(compile-expr/top e))
   (host-interface/definitions
    (stlc body:typed-definition-or-expr ...+)
-   #:binding (re-export body)
+   #:binding [(re-export body) ...]
    (type-check-defn-or-expr/pass1 #'(begin body ...))
    (type-check-defn-or-expr/pass2 #'(begin body ...))
    #'(compile-defn-or-expr (begin body ...))))

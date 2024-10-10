@@ -69,7 +69,7 @@
     (text e:text-expr)
 
     (=> ps:peg-seq e:racket-expr)
-    #:binding (nest-one ps e)
+    #:binding (nest ps e)
 
     (~> n:id #'(#%nonterm-ref n))
     (#%nonterm-ref n:nonterm))
@@ -85,34 +85,34 @@
     (~> p:ref-id #'(bind p.var p.ref))
 
     (bind v:var ps:peg-seq)
-    #:binding (nest-one ps (scope (bind v) tail))
+    #:binding (nest ps (scope (bind v) tail))
 
     (seq ps1:peg-seq ps2:peg-seq)
-    #:binding (nest-one ps1 (nest-one ps2 tail))
+    #:binding (nest ps1 (nest ps2 tail))
 
     (alt e1:peg e2:peg)
 
     (? e:peg-seq)
-    #:binding (nest-one e tail)
+    #:binding (nest e tail)
 
     (plain-alt e1:peg-seq e2:peg-seq)
-    #:binding (nest-one e1 (nest-one e2 tail))
+    #:binding (nest e1 (nest e2 tail))
 
     (* ps:peg-seq)
-    #:binding (nest-one ps tail)
+    #:binding (nest ps tail)
 
     (src-span v:var ps:peg-seq)
-    #:binding (scope (bind v) (nest-one ps tail))
+    #:binding (scope (bind v) (nest ps tail))
 
     pe:peg-el)
 
   (nonterminal peg
     ps:peg-seq
-    #:binding (nest-one ps []))
+    #:binding (nest ps []))
 
   (host-interface/definitions
    (define-pegs [name:nonterm p:peg] ...)
-   #:binding (export name)
+   #:binding [(export name) ...]
    (run-leftrec-check! (attribute name) (attribute p))
    #'(begin (define name (lambda (in) (with-reference-compilers ([var immutable-reference-compiler])
                                         (compile-peg p in))))

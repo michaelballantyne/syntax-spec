@@ -59,7 +59,7 @@
     #:allow-extension flag-macro
     ((~literal begin) f:flag ...+)
     [names:flag-names arg:arg-spec ... desc:string e:racket-expr]
-    #:binding (scope (import arg) e))
+    #:binding (scope (import arg) ... e))
 
   (nonterminal/exporting arg-spec
     (~> name:id #'[name identity/p])
@@ -78,7 +78,7 @@
      ([option-name:racket-var opt:option] ...)
      (arg:arg-spec ...)
      rest:maybe-arg-spec)
-   #:binding [(export option-name) (re-export arg rest)]
+   #:binding [(export option-name) ... (re-export arg) ... (re-export rest)]
    #:lhs [#:with ([arg-name _] ...) (attribute arg)
           #:attr rest-name (syntax-parse (attribute rest) [[rest-name _] #'rest-name] [_ #f])
           #'(option-name ... arg-name ... (~? rest-name))]

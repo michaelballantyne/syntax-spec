@@ -16,13 +16,13 @@
     (dsl-+ e1:expr e2:expr)
                
     (dsl-lambda (v:var ...) d:def-or-expr ...)
-    #:binding (scope (bind v) (scope (import d)))
+    #:binding (scope (bind v) ... (scope (import d) ...))
 
     (dsl-letrec-values ([(v:var ...) rhs:expr] ...) d:def-or-expr)
-    #:binding (scope (bind v) rhs (scope (import d)))
+    #:binding (scope (bind v) ... ... rhs ... (scope (import d)))
 
     (dsl-let* (b:binding ...) e:expr)
-    #:binding (nest b e)
+    #:binding (nest b ... e)
 
     (v:var e:expr ...))
 
@@ -37,10 +37,10 @@
     #:allow-extension dsl-macro
 
     (dsl-begin d:def-or-expr ...)
-    #:binding (re-export d)
+    #:binding [(re-export d) ...]
     
     (dsl-define-values (v:var ...) e:expr)
-    #:binding [(export v) e]
+    #:binding [(export v) ... e]
     
     e:expr))
 
@@ -55,6 +55,15 @@
 (check-equal?
  (expand-nonterminal/datum expr
    (dsl-lambda ()
+               (dsl-define f (f))
+               (f)))
+ '(dsl-lambda ()
+              (dsl-define-values (f) (f))
+              (f)))
+
+(check-equal?
+ (expand-nonterminal/datum expr
+   (dsl-lambda ()
                (dsl-define f (dsl-lambda (f) (f (g))))
                (dsl-begin
                 (dsl-define g (dsl-lambda () (f))))
@@ -64,7 +73,15 @@
               (dsl-begin
                (dsl-define-values (g) (dsl-lambda () (f))))
               (f)))
-   
+
+(check-equal?
+ (expand-nonterminal/datum expr
+   (dsl-letrec-values ([(a b c) (a b c d e f)]
+                       [(d e f) (a b c d e f)])
+     (a b c d e f)))
+ '(dsl-letrec-values ([(a b c) (a b c d e f)]
+                       [(d e f) (a b c d e f)])
+     (a b c d e f)))
 
 (check-exn
  #rx"dsl-define-values: identifier already defined"

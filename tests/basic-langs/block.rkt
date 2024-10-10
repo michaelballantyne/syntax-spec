@@ -13,16 +13,16 @@
     #:allow-extension racket-macro
 
     ((~literal define-values) (x:racket-var ...) e:racket-expr)
-    #:binding (export x)
+    #:binding [(export x) ...]
 
     ((~literal define-syntaxes) (x:racket-macro ...) e:expr)
-    #:binding (export-syntaxes x e)
+    #:binding (export-syntaxes x ... e)
 
     e:racket-expr)
 
   (host-interface/expression
     (block body:block-form ...)
-    #:binding (scope (import body))
+    #:binding (scope (import body) ...)
     #'(compile-block body ...)))
 
 (define-syntax compile-block

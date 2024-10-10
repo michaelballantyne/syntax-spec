@@ -14,24 +14,24 @@
 
   (nonterminal machine-spec
     [#:initial initial-state:state-name s:machine-element-spec ...]
-    #:binding (scope (import s) initial-state))
+    #:binding (scope (import s) ... initial-state))
   
   (nonterminal/exporting machine-element-spec
     (data v:data-var e:expr)
     #:binding (export v)
 
     (state n:state-name #:nested-machine nm:machine-name e:event-spec ...)
-    #:binding [(export n) nm e]
+    #:binding [(export n) nm e ...]
     
     (state n:state-name e:event-spec ...)
-    #:binding [(export n) e])
+    #:binding [(export n) e ...])
 
   (nonterminal event-spec
     (on (evt:id arg:local-var ...) #:when guard:racket-expr b:action-spec ... t:transition-spec)
-    #:binding (scope (bind arg) guard b)
+    #:binding (scope (bind arg) ... guard b ...)
     
     (on (evt:id arg:local-var ...) b:action-spec ... t:transition-spec)
-    #:binding (scope (bind arg) b))
+    #:binding (scope (bind arg) ... b ...))
 
   (nonterminal/nesting binding (nested)    
     [v:local-var e:racket-expr]
@@ -39,7 +39,7 @@
   
   (nonterminal action-spec
     ((~literal let*) (b:binding ...) a:action-spec ...)
-    #:binding (nest b a)
+    #:binding (nest b ... [a ...])
     
     (set v:data-var e:racket-expr)
 

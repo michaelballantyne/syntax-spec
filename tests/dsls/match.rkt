@@ -23,7 +23,7 @@
     #:binding (scope (import p)))
   (nonterminal clause
     [p:pat body:racket-expr ...+]
-    #:binding (scope (import p) body))
+    #:binding (scope (import p) body ...))
   (host-interface/expression
     (match target:racket-expr c:clause ...)
     #'(with-reference-compilers ([pat-var immutable-reference-compiler])

@@ -28,11 +28,11 @@ Let's start out with defining the grammar and binding rules for basic typed expr
     n:number
 
     (#%lambda ([x:typed-var (~datum :) t:type] ...) body:typed-expr)
-    #:binding (scope (bind x) body)
+    #:binding (scope (bind x) ... body)
     (#%app fun:typed-expr arg:typed-expr ...)
 
     (#%let ([x:typed-var e:typed-expr] ...) body:typed-expr)
-    #:binding (scope (bind x) body)
+    #:binding (scope (bind x) ... body)
 
     (~> (e (~datum :) t)
         #'(: e t))
@@ -362,7 +362,7 @@ Next, let's add definitions to our language:
     ...
 
     (block d:typed-definition-or-expr ... e:typed-expr)
-    #:binding (scope (import d) e)
+    #:binding (scope (import d) ... e)
 
     ...)
 
@@ -374,14 +374,14 @@ Next, let's add definitions to our language:
     (#%define x:typed-var t:type e:typed-expr)
     #:binding (export x)
     (begin defn:typed-definition-or-expr ...+)
-    #:binding (re-export defn)
+    #:binding [(re-export defn) ...]
     e:typed-expr)
 
   ...
 
   (host-interface/definitions
    (stlc body:typed-definition-or-expr ...+)
-   #:binding (re-export body)
+   #:binding [(re-export body) ...]
    (type-check-defn-or-expr/pass1 #'(begin body ...))
    (type-check-defn-or-expr/pass2 #'(begin body ...))
    #'(compile-defn-or-expr/top (begin body ...))))
