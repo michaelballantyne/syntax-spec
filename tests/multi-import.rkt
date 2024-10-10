@@ -2,7 +2,8 @@
 
 ; testing the combining of multiple imports into a single import group
 
-(require "../testing.rkt")
+(require "../testing.rkt"
+         syntax/macro-testing)
 
 (syntax-spec
   (nonterminal/exporting defn
@@ -35,3 +36,67 @@
                 [(define even? (lambda (n) (or (zero? n) (odd? (sub1 n)))))])
                (odd? 3))
  #t)
+
+; another test
+
+(syntax-spec
+  (nonterminal/exporting def
+    #:allow-extension racket-macro
+    (mylet (d:def ...) (d2:def ...))
+    #:binding (scope (import d) ... (import d2) ...)
+    (mylet2 (d:def ...) (d2:def ...))
+    #:binding (scope [(import d) (import d2)] ...)
+
+    (mydef x:racket-var e:racket-expr)
+    #:binding (export x)
+
+    (mydefsyntax x:racket-macro e:expr)
+    #:binding (export-syntax x e)
+
+    (myexpr e:racket-expr))
+  (host-interface/expression
+    (mylang d:def)
+    #:binding (scope (import d))
+    #''d))
+
+(test-case "these expand"
+  (mylang
+   (mylet
+    [(myexpr 1)
+     (mydefsyntax mydef2 (syntax-rules () [(_ x e) (mydef x e)]))]
+    [(mydef2 x 5)
+     (myexpr 2)]))
+
+  (mylang
+   (mylet2
+    [(myexpr 2)
+     (mydef2 x 5)]
+    [(mydefsyntax mydef2 (syntax-rules () [(_ x e) (mydef x e)]))
+     (myexpr 1)]))
+
+  (void))
+
+(test-case "these don't expand"
+  (check-exn
+   #rx"expected def"
+   (lambda ()
+     (convert-compile-time-error
+      (mylang
+       (mylet2
+        [(myexpr 1)
+         (mydefsyntax mydef2 (syntax-rules () [(_ x e) (mydef x e)]))]
+        [(mydef2 x 5)
+         (myexpr 2)])))))
+
+  (check-exn
+   #rx"expected def"
+   (lambda ()
+     (convert-compile-time-error
+      (mylang
+       (mylet
+        [(myexpr 2)
+         (mydef2 x 5)]
+        [(mydefsyntax mydef2 (syntax-rules () [(_ x e) (mydef x e)]))
+         (myexpr 1)])))))
+
+  (void))
