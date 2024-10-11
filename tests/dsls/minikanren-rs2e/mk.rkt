@@ -59,6 +59,7 @@
     #:binding (scope (bind x) b)
 
     (project (x:term-variable ...) e:racket-expr ...)
+    #:binding [x ...]
     
     (ifte g1:goal g2:goal g3:goal)
     (once g:goal)
@@ -128,7 +129,7 @@
 (syntax-spec
   (host-interface/definition
     (core-defrel (name:relation-name x:term-variable ...) g:goal)
-    #:binding [(export name) (scope (bind x) g)]
+    #:binding [(export name) (scope (bind x) ... g)]
    
     #:lhs
     [(symbol-table-set!
@@ -150,7 +151,7 @@
     #`(let ([q (var 'q)])
         (map (reify q)
              (run-goal n (compile-goal g)))))
-
+  
   (host-interface/expression
     (goal-expression g:goal)
     #`(goal-value (compile-goal g))))

@@ -41,21 +41,21 @@
   (nonterminal/exporting class-form
                         #:allow-extension racket-macro
                         (field name:field-var ...)
-                        #:binding (export name)
+                        #:binding [(export name) ...]
                         ((~literal define-values) (m:method-var) (lambda:lambda-id (arg:id ...) body:racket-expr ...))
                         #:binding (export m)
 
                         ((~literal define-syntaxes) (x:racket-macro ...) e:expr)
-                        #:binding (export-syntaxes x e)
+                        #:binding (export-syntaxes x ... e)
 
                         ((~literal begin) e:class-form ...)
-                        #:binding (re-export e)
+                        #:binding [(re-export e) ...]
 
                         e:racket-expr)
 
   (host-interface/expression
     (class e:class-form ...)
-    #:binding (scope (import e))
+    #:binding (scope (import e) ...)
     (define-values (defns fields exprs) (group-class-decls (splice-begins (attribute e))))
     (compile-class-body defns fields exprs)))
 

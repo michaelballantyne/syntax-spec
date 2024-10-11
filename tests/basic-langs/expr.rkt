@@ -13,10 +13,10 @@
     (+ e1:expr e2:expr)
       
     (let ([v:var e:expr] ...) b:expr)
-    #:binding [e (scope (bind v) b)]
+    #:binding [e ... (scope (bind v) ... b)]
       
     (let* (b:binding ...) e:expr)
-    #:binding (nest b e))
+    #:binding (nest b ... e))
 
   (nonterminal/nesting binding (nested)
     #:description "let* binding group"

@@ -74,7 +74,7 @@
 ;   bindclass-rep
 ;   nonterm-rep
 ;   nested-binding
-(struct pvar-rep (var-info))
+(struct pvar-rep (var-info depth))
 
 (struct nested-binding [])
 (struct special-syntax-class-binding [])

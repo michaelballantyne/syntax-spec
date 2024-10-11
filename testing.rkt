@@ -35,9 +35,10 @@
   (check-exn
    (check-formatted-error-matches rx)
    (lambda ()
-     (eval-syntax #`(module m racket/base
-                      (require "../main.rkt")
-                      decl-stx)))))
+     (eval-syntax (quote-syntax
+                   (module m racket/base
+                     (require "../main.rkt")
+                     decl-stx))))))
 
 (define-syntax-rule (check-phase1-error rx e)
   (check-exn

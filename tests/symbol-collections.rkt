@@ -51,14 +51,14 @@
 (syntax-spec
  (nonterminal/exporting bind-expr
   (bind x:my-var ...)
-  #:binding (export x))
+  #:binding [(export x) ...])
  (nonterminal set-op-expr
    (intersection (x:my-var ...) (y:my-var ...))
    (union (x:my-var ...) (y:my-var ...))
    (subtract (x:my-var ...) (y:my-var ...)))
  (host-interface/definitions
   (my-define x:my-var ...)
-  #:binding (export x)
+  #:binding [(export x) ...]
   #'(begin (define x 1) ...))
  (host-interface/expression
   (set-op e:set-op-expr)

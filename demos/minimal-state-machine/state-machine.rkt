@@ -10,7 +10,7 @@
 
   (host-interface/expression
     (machine #:initial-state s:state-name d:machine-decl ...)
-    #:binding (scope (import d) s)
+    #:binding (scope (import d) ... s)
     #'(compile-machine s d ...))
   
   (nonterminal/exporting machine-decl
@@ -23,7 +23,7 @@
     (on (evt:id arg:event-var ...)
       e:racket-expr ...
       ((~datum ->) s:state-name))
-    #:binding (scope (bind arg) e)))
+    #:binding (scope (bind arg) ... e ...)))
 
 (require syntax/parse/define (for-syntax syntax/parse racket/list))
 

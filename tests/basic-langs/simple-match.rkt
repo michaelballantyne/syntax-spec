@@ -27,7 +27,7 @@
     #:description "mylang match clause"
 
     [p:pat rhs:expr]
-    #:binding (nest-one p rhs))
+    #:binding (nest p rhs))
 
   (nonterminal/nesting pat (nested)
     #:description "mylang match pattern"
@@ -38,7 +38,7 @@
     (pempty)
                
     (pcons p1:pat p2:pat)
-    #:binding (nest-one p1 (nest-one p2 nested))))
+    #:binding (nest p1 (nest p2 nested))))
 
 (define-syntax define*
   (mylang-macro

@@ -11,13 +11,14 @@
  (struct-out bind)
  (struct-out bind-syntax)
  (struct-out bind-syntaxes)
- (struct-out scope)    ; {}
+ (struct-out scope)
  (struct-out group)    ; []
  (struct-out nest)
  (struct-out nest-one)
  (struct-out nested)
  (struct-out suspend)
  (struct-out fresh-env-expr-ctx)
+ (struct-out ellipsis) ; ...
 
  ; used by interface macros
  expand-top
@@ -68,25 +69,32 @@
 (struct nested [] #:transparent)
 (struct suspend [pvar] #:transparent)
 (struct fresh-env-expr-ctx [spec] #:transparent)
+(struct ellipsis [pvars spec] #:transparent)
 
 ;;
 ;; Expansion
 ;;
 
+; A NestState is one of
+;; #f, nest-call, or nest-ret
+
 ;; pvar-vals is (hashof symbol? (treeof syntax?))
-;; nest-state is #f, nest-call, or nest-ret
 (struct exp-state [pvar-vals nest-state])
 
 ;; Helpers for accessing and updating parts of the exp-state
 
+; exp-state? symbol? -> (treeof syntax?)
 (define (get-pvar st pv)
   (hash-ref (exp-state-pvar-vals st) pv))
 
+; exp-state? symbol? (treeof syntax?) -> exp-state?
 (define (set-pvar st pv val)
   (struct-copy
    exp-state st
    [pvar-vals (hash-set (exp-state-pvar-vals st) pv val)]))
 
+; exp-state? (listof symbol?) ((treeof syntax?) ... -> (treeof syntax?)) -> exp-state?
+; updates the environment by applying f to the values of pvs
 (define (update-pvar* st pvs f)
   (define env (exp-state-pvar-vals st))
   (define vals (for/list ([pv pvs]) (hash-ref env pv)))
@@ -101,6 +109,7 @@
    exp-state st
    [pvar-vals env^]))
 
+; exp-state? (NestState -> NestState) -> exp-state?
 (define (update-nest-state st f)
   (struct-copy
    exp-state st
@@ -281,6 +290,7 @@
      
      (set-pvar st^ pv done-seq)]
 
+    ; TODO deprecate
     [(nest-one pv f inner-spec)
      (define init-seq (list (get-pvar st pv)))
 
@@ -299,7 +309,15 @@
 
     [(suspend pv)
      (for/pv-state-tree ([stx pv])
-       (make-suspension (add-scopes stx local-scopes) (current-def-ctx)))]))
+       (make-suspension (add-scopes stx local-scopes) (current-def-ctx)))]
+    [(ellipsis pvs spec)
+     ; filter and split the environments
+     (define sts (exp-state-split/ellipsis st pvs))
+     ; expand on each sub-environment
+     (define sts^
+       (for/list ([st sts])
+         (simple-expand-internal spec st local-scopes)))
+     (st-merge/ellipses st pvs sts^)]))
 
 ; f is nonterm-transformer
 ; seq is (listof (treeof syntax?))
@@ -324,6 +342,84 @@
      (values
       (call-reconstruct-function (exp-state-pvar-vals st^) reconstruct-f)
       (exp-state-nest-state st^))]))
+
+; ellipsis expansion
+; when expanding syntax with an ellipsized binding spec, we expect the syntax to be a list.
+; For example:
+; (e:my-expr ...)
+; #:binding [e ...]
+; #'(f x y z)
+; We'll start with e mapped to (list #'f #'x #'y #'z)
+; But since it's ellipsized, we want to run the expander for each element of that list.
+; This means we need to expand under an environment mapping e to #'f,
+; then expand under an environment mapping e to #'x, and so on.
+; Then we'll have a list of environments, each mapping e to an expanded #'f, #'x, #'y, or #'z.
+; Let's call those expanded syntaxes #'f^, #'x^, #'y^, #'z^
+; Finally, we need to merge those sub-environments back into the same shape as the original
+; so we end up with e mapped to (list #'f^ #'x^ #'y^ #'z^).
+
+; exp-state? (listof symbol?) -> (listof exp-state?)
+; split an environment mapping pvars to lists into a list of environments mapping pvars to list elements.
+(define (exp-state-split/ellipsis st pvars)
+  (match st
+    [(exp-state pvar-vals nest-state)
+     (for/list ([env (env-split/ellipsis pvar-vals pvars)])
+       (exp-state env nest-state))]))
+
+; (hash symbol? (treeof syntax?)) (listof symbol?) -> (listof (hash symbol? (treeof syntax?)))
+; Spit up the environment into a list of envs. One per element of a pvar's value.
+; Filters environment to just pvars.
+; Pvars should be mapped to lists of equal lengths. Errors if they aren't.
+(define (env-split/ellipsis env pvars)
+  (define env-filtered
+       (for/hash ([(pv vs) (in-hash env)]
+                  #:when (member pv pvars))
+         (values pv vs)))
+     (define repetition-length (env-repetition-length env-filtered))
+     (for/list ([i (in-range repetition-length)])
+       (for/hash ([(pv vs) (in-hash env-filtered)])
+         (values pv (list-ref vs i)))))
+
+(module+ test
+  (check-equal? (env-split/ellipsis (hash 'a '(1 2 3) 'b '(4 5 6) 'c '())
+                                          '(a b))
+                (list (hash 'a 1 'b 4)
+                      (hash 'a 2 'b 5)
+                      (hash 'a 3 'b 6))))
+
+; (hash symbol? (treeof syntax?)) -> natural?
+; Assuming this environment is getting split for ellipses, computes how many environments it should get split into.
+; Errors if not all trees have the same length.
+(define (env-repetition-length env)
+  (define result
+    (or (for/first ([(_ vs) (in-hash env)])
+          (unless (list? vs)
+            ; TODO check in compiler
+            (error "too many ellipses in binding spec"))
+          (length vs))
+        0))
+  (for ([(_ vs) (in-hash env)])
+    (unless (= (length vs) result)
+      ; TODO Can this be checked in the compiler? Would need to make sure ellipsized bs vars
+      ; come from the same ss ellipsis.
+      (error "incompatible ellipsis match counts for binding spec")))
+  result)
+
+(module+ test
+  (check-equal? (env-repetition-length (hash 'a '(1 2 3) 'b '(4 5 6)))
+                3))
+
+; exp-state? (listof symbol?) (listof exp-state?) -> exp-state?
+; merge expanded sub-environments into the original environment.
+; st is original state.
+; sts^ is a list of states from sub-expansions of each ellipsis repetition.
+; pvs is the pvars referenced in the ellipsized binding spec.
+(define (st-merge/ellipses st pvs sts^)
+  ; can maintain st's nest state because nested will never occur inside ellipses,
+  ; so nest state will not have changed in any of the sub-expansions.
+  (for/fold ([st st])
+            ([pv pvs])
+    (set-pvar st pv (for/list ([st^ sts^]) (hash-ref (exp-state-pvar-vals st^) pv)))))
 
 ;; When entering a `nest-one` or `nest` form, add an extra scope. This means that the
 ;; expansion within is in a new definition context with a scope distinguishing it from
