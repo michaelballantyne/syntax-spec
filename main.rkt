@@ -5,6 +5,8 @@
          (for-syntax
           number
           id
+          ...
+          ...+
 
           mutable-reference-compiler
           immutable-reference-compiler

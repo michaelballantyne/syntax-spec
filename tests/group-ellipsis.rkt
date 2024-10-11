@@ -2,7 +2,7 @@
 
 ; testing edge cases with ellipses and groups
 
-(require "../testing.rkt")
+(require "../main.rkt")
 
 ; the test is just that this compiles
 (syntax-spec
@@ -16,3 +16,9 @@
  (nonterminal/exporting my-exporting
    (my-define-values (x:racket-var ...))
    #:binding [[(export x)] ...]))
+
+; and this---here we're making sure ...+ works just like ... for depth checking
+(syntax-spec
+  (nonterminal/exporting my-def
+    (my-def x:racket-var ...+ e:racket-expr)
+    #:binding [(export x) ...]))
