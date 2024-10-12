@@ -74,7 +74,7 @@
      [])))
 
 (check-decl-error
- #rx"nest: expected pattern variable associated with a nesting nonterminal"
+ #rx"expected pattern variable associated with a nesting nonterminal"
  (syntax-spec
    (nonterminal expr
      (e:expr)
