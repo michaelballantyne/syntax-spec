@@ -188,24 +188,8 @@
       (elaborate-pvar (attribute v-transformer)
                       (? stxclass-rep?)
                       "syntax class"))]
-    [(nest v:nonref-id spec:bspec-term)
-     (nest-one
-      this-syntax
-      (elaborate-pvar (attribute v)
-                      (s* nonterm-rep [variant-info (s* nesting-nonterm-info)])
-                      "nesting nonterminal")
-      (elaborate-bspec (attribute spec)))]
-    [(nest ~! v:nonref-id (~and (~literal ...) ooo) ...+ spec:bspec-term)
-     (define depth (length (attribute ooo)))
-     (when (> depth 1)
-       (wrong-syntax/orig this-syntax "nest cannot contain more than one ellipsis"))
-     (nest
-      this-syntax
-      depth
-      (elaborate-pvar (attribute v)
-                      (s* nonterm-rep [variant-info (s* nesting-nonterm-info)])
-                      "nesting nonterminal")
-      (elaborate-bspec (attribute spec)))]
+    [(nest ~! v:nonref-id rest ...+)
+     (elaborate-nest #'(v rest ...))]
     [(host ~! v:nonref-id)
      (suspend
       this-syntax
@@ -230,6 +214,31 @@
              (ellipsis (attribute spec) spec-elaborated))
            (elaborate-group (attribute specs)))]
     [() '()]))
+
+; helps convert (nest x y ... z e) stx
+; into an elaborated representation like
+; (next-one x (nest y (nest-one z e)))
+(define elaborate-nest
+  (syntax-parser
+    [(spec) (elaborate-bspec #'spec)]
+    [(v:nonref-id (~and (~literal ...) ooo) ...+ rest ...+)
+     (define depth (length (attribute ooo)))
+     (when (> depth 1)
+       (wrong-syntax/orig this-syntax "nest cannot contain more than one ellipsis"))
+     (nest
+      this-syntax
+      depth
+      (elaborate-pvar (attribute v)
+                      (s* nonterm-rep [variant-info (s* nesting-nonterm-info)])
+                      "nesting nonterminal")
+      (elaborate-nest #'(rest ...)))]
+    [(v:nonref-id rest ...+)
+     (nest-one
+      this-syntax
+      (elaborate-pvar (attribute v)
+                      (s* nonterm-rep [variant-info (s* nesting-nonterm-info)])
+                      "nesting nonterminal")
+      (elaborate-nest #'(rest ...)))]))
 
 ;; Elaborator helpers
 
