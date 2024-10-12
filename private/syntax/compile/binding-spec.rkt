@@ -225,9 +225,9 @@
     [(spec (~and ooo (~literal ...)) ... . specs)
      ; however many ellipses follow the pattern, wrap the elaborated spec with
      ; the ellipses struct that many times.
-     (cons (for/fold ([spec (elaborate-bspec (attribute spec))])
+     (cons (for/fold ([spec-elaborated (elaborate-bspec (attribute spec))])
                      ([ooo (attribute ooo)])
-             (ellipsis ooo spec))
+             (ellipsis (attribute spec) spec-elaborated))
            (elaborate-group (attribute specs)))]
     [() '()]))
 
@@ -335,7 +335,7 @@
         (define export (find-export spec))
         (define representatives (filter values (list ref+subexp bind import export)))
         (when (< 1 (length representatives))
-            (wrong-syntax/orig stx "cannot mix different binding spec categories inside of ellipses"))
+            (wrong-syntax/orig stx "cannot mix imports or exports with other kinds of binding specs inside of ellipses"))
         bspec]
        [_ bspec]))
    bspec))
