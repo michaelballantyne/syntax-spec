@@ -189,7 +189,7 @@
                       (? stxclass-rep?)
                       "syntax class"))]
     [(nest ~! v:nonref-id rest ...+)
-     (elaborate-nest #'(v rest ...))]
+     (elaborate-nest #'(nest v rest ...))]
     [(host ~! v:nonref-id)
      (suspend
       this-syntax
@@ -220,8 +220,8 @@
 ; (next-one x (nest y (nest-one z e)))
 (define elaborate-nest
   (syntax-parser
-    [(spec) (elaborate-bspec #'spec)]
-    [(v:nonref-id (~and (~literal ...) ooo) ...+ rest ...+)
+    [(_ spec) (elaborate-bspec #'spec)]
+    [(_ v:nonref-id (~and (~literal ...) ooo) ...+ rest ...+)
      (define depth (length (attribute ooo)))
      (when (> depth 1)
        (wrong-syntax/orig this-syntax "nest cannot contain more than one ellipsis"))
@@ -231,14 +231,14 @@
       (elaborate-pvar (attribute v)
                       (s* nonterm-rep [variant-info (s* nesting-nonterm-info)])
                       "nesting nonterminal")
-      (elaborate-nest #'(rest ...)))]
-    [(v:nonref-id rest ...+)
+      (elaborate-nest #'(nest rest ...)))]
+    [(_  v:nonref-id rest ...+)
      (nest-one
       this-syntax
       (elaborate-pvar (attribute v)
                       (s* nonterm-rep [variant-info (s* nesting-nonterm-info)])
                       "nesting nonterminal")
-      (elaborate-nest #'(rest ...)))]))
+      (elaborate-nest #'(nest rest ...)))]))
 
 ;; Elaborator helpers
 
