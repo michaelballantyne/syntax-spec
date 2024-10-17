@@ -64,7 +64,7 @@
      #:binding (scope (bind y)))))
 
 (check-decl-error
- #rx"syntax-spec: nesting nonterminals may only be used with `nest`"
+ #rx"syntax-spec: nesting nonterminals must be used with `nest`"
  (syntax-spec
    (binding-class dsl-var #:description "DSL variable")
    (nonterminal expr
@@ -139,6 +139,17 @@
    (nonterminal expr
      (block d:def)
      #:binding [(import d)])))
+
+(check-decl-error
+ #rx"syntax-spec: exporting nonterminals must be used with `import` or `re-export`"
+ (syntax-spec
+   (binding-class var #:description "var")
+   (nonterminal/exporting def
+     (define x:var e:expr)
+     #:binding [(export x) e])
+   (nonterminal expr
+     (block d:def)
+     #:binding [d])))
 
 (check-decl-error
  #rx"syntax-spec: bindings must appear first within a scope"
@@ -381,6 +392,24 @@
 (check-syntax-error
  #rx"expand-nonterminal/datum: expected expr1"
  (expand-nonterminal/datum expr1 [x]))
+
+(check-decl-error
+ #rx"host-interface/expression: missing compilation in host interface"
+ (syntax-spec
+   (nonterminal/nesting binding (nested)
+     ())
+   (host-interface/expression
+     (my-dsl b:binding)
+     #:binding (nest b []))))
+
+(check-decl-error
+ #rx"host-interface/definitions: missing compilation in host interface"
+ (syntax-spec
+   (nonterminal/nesting binding (nested)
+     ())
+   (host-interface/definitions
+     (my-dsl b:binding)
+     #:binding (nest b []))))
 
 (syntax-spec
   (host-interface/expression

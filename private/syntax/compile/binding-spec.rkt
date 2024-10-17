@@ -677,9 +677,9 @@
        [(nested-binding)
         #`(nested)]
        [(nonterm-rep (nesting-nonterm-info _))
-        (wrong-syntax/orig v "nesting nonterminals may only be used with `nest`")]
+        (wrong-syntax/orig v "nesting nonterminals must be used with `nest`")]
        [(nonterm-rep (exporting-nonterm-info _ _))
-        (wrong-syntax/orig v "exporting nonterminals may only be used with `import` and `re-export`")]
+        (wrong-syntax/orig v "exporting nonterminals must be used with `import` or `re-export`")]
        [(or (? stxclass-rep?) (? special-syntax-class-binding?))
         #`(group (list))])]
     [(suspend _ (pvar v info))

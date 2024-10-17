@@ -177,6 +177,10 @@
                  #,this-syntax
                  #:pass2 name opts prod ...)))
           #f))]
+      [((~or host-interface/expression host-interface/definitions)
+         _
+         #:binding _)
+       (wrong-syntax this-syntax "missing compilation in host interface")]
       [(host-interface/expression
          ~! (name:id . sspec)
          (~optional (~seq #:binding bspec))
