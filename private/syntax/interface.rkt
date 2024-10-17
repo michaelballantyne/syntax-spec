@@ -177,6 +177,10 @@
                  #,this-syntax
                  #:pass2 name opts prod ...)))
           #f))]
+      [((~or host-interface/expression host-interface/definitions)
+         _
+         #:binding _)
+       (wrong-syntax this-syntax "missing compilation in host interface")]
       [(host-interface/expression
          ~! (name:id . sspec)
          (~optional (~seq #:binding bspec))
@@ -248,7 +252,7 @@
   (define-syntax generate-nonterminal-expander
     (syntax-parser
       [(_ orig-stx . decls)
-       (parameterize ([current-orig-stx #'orig-stx])
+       (parameterize ([current-orig-stx (datum->syntax #'orig-stx 'syntax-spec)])
          (compile-nonterminal-expander #'decls))]))  
   )
 

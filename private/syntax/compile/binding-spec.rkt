@@ -188,24 +188,8 @@
       (elaborate-pvar (attribute v-transformer)
                       (? stxclass-rep?)
                       "syntax class"))]
-    [(nest v:nonref-id spec:bspec-term)
-     (nest-one
-      this-syntax
-      (elaborate-pvar (attribute v)
-                      (s* nonterm-rep [variant-info (s* nesting-nonterm-info)])
-                      "nesting nonterminal")
-      (elaborate-bspec (attribute spec)))]
-    [(nest ~! v:nonref-id (~and (~literal ...) ooo) ...+ spec:bspec-term)
-     (define depth (length (attribute ooo)))
-     (when (> depth 1)
-       (wrong-syntax/orig this-syntax "nest cannot contain more than one ellipsis"))
-     (nest
-      this-syntax
-      depth
-      (elaborate-pvar (attribute v)
-                      (s* nonterm-rep [variant-info (s* nesting-nonterm-info)])
-                      "nesting nonterminal")
-      (elaborate-bspec (attribute spec)))]
+    [(nest ~! v:nonref-id rest ...+)
+     (elaborate-nest #'(nest v rest ...))]
     [(host ~! v:nonref-id)
      (suspend
       this-syntax
@@ -225,11 +209,36 @@
     [(spec (~and ooo (~literal ...)) ... . specs)
      ; however many ellipses follow the pattern, wrap the elaborated spec with
      ; the ellipses struct that many times.
-     (cons (for/fold ([spec (elaborate-bspec (attribute spec))])
+     (cons (for/fold ([spec-elaborated (elaborate-bspec (attribute spec))])
                      ([ooo (attribute ooo)])
-             (ellipsis ooo spec))
+             (ellipsis (attribute spec) spec-elaborated))
            (elaborate-group (attribute specs)))]
     [() '()]))
+
+; helps convert (nest x y ... z e) stx
+; into an elaborated representation like
+; (next-one x (nest y (nest-one z e)))
+(define elaborate-nest
+  (syntax-parser
+    [(_ spec) (elaborate-bspec #'spec)]
+    [(_ v:nonref-id (~and (~literal ...) ooo) ...+ rest ...+)
+     (define depth (length (attribute ooo)))
+     (when (> depth 1)
+       (wrong-syntax/orig this-syntax "nest cannot contain more than one ellipsis"))
+     (nest
+      this-syntax
+      depth
+      (elaborate-pvar (attribute v)
+                      (s* nonterm-rep [variant-info (s* nesting-nonterm-info)])
+                      "nesting nonterminal")
+      (elaborate-nest #'(nest rest ...)))]
+    [(_  v:nonref-id rest ...+)
+     (nest-one
+      this-syntax
+      (elaborate-pvar (attribute v)
+                      (s* nonterm-rep [variant-info (s* nesting-nonterm-info)])
+                      "nesting nonterminal")
+      (elaborate-nest #'(nest rest ...)))]))
 
 ;; Elaborator helpers
 
@@ -335,7 +344,7 @@
         (define export (find-export spec))
         (define representatives (filter values (list ref+subexp bind import export)))
         (when (< 1 (length representatives))
-            (wrong-syntax/orig stx "cannot mix different binding spec categories inside of ellipses"))
+            (wrong-syntax/orig stx "cannot mix imports or exports with other kinds of binding specs inside of ellipses"))
         bspec]
        [_ bspec]))
    bspec))
@@ -668,9 +677,9 @@
        [(nested-binding)
         #`(nested)]
        [(nonterm-rep (nesting-nonterm-info _))
-        (wrong-syntax/orig v "nesting nonterminals may only be used with `nest`")]
+        (wrong-syntax/orig v "nesting nonterminals must be used with `nest`")]
        [(nonterm-rep (exporting-nonterm-info _ _))
-        (wrong-syntax/orig v "exporting nonterminals may only be used with `import` and `re-export`")]
+        (wrong-syntax/orig v "exporting nonterminals must be used with `import` or `re-export`")]
        [(or (? stxclass-rep?) (? special-syntax-class-binding?))
         #`(group (list))])]
     [(suspend _ (pvar v info))
