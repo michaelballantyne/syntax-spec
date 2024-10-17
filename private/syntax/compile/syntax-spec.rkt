@@ -143,7 +143,7 @@
       [r:ref-id
        #:with c:special-syntax-class #'r.ref
        (when (member #'r.var res bound-identifier=?)
-         (wrong-syntax/orig #'r.ref "duplicate pattern variable"))
+         (wrong-syntax/orig #'r.var "duplicate pattern variable"))
        (bind! #'r.var (pvar-rep (special-syntax-class-binding) depth))
        (set! res (cons #'r.var res))]
       [r:ref-id
@@ -156,7 +156,7 @@
        (when (not binding)
          (wrong-syntax/orig #'r.ref "expected a reference to a binding class, extension class, syntax class, or nonterminal"))
        (when (member #'r.var res bound-identifier=?)
-         (wrong-syntax/orig #'r.ref "duplicate pattern variable"))
+         (wrong-syntax/orig #'r.var "duplicate pattern variable"))
        (bind! #'r.var (pvar-rep binding depth))
        (set! res (cons #'r.var res))]
       [_ (void)]))

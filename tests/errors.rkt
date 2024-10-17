@@ -37,7 +37,7 @@
      x:unbound-name)))
 
 (check-decl-error
- #rx"syntax-spec: duplicate pattern variable"
+ #rx"syntax-spec: duplicate pattern variable\n  at: x"
  (syntax-spec
    (binding-class dsl-var #:description "dsl-var")
    (nonterminal expr
