@@ -74,6 +74,16 @@
      [])))
 
 (check-decl-error
+ #rx"syntax-spec: nesting nonterminals must be used with `nest`"
+ (syntax-spec
+   (nonterminal/nesting binding (nested)
+     ())
+   (host-interface/expression
+     (my-dsl b:binding)
+     #:binding b
+     #''todo)))
+
+(check-decl-error
  #rx"nest: expected pattern variable associated with a nesting nonterminal"
  (syntax-spec
    (nonterminal expr
@@ -394,7 +404,7 @@
  (expand-nonterminal/datum expr1 [x]))
 
 (check-decl-error
- #rx"host-interface/expression: missing compilation in host interface"
+ #rx"host-interface/expression: expected more terms starting with pattern directive or body"
  (syntax-spec
    (nonterminal/nesting binding (nested)
      ())
@@ -403,7 +413,7 @@
      #:binding (nest b []))))
 
 (check-decl-error
- #rx"host-interface/definitions: missing compilation in host interface"
+ #rx"host-interface/definitions: expected more terms starting with pattern directive or body"
  (syntax-spec
    (nonterminal/nesting binding (nested)
      ())

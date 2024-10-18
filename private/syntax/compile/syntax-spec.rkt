@@ -72,7 +72,7 @@
        #:do [(define binding (lookup #'r.ref stxclass-rep?))]
        #:when binding
        #'(~var r.var r.ref)]
-      [_ (wrong-syntax/orig this-syntax "expected a syntax spec term")]))
+      [_ (wrong-syntax/syntax-spec this-syntax "expected a syntax spec term")]))
       
   (generate-pattern-form stx))
 
@@ -143,7 +143,7 @@
       [r:ref-id
        #:with c:special-syntax-class #'r.ref
        (when (member #'r.var res bound-identifier=?)
-         (wrong-syntax/orig #'r.var "duplicate pattern variable"))
+         (wrong-syntax/syntax-spec #'r.var "duplicate pattern variable"))
        (bind! #'r.var (pvar-rep (special-syntax-class-binding) depth))
        (set! res (cons #'r.var res))]
       [r:ref-id
@@ -154,9 +154,9 @@
                                      (nonterm-rep? v)
                                      (stxclass-rep? v)))))
        (when (not binding)
-         (wrong-syntax/orig #'r.ref "expected a reference to a binding class, extension class, syntax class, or nonterminal"))
+         (wrong-syntax/syntax-spec #'r.ref "expected a reference to a binding class, extension class, syntax class, or nonterminal"))
        (when (member #'r.var res bound-identifier=?)
-         (wrong-syntax/orig #'r.var "duplicate pattern variable"))
+         (wrong-syntax/syntax-spec #'r.var "duplicate pattern variable"))
        (bind! #'r.var (pvar-rep binding depth))
        (set! res (cons #'r.var res))]
       [_ (void)]))

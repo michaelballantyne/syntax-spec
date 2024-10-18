@@ -248,8 +248,7 @@
   (define-syntax generate-nonterminal-expander
     (syntax-parser
       [(_ orig-stx . decls)
-       (parameterize ([current-orig-stx (datum->syntax #'orig-stx 'syntax-spec)])
-         (compile-nonterminal-expander #'decls))]))  
+       (compile-nonterminal-expander #'decls)]))  
   )
 
 ;;

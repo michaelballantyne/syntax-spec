@@ -3,6 +3,7 @@
 (provide
  current-orig-stx
  wrong-syntax/orig
+ wrong-syntax/syntax-spec
 
  maybe-description
  maybe-binding-space
@@ -71,6 +72,18 @@
 
 (define current-orig-stx (make-parameter #f))
 
+;; Used for meta-level errors where there is no good more-specific form
+;; to blame; that is, incorrect syntax-spec syntax, but on something like
+;; spec-var:[nt] where the error is not related to the immediately surrounding
+;; syntax. For errors where there is more appropriate immediately surrounding
+;; syntax, we use plain `wrong-syntax`.
+(define (wrong-syntax/syntax-spec
+         stx #:extra [extras null] format-string . args)
+  (parameterize ([current-syntax-context (datum->syntax #f 'syntax-spec)])
+    (apply wrong-syntax stx #:extra extras format-string args)))
+
+;; Used by DSL expanders to raise object-level errors; that is, a my-expression
+;; was expected by my-interface-macro.
 (define (wrong-syntax/orig stx #:extra [extras null] format-string . args)
   (parameterize ([current-syntax-context (current-orig-stx)])
     (apply wrong-syntax stx #:extra extras format-string args)))
