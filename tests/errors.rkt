@@ -7,7 +7,7 @@
 ;;
 
 (check-decl-error
- #rx"nonterminal: expected extension class name"
+ #rx"syntax-spec: expected extension class name"
  (syntax-spec
    (binding-class var #:description "var")
    (nonterminal expr
@@ -25,19 +25,19 @@
 ;;
 
 (check-decl-error
- #rx"nonterminal: expected a syntax spec term"
+ #rx"syntax-spec: expected a syntax spec term"
  (syntax-spec
    (nonterminal expr
      1)))
 
 (check-decl-error
- #rx"nonterminal: expected a reference to a binding class, extension class, syntax class, or nonterminal"
+ #rx"syntax-spec: expected a reference to a binding class, extension class, syntax class, or nonterminal"
  (syntax-spec
    (nonterminal expr
      x:unbound-name)))
 
 (check-decl-error
- #rx"nonterminal: duplicate pattern variable"
+ #rx"syntax-spec: duplicate pattern variable\n  at: x"
  (syntax-spec
    (binding-class dsl-var #:description "dsl-var")
    (nonterminal expr
@@ -48,7 +48,7 @@
 ;;
 
 (check-decl-error
- #rx"nonterminal: binding spec expected a reference to a pattern variable"
+ #rx"syntax-spec: binding spec expected a reference to a pattern variable"
  (syntax-spec
    (binding-class dsl-var #:description "DSL variable")
    (nonterminal expr
@@ -64,7 +64,7 @@
      #:binding (scope (bind y)))))
 
 (check-decl-error
- #rx"nonterminal: nesting nonterminals may only be used with `nest`"
+ #rx"syntax-spec: nesting nonterminals must be used with `nest`"
  (syntax-spec
    (binding-class dsl-var #:description "DSL variable")
    (nonterminal expr
@@ -72,6 +72,16 @@
      #:binding b)
    (nonterminal/nesting binding-group (nested)
      [])))
+
+(check-decl-error
+ #rx"syntax-spec: nesting nonterminals must be used with `nest`"
+ (syntax-spec
+   (nonterminal/nesting binding (nested)
+     ())
+   (host-interface/expression
+     (my-dsl b:binding)
+     #:binding b
+     #''todo)))
 
 (check-decl-error
  #rx"nest: expected pattern variable associated with a nesting nonterminal"
@@ -103,7 +113,7 @@
 
 
 (check-decl-error
- #rx"nonterminal: exports may only occur at the top-level of an exporting binding spec"
+ #rx"syntax-spec: exports may only occur at the top-level of an exporting binding spec"
  (syntax-spec
    (binding-class var #:description "var")
    (nonterminal expr
@@ -111,7 +121,7 @@
      #:binding (export v))))
 
 (check-decl-error
- #rx"nonterminal: binding must occur within a scope"
+ #rx"syntax-spec: binding must occur within a scope"
  (syntax-spec
    (binding-class pvar)
    (nonterminal pat
@@ -119,7 +129,7 @@
      #:binding (bind x))))
 
 (check-decl-error
- #rx"nonterminal: import binding groups must occur within a scope"
+ #rx"syntax-spec: import binding groups must occur within a scope"
  (syntax-spec
    (binding-class var #:description "var")
    (nonterminal/exporting def
@@ -130,7 +140,7 @@
      #:binding (import d))))
 
 (check-decl-error
- #rx"nonterminal: import binding groups must occur within a scope"
+ #rx"syntax-spec: import binding groups must occur within a scope"
  (syntax-spec
    (binding-class var #:description "var")
    (nonterminal/exporting def
@@ -141,7 +151,18 @@
      #:binding [(import d)])))
 
 (check-decl-error
- #rx"nonterminal: bindings must appear first within a scope"
+ #rx"syntax-spec: exporting nonterminals must be used with `import` or `re-export`"
+ (syntax-spec
+   (binding-class var #:description "var")
+   (nonterminal/exporting def
+     (define x:var e:expr)
+     #:binding [(export x) e])
+   (nonterminal expr
+     (block d:def)
+     #:binding [d])))
+
+(check-decl-error
+ #rx"syntax-spec: bindings must appear first within a scope"
  (syntax-spec
    (binding-class var)
    (nonterminal expr
@@ -149,7 +170,7 @@
      #:binding (scope e (bind x)))))
 
 (check-decl-error
- #rx"nonterminal: an import binding group must appear before references and subexpressions"
+ #rx"syntax-spec: an import binding group must appear before references and subexpressions"
  (syntax-spec
    (binding-class var)
    (nonterminal/exporting def
@@ -171,7 +192,7 @@
 
 
 (check-decl-error
- #rx"cannot mix different binding spec categories inside of ellipses"
+ #rx"cannot mix imports or exports with other kinds of binding specs inside of ellipses"
  (syntax-spec
    (nonterminal my-expr
      (my-letrec ([x:racket-var e:racket-expr] ...) body:racket-expr)
@@ -198,14 +219,14 @@
      #:binding [(export x) e (re-export d)])))
 
 (check-decl-error
- #rx"nonterminal: each pattern variable must occur in the binding spec at most once"
+ #rx"syntax-spec: each pattern variable must occur in the binding spec at most once"
  (syntax-spec
    (nonterminal expr
      (begin e1:expr e2:expr)
      #:binding [e1 e1])))
 
 (check-decl-error
- #rx"nonterminal: all variants of the same-named form must occur together"
+ #rx"syntax-spec: all variants of the same-named form must occur together"
  (syntax-spec
    (nonterminal expr
      (foo)
@@ -213,7 +234,7 @@
      (foo #:bar))))
 
 (check-decl-error
- #rx"nonterminal: all variants of the same-named form must occur together"
+ #rx"syntax-spec: all variants of the same-named form must occur together"
  (syntax-spec
    (nonterminal expr
      (foo)
@@ -221,21 +242,21 @@
      (~>/form (foo #:bar) #'(foo)))))
 
 (check-decl-error
- #rx"nonterminal: missing ellipses with pattern variable in binding spec"
+ #rx"syntax-spec: missing ellipses with pattern variable in binding spec"
  (syntax-spec
    (nonterminal expr
      (foo a:racket-var ...)
      #:binding a)))
 
 (check-decl-error
- #rx"nonterminal: too many ellipses for pattern variable in binding spec"
+ #rx"syntax-spec: too many ellipses for pattern variable in binding spec"
  (syntax-spec
    (nonterminal expr
      (foo a:racket-var)
      #:binding [a ...])))
 
 (check-decl-error
- #rx"nonterminal/nesting: too many ellipses for pattern variable in binding spec"
+ #rx"syntax-spec: too many ellipses for pattern variable in binding spec"
  (syntax-spec
    (nonterminal/nesting expr (nested)
      (foo a:racket-var)
@@ -381,6 +402,24 @@
 (check-syntax-error
  #rx"expand-nonterminal/datum: expected expr1"
  (expand-nonterminal/datum expr1 [x]))
+
+(check-decl-error
+ #rx"host-interface/expression: expected more terms starting with pattern directive or body"
+ (syntax-spec
+   (nonterminal/nesting binding (nested)
+     ())
+   (host-interface/expression
+     (my-dsl b:binding)
+     #:binding (nest b []))))
+
+(check-decl-error
+ #rx"host-interface/definitions: expected more terms starting with pattern directive or body"
+ (syntax-spec
+   (nonterminal/nesting binding (nested)
+     ())
+   (host-interface/definitions
+     (my-dsl b:binding)
+     #:binding (nest b []))))
 
 (syntax-spec
   (host-interface/expression

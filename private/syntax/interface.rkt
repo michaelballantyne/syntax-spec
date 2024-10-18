@@ -179,19 +179,19 @@
           #f))]
       [(host-interface/expression
          ~! (name:id . sspec)
-         (~optional (~seq #:binding bspec))
-         parse-body ...+)
+         bdecl:maybe-binding-decl
+         c:compiler)
        (values
         #f
         #f
         #'(define-syntax name
             (expression-macro
              (generate-host-interface-transformer
-              name sspec (~? (bspec) ()) (#:simple) parse-body ...))))]
+              name sspec (~? (bdecl.bspec) ()) (#:simple) c.body ...))))]
       [(host-interface/definitions
          ~! (name:id . sspec)
-         (~optional (~seq #:binding bspec))
-         parse-body ...+)
+         bdecl:maybe-binding-decl
+         c:compiler)
        (values
         #f
         #f
@@ -200,12 +200,12 @@
               (wrap-bind-trampoline
                (wrap-persist
                 (generate-host-interface-transformer
-                 name sspec (~? (bspec) ()) (#:pass1 #:pass2) parse-body ...))))))]
+                 name sspec (~? (bdecl.bspec) ()) (#:pass1 #:pass2) c.body ...))))))]
       [(host-interface/definition
          ~! (name:id . sspec)
-         (~optional (~seq #:binding bspec))
-         #:lhs [name-parse-body ...+]
-         #:rhs [rhs-parse-body ...+])
+         bdecl:maybe-binding-decl
+         #:lhs [lhs-c:compiler]
+         #:rhs [rhs-c:compiler])
        (values
         #f
         #f
@@ -217,12 +217,12 @@
                 (wrap-bind-trampoline
                  (wrap-persist
                   (generate-host-interface-transformer/definition-pass1
-                   sspec (~? (bspec) ()) [name-parse-body ...] pass2-macro)))))
+                   sspec (~? (bdecl.bspec) ()) [lhs-c.body ...] pass2-macro)))))
             ;; (before this one)
             (define-syntax pass2-macro
               (expression-macro
                (generate-host-interface-transformer
-                name sspec (~? (bspec) ()) (#:pass2) rhs-parse-body ...)))))])))
+                name sspec (~? (bdecl.bspec) ()) (#:pass2) rhs-c.body ...)))))])))
 
 (begin-for-syntax
   (define (generate-nonterminal-declarations name-stx opts-stx form-names variant-info-stx)
@@ -248,8 +248,7 @@
   (define-syntax generate-nonterminal-expander
     (syntax-parser
       [(_ orig-stx . decls)
-       (parameterize ([current-orig-stx #'orig-stx])
-         (compile-nonterminal-expander #'decls))]))  
+       (compile-nonterminal-expander #'decls)]))  
   )
 
 ;;

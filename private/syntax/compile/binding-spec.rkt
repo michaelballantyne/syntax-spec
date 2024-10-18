@@ -188,24 +188,8 @@
       (elaborate-pvar (attribute v-transformer)
                       (? stxclass-rep?)
                       "syntax class"))]
-    [(nest v:nonref-id spec:bspec-term)
-     (nest-one
-      this-syntax
-      (elaborate-pvar (attribute v)
-                      (s* nonterm-rep [variant-info (s* nesting-nonterm-info)])
-                      "nesting nonterminal")
-      (elaborate-bspec (attribute spec)))]
-    [(nest ~! v:nonref-id (~and (~literal ...) ooo) ...+ spec:bspec-term)
-     (define depth (length (attribute ooo)))
-     (when (> depth 1)
-       (wrong-syntax/orig this-syntax "nest cannot contain more than one ellipsis"))
-     (nest
-      this-syntax
-      depth
-      (elaborate-pvar (attribute v)
-                      (s* nonterm-rep [variant-info (s* nesting-nonterm-info)])
-                      "nesting nonterminal")
-      (elaborate-bspec (attribute spec)))]
+    [(nest ~! v:nonref-id rest ...+)
+     (elaborate-nest #'(nest v rest ...))]
     [(host ~! v:nonref-id)
      (suspend
       this-syntax
@@ -225,11 +209,36 @@
     [(spec (~and ooo (~literal ...)) ... . specs)
      ; however many ellipses follow the pattern, wrap the elaborated spec with
      ; the ellipses struct that many times.
-     (cons (for/fold ([spec (elaborate-bspec (attribute spec))])
+     (cons (for/fold ([spec-elaborated (elaborate-bspec (attribute spec))])
                      ([ooo (attribute ooo)])
-             (ellipsis ooo spec))
+             (ellipsis (attribute spec) spec-elaborated))
            (elaborate-group (attribute specs)))]
     [() '()]))
+
+; helps convert (nest x y ... z e) stx
+; into an elaborated representation like
+; (next-one x (nest y (nest-one z e)))
+(define elaborate-nest
+  (syntax-parser
+    [(_ spec) (elaborate-bspec #'spec)]
+    [(_ v:nonref-id (~and (~literal ...) ooo) ...+ rest ...+)
+     (define depth (length (attribute ooo)))
+     (when (> depth 1)
+       (wrong-syntax/syntax-spec this-syntax "nest cannot contain more than one ellipsis"))
+     (nest
+      this-syntax
+      depth
+      (elaborate-pvar (attribute v)
+                      (s* nonterm-rep [variant-info (s* nesting-nonterm-info)])
+                      "nesting nonterminal")
+      (elaborate-nest #'(nest rest ...)))]
+    [(_  v:nonref-id rest ...+)
+     (nest-one
+      this-syntax
+      (elaborate-pvar (attribute v)
+                      (s* nonterm-rep [variant-info (s* nesting-nonterm-info)])
+                      "nesting nonterminal")
+      (elaborate-nest #'(nest rest ...)))]))
 
 ;; Elaborator helpers
 
@@ -262,7 +271,7 @@
   (define binding (lookup v pvar-rep?))
   (when (not binding)
     (if (identifier? (current-syntax-context))
-        (wrong-syntax/orig v "binding spec expected a reference to a pattern variable")
+        (wrong-syntax/syntax-spec v "binding spec expected a reference to a pattern variable")
         (wrong-syntax v "expected a reference to a pattern variable")))
   (pvar-rep-var-info binding))
 
@@ -270,7 +279,7 @@
   (define binding (lookup v pvar-rep?))
   (when (not binding)
     (if (identifier? (current-syntax-context))
-        (wrong-syntax/orig v "binding spec expected a reference to a pattern variable")
+        (wrong-syntax/syntax-spec v "binding spec expected a reference to a pattern variable")
         (wrong-syntax v "expected a reference to a pattern variable")))
   (pvar-rep-depth binding))
 
@@ -279,7 +288,7 @@
   (define maybe-dup (check-duplicates pvars free-identifier=?))
 
   (when maybe-dup
-    (wrong-syntax/orig maybe-dup "each pattern variable must occur in the binding spec at most once")))
+    (wrong-syntax/syntax-spec maybe-dup "each pattern variable must occur in the binding spec at most once")))
 
 (define (check-ellipsis-depth! bspec)
   (let loop ([bspec bspec] [depth 0])
@@ -319,9 +328,9 @@
   (define ss-depth (lookup-pvar-depth v))
   (cond
     [(< ss-depth bs-depth)
-     (wrong-syntax/orig v "too many ellipses for pattern variable in binding spec")]
+     (wrong-syntax/syntax-spec v "too many ellipses for pattern variable in binding spec")]
     [(< bs-depth ss-depth)
-     (wrong-syntax/orig v "missing ellipses with pattern variable in binding spec")]))
+     (wrong-syntax/syntax-spec v "missing ellipses with pattern variable in binding spec")]))
 
 ; makes sure you don't mix categories like refs+subexps and binds in the same ellipsis
 (define (check-ellipsis-homogeneity! bspec)
@@ -335,7 +344,7 @@
         (define export (find-export spec))
         (define representatives (filter values (list ref+subexp bind import export)))
         (when (< 1 (length representatives))
-            (wrong-syntax/orig stx "cannot mix different binding spec categories inside of ellipses"))
+            (wrong-syntax/syntax-spec stx "cannot mix imports or exports with other kinds of binding specs inside of ellipses"))
         bspec]
        [_ bspec]))
    bspec))
@@ -510,13 +519,13 @@
       (f (car specs) (cdr specs))))
 
 (define (binding-scope-error stx)
-  (wrong-syntax/orig stx "binding must occur within a scope"))
+  (wrong-syntax/syntax-spec stx "binding must occur within a scope"))
 
 (define (export-context-error stx)
-  (wrong-syntax/orig stx "exports may only occur at the top-level of an exporting binding spec"))
+  (wrong-syntax/syntax-spec stx "exports may only occur at the top-level of an exporting binding spec"))
 
 (define (re-export-context-error stx)
-  (wrong-syntax/orig stx "re-exports may only occur at the top-level of an exporting binding spec"))
+  (wrong-syntax/syntax-spec stx "re-exports may only occur at the top-level of an exporting binding spec"))
 
 ; spec -> (void) or raised syntax error
 ; enforces the above grammar for an unscoped expression
@@ -532,7 +541,7 @@
       [(or (and (s* import) (with-stx stx))
            (imports _ (cons (with-stx stx) _)))
        ; TODO use imports stx once it's sorce location is more refined.
-       (wrong-syntax/orig stx "import binding groups must occur within a scope")]
+       (wrong-syntax/syntax-spec stx "import binding groups must occur within a scope")]
       [(imports _ (list))
        ; impossible
        (void)]
@@ -576,14 +585,14 @@
        (refs+subexps group-spec (append group-specs specs))]
       [(group _ (list)) (check-sequence refs+subexps specs)]
       [(and (or (s* bind) (s* bind-syntax) (s* bind-syntaxes)) (with-stx stx))
-       (wrong-syntax/orig stx "bindings must appear first within a scope")]
+       (wrong-syntax/syntax-spec stx "bindings must appear first within a scope")]
       [(and (or (s* export) (s* export-syntax) (s* export-syntaxes)) (with-stx stx))
        (export-context-error stx)]
       [(and (s* re-export) (with-stx stx))
        (re-export-context-error stx)]
       [(or (and (s* import) (with-stx stx))
            (imports _ (cons (with-stx stx) _)))
-       (wrong-syntax/orig stx "an import binding group must appear before references and subexpressions")]
+       (wrong-syntax/syntax-spec stx "an import binding group must appear before references and subexpressions")]
       [(imports _ (list))
        ; impossible
        (void)]
@@ -633,12 +642,12 @@
       [(and (or (s* bind) (s* bind-syntax) (s* bind-syntaxes)) (with-stx stx))
        (binding-scope-error stx)]
       [(and (or (s* export) (s* export-syntax) (s* export-syntaxes)) (with-stx stx))
-       (wrong-syntax/orig stx "exports must appear first in a exporting spec")]
+       (wrong-syntax/syntax-spec stx "exports must appear first in a exporting spec")]
       [(and (s* re-export) (with-stx stx))
-       (wrong-syntax/orig stx "re-exports must occur before references and subexpressions")]
+       (wrong-syntax/syntax-spec stx "re-exports must occur before references and subexpressions")]
       [(or (and (s* import) (with-stx stx))
            (imports _ (cons (and (s* import) (with-stx stx)) _)))
-       (wrong-syntax/orig stx "import must occur within a scope")]
+       (wrong-syntax/syntax-spec stx "import must occur within a scope")]
       [(imports _ (list))
        ; impossible
        (void)]
@@ -668,9 +677,9 @@
        [(nested-binding)
         #`(nested)]
        [(nonterm-rep (nesting-nonterm-info _))
-        (wrong-syntax/orig v "nesting nonterminals may only be used with `nest`")]
+        (wrong-syntax/syntax-spec v "nesting nonterminals must be used with `nest`")]
        [(nonterm-rep (exporting-nonterm-info _ _))
-        (wrong-syntax/orig v "exporting nonterminals may only be used with `import` and `re-export`")]
+        (wrong-syntax/syntax-spec v "exporting nonterminals must be used with `import` or `re-export`")]
        [(or (? stxclass-rep?) (? special-syntax-class-binding?))
         #`(group (list))])]
     [(suspend _ (pvar v info))
