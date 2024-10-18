@@ -47,7 +47,10 @@
  extclass-spec
 
  nonterminal-options
- )
+
+ compiler
+ parse-body
+ maybe-binding-decl)
 
 (require
   racket/string
@@ -185,3 +188,14 @@
     #:attr space-stx (attribute maybe-space.stx)
     #:attr space-sym (attribute maybe-space.sym)
     #:attr ext-classes (if (attribute extensions) (attribute extensions.classes) '())))
+
+(define-splicing-syntax-class compiler
+  #:description "host interface compiler"
+  (pattern (~seq body:parse-body ...+)))
+
+(define-syntax-class parse-body
+  #:description "pattern directive or body"
+  (pattern _))
+  
+(define-splicing-syntax-class maybe-binding-decl
+  (pattern (~optional (~seq #:binding ~! bspec))))
