@@ -23,7 +23,8 @@
   (binding-class relation-name #:description "miniKanren relation name")
   
   (extension-class term-macro
-                   #:binding-space mk)
+                   #:binding-space mk
+                   #:description "term-macro")
   (extension-class goal-macro
                    #:binding-space mk)
   

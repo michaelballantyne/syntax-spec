@@ -19,8 +19,8 @@
    (a:quoted . d:quoted))
 
  (nonterminal term
-   #:description "miniKanren term"
    #:allow-extension term-macro
+   #:description "miniKanren term"
     
    n:number
    (#%term-ref x:term-variable)

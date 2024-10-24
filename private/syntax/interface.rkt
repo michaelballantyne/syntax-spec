@@ -90,9 +90,11 @@
       
       [(binding-class
         ~! name:id
-        (~var descr (maybe-description #'name))
-        (~var space maybe-binding-space)
-        (~var reference-compiler maybe-reference-compiler))
+        (~alt
+         (~optional (~var descr (maybe-description #'name)))
+         (~optional (~var space maybe-binding-space))
+         (~optional (~var reference-compiler maybe-reference-compiler)))
+        ...)
        (with-syntax ([sname (format-id #'here "~a-var" #'name)]
                      [sname-pred (format-id #'here "~a-var?" #'name)])
          (values
@@ -113,8 +115,10 @@
       
       [(extension-class
         ~! name:id
-        (~var descr (maybe-description #'name))
-        (~var space maybe-binding-space))
+        (~alt
+         (~optional (~var descr (maybe-description #'name)))
+         (~optional (~var space maybe-binding-space)))
+        ...)
        (with-syntax ([sname (format-id #'here "~a" #'name)]
                      [sname-pred (format-id #'here "~a?" #'name)]
                      [sname-acc (format-id #'here "~a-transformer" #'name)])
