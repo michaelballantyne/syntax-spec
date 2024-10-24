@@ -11,70 +11,6 @@
          racket/contract
          (for-syntax (only-in "../../private/ee-lib/main.rkt" compiled-from) racket/sequence racket/match syntax/transformer))
 
-(syntax-spec
-  (binding-class typed-var)
-  (extension-class typed-macro #:binding-space stlc)
-  (nonterminal typed-expr
-    #:allow-extension typed-macro
-    #:binding-space stlc
-
-    x:typed-var
-    n:number
-
-    (#%lambda ([x:typed-var (~datum :) t:type] ...) body:typed-expr)
-    #:binding (scope (bind x) ... body)
-    (#%app fun:typed-expr arg:typed-expr ...)
-
-    (#%let ([x:typed-var e:typed-expr] ...) body:typed-expr)
-    #:binding (scope (bind x) ... body)
-
-    ; type annotation
-    (~> (e (~datum :) t)
-        #'(: e t))
-    (: e:typed-expr t:type)
-
-    (rkt e:racket-expr (~datum :) t:type)
-
-    (block d:typed-definition-or-expr ... e:typed-expr)
-    #:binding (scope (import d) ... e)
-
-    ; rewrite for tagging applications
-    (~> (fun arg ...)
-        #'(#%app fun arg ...)))
-  (nonterminal type
-    (~datum Number)
-    ((~datum ->) arg-type:type ... return-type:type))
-  (nonterminal/exporting typed-definition-or-expr
-    #:allow-extension typed-macro
-    #:binding-space stlc
-    (#%define x:typed-var t:type e:typed-expr)
-    #:binding (export x)
-    (begin defn:typed-definition-or-expr ...+)
-    #:binding [(re-export defn) ...]
-    e:typed-expr)
-  (host-interface/expression
-   (stlc/expr e:typed-expr)
-   (define/syntax-parse t (infer-expr-type #'e))
-   #'(compile-expr/top e t))
-  (host-interface/expression
-   (stlc/infer e:typed-expr)
-   (define t (infer-expr-type #'e))
-   (define t-datum (type->datum t))
-   #`'#,t-datum)
-  (host-interface/definitions
-   (stlc body:typed-definition-or-expr ...+)
-   #:binding [(re-export body) ...]
-   (type-check-defn-or-expr/pass1 #'(begin body ...))
-   (type-check-defn-or-expr/pass2 #'(begin body ...))
-   #'(compile-defn-or-expr/top (begin body ...)))
-  (host-interface/definitions
-   (stlc/module-begin body:typed-definition-or-expr ...+)
-   #:binding [(re-export body) ...]
-   (type-check-defn-or-expr/pass1 #'(begin body ...))
-   (type-check-defn-or-expr/pass2 #'(begin body ...))
-   (define/syntax-parse (name ...) (sequence->list (sequence-map compiled-from (in-symbol-set (definition-names #'(begin body ...))))))
-   #'(begin (provide name ...) (compile-defn-or-expr/top (begin body ...)))))
-
 (begin-for-syntax
   ; a Type is one of
   (struct number-type [] #:prefab)
@@ -205,8 +141,7 @@
     [(_ e t-stx (~optional should-skip-contract?))
      (define t (syntax->datum #'t-stx))
      (define/syntax-parse e^
-       #'(with-reference-compilers ([typed-var typed-var-reference-compiler])
-           (compile-expr e)))
+       #'(compile-expr e))
      (if (attribute should-skip-contract?)
          #'e^
          #`(contract #,(type->contract-stx t)
@@ -274,6 +209,69 @@
     [(_ e)
      #'(compile-expr e)]))
 
+(syntax-spec
+  (binding-class typed-var #:reference-compiler typed-var-reference-compiler)
+  (extension-class typed-macro #:binding-space stlc)
+  (nonterminal typed-expr
+    #:allow-extension typed-macro
+    #:binding-space stlc
+
+    x:typed-var
+    n:number
+
+    (#%lambda ([x:typed-var (~datum :) t:type] ...) body:typed-expr)
+    #:binding (scope (bind x) ... body)
+    (#%app fun:typed-expr arg:typed-expr ...)
+
+    (#%let ([x:typed-var e:typed-expr] ...) body:typed-expr)
+    #:binding (scope (bind x) ... body)
+
+    ; type annotation
+    (~> (e (~datum :) t)
+        #'(: e t))
+    (: e:typed-expr t:type)
+
+    (rkt e:racket-expr (~datum :) t:type)
+
+    (block d:typed-definition-or-expr ... e:typed-expr)
+    #:binding (scope (import d) ... e)
+
+    ; rewrite for tagging applications
+    (~> (fun arg ...)
+        #'(#%app fun arg ...)))
+  (nonterminal type
+    (~datum Number)
+    ((~datum ->) arg-type:type ... return-type:type))
+  (nonterminal/exporting typed-definition-or-expr
+    #:allow-extension typed-macro
+    #:binding-space stlc
+    (#%define x:typed-var t:type e:typed-expr)
+    #:binding (export x)
+    (begin defn:typed-definition-or-expr ...+)
+    #:binding [(re-export defn) ...]
+    e:typed-expr)
+  (host-interface/expression
+   (stlc/expr e:typed-expr)
+   (define/syntax-parse t (infer-expr-type #'e))
+   #'(compile-expr/top e t))
+  (host-interface/expression
+   (stlc/infer e:typed-expr)
+   (define t (infer-expr-type #'e))
+   (define t-datum (type->datum t))
+   #`'#,t-datum)
+  (host-interface/definitions
+   (stlc body:typed-definition-or-expr ...+)
+   #:binding [(re-export body) ...]
+   (type-check-defn-or-expr/pass1 #'(begin body ...))
+   (type-check-defn-or-expr/pass2 #'(begin body ...))
+   #'(compile-defn-or-expr/top (begin body ...)))
+  (host-interface/definitions
+   (stlc/module-begin body:typed-definition-or-expr ...+)
+   #:binding [(re-export body) ...]
+   (type-check-defn-or-expr/pass1 #'(begin body ...))
+   (type-check-defn-or-expr/pass2 #'(begin body ...))
+   (define/syntax-parse (name ...) (sequence->list (sequence-map compiled-from (in-symbol-set (definition-names #'(begin body ...))))))
+   #'(begin (provide name ...) (compile-defn-or-expr/top (begin body ...)))))
 
 (define-syntax define-stlc-syntax
   (syntax-parser

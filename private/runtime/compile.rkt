@@ -3,6 +3,7 @@
 (provide #%host-expression
          with-reference-compilers
          (for-syntax setup-default-reference-compilers!
+                     add-global-reference-compiler!
                      binding-as-rkt
                      make-suspension
 
@@ -136,7 +137,13 @@
       (for/fold ([env (current-reference-compilers)])
                 ([pair assocs])
         (free-id-table-set env (first pair) (second pair))))
-   (current-reference-compilers new-reference-compilers)))
+   (current-reference-compilers new-reference-compilers))
+  #;(identifier? reference-compiler? -> void?)
+  ; globally associates binding class with reference compiler.
+  ; NOTE: this should never be called in the dynamic extent of a with-reference-compilers,
+  ; or generally within a parameterization of current-reference-compilers, since it mutates the parameter.
+  (define (add-global-reference-compiler! bclass compiler)
+    (current-reference-compilers (free-id-table-set (current-reference-compilers) bclass compiler))))
 
 (define-syntax with-reference-compilers
   (let ([who 'with-reference-compilers])

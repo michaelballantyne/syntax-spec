@@ -91,7 +91,8 @@
       [(binding-class
         ~! name:id
         (~var descr (maybe-description #'name))
-        (~var space maybe-binding-space))
+        (~var space maybe-binding-space)
+        (~var reference-compiler maybe-reference-compiler))
        (with-syntax ([sname (format-id #'here "~a-var" #'name)]
                      [sname-pred (format-id #'here "~a-var?" #'name)])
          (values
@@ -105,7 +106,8 @@
                  (#%datum . descr.str)
                  (quote-syntax sname)
                  (quote-syntax sname-pred)
-                 (quote space.stx))))
+                 (quote space.stx)))
+              (~? (add-global-reference-compiler! #'name reference-compiler.compiler)))
           #f
           #f))]
       

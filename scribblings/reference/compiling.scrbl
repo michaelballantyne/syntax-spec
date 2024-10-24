@@ -15,7 +15,7 @@
 
 @title{Compiling languages}
 
-@section{Compiling references to DSL bindings within Racket code}
+@section[#:tag "reference compilers"]{Compiling references to DSL bindings within Racket code}
 
 @margin-note{@secref["compilation" #:doc '(lib "syntax-spec/scribblings/main.scrbl")] in the @secref["Basic_Tutorial__State_Machine_Language"
          #:doc '(lib "syntax-spec/scribblings/main.scrbl")] introduces the use of reference compilers.}
@@ -26,7 +26,7 @@ When a reference appears in the head of a form, such as @racket[x] in @racket[(x
 
 In all cases, the reference identifier in the syntax provided to the reference compiler is a @tech{compiled identifier}.
 
-DSL compilers specify the reference compilers to use by emitting compiled code containing @racket[with-reference-compiler] forms.
+Reference compilers can be specified in the @racket[#:reference-compiler] option of a @racket[binding-class] form. For more local control over reference compilers, your compiler can emit code containing @racket[with-reference-compilers]:
 
 @defform[(with-reference-compilers
              ([binding-class-id reference-compiler-expr] ...)

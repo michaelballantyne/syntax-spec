@@ -253,6 +253,7 @@ Let's do it!
 
 @racketblock[#:escape unracket
 (syntax-spec
+  (binding-class typed-var #:reference-compiler typed-var-reference-compiler)
   ...
 
   (nonterminal typed-expr
@@ -286,8 +287,7 @@ Let's do it!
     [(_ e t-stx)
      (define t (syntax->datum #'t-stx))
      (define/syntax-parse e^
-       #'(with-reference-compilers ([typed-var typed-var-reference-compiler])
-           (compile-expr e)))
+       #'(compile-expr e))
      #`(contract #,(type->contract-stx t)
                  e^
                  'stlc 'racket

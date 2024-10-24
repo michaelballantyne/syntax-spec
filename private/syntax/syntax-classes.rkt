@@ -7,6 +7,7 @@
 
  maybe-description
  maybe-binding-space
+ maybe-reference-compiler
 
  nested-binding-syntax
  sspec-term
@@ -69,6 +70,10 @@
 (define-splicing-syntax-class maybe-binding-space
   (pattern (~optional (~seq #:binding-space stx:id) #:defaults ([stx #'#f]))
     #:attr sym (syntax-e (attribute stx))))
+
+(define-splicing-syntax-class maybe-reference-compiler
+  (pattern (~optional (~seq #:reference-compiler ~! compiler-stx))
+           #:attr compiler (attribute compiler-stx)))
 
 (define current-orig-stx (make-parameter #f))
 

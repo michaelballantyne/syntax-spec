@@ -40,18 +40,25 @@ The following subsections address each kind of declaration allowed within the
 binder, it is an error if the binding class declared for the reference position
 does not match the binding class of the binding position.
 
-@defsubform[(binding-class id maybe-description maybe-binding-space)
+@defsubform[(binding-class id maybe-description maybe-binding-space maybe-reference-compiler)
             #:grammar
             [(maybe-description (code:line #:description string-literal)
                                 (code:line))
              (maybe-binding-space (code:line #:binding-space space-symbol)
-                                  (code:line))]]
+                                  (code:line))
+             (maybe-reference-compiler (code:line #:reference-compiler reference-compiler-expr)
+                                       (code:line))]]
 
 The @racket[#:description] option provides a user-friendly phrase describing the
 kind of binding. This description is used in error messages.
 
 The @racket[#:binding-space] option specifies a @tech/reference{binding space}
 to use for all bindings and references declared with this class.
+
+@margin-note{See @secref["reference compilers"] for more information about reference compilers}
+
+The @racket[#:reference-compiler] option specifies a @tech{reference compiler} for controlling how
+references to variables of this binding class are treated in Racket code.
 
 Operationally, the binding space declaration causes the syntax-spec expander to
 add the binding space scope to bindings and references.
