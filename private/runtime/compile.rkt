@@ -2,8 +2,7 @@
 
 (provide #%host-expression
          with-reference-compilers
-         (for-syntax setup-default-reference-compilers!
-                     add-global-reference-compiler!
+         (for-syntax add-global-reference-compiler!
                      binding-as-rkt
                      make-suspension
 
@@ -127,17 +126,6 @@
         [(v:id . rest)
          (t (datum->syntax this-syntax (cons (compile-reference #'v) #'rest) this-syntax this-syntax))])))
 
-  #;(listof (list identifier? reference-compiler?))
-  ; associates binding classes with reference compilers in the default environment.
-  ; calling multiple times will add all associations to the default environment.
-  ; NOTE: This must only be used before any DSL expansion may occur.
-  (define (setup-default-reference-compilers! assocs)
-    ; this only works for procedure transformers.
-    (define new-reference-compilers
-      (for/fold ([env (current-reference-compilers)])
-                ([pair assocs])
-        (free-id-table-set env (first pair) (second pair))))
-   (current-reference-compilers new-reference-compilers))
   #;(identifier? reference-compiler? -> void?)
   ; globally associates binding class with reference compiler.
   ; NOTE: this should never be called in the dynamic extent of a with-reference-compilers,

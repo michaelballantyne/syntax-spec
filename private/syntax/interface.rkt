@@ -344,7 +344,7 @@
 
 (begin-for-syntax
   (define built-in-reference-compilers (list (list #'racket-var mutable-reference-compiler)))
-  (setup-default-reference-compilers! built-in-reference-compilers))
+  (add-global-reference-compiler! #'racket-var mutable-reference-compiler))
 
 ;; for now defined in the DSL; later might become primitive and replace `host`.
 (syntax-spec
