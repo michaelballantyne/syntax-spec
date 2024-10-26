@@ -19,9 +19,15 @@
      (convert-compile-time-error
       (my-let ([x 2]) (set! x 3) x))))
 
-(check-decl-error
- #rx"contract violation"
- (syntax-spec
+(syntax-spec
    (binding-class dsl-var #:reference-compiler 2)
-   (nonterminal expr
-     [x:dsl-var x:dsl-var])))
+   (host-interface/expression
+     (bad-let x:dsl-var e:racket-expr)
+     #:binding (scope (bind x) e)
+     #'(let ([x 2]) e)))
+
+(check-exn
+ #rx"binding-class: contract violation"
+ (lambda ()
+   (convert-compile-time-error
+    (bad-let x x))))

@@ -15,6 +15,7 @@
   syntax/parse
   (for-syntax
    racket/base
+   racket/promise
    racket/list
    racket/function
    racket/private/check
@@ -94,6 +95,9 @@
     (not (not (and (syntax? stx)
                    (syntax-property stx suspension-property-key)))))
 
+  ; maps binding class identifiers to promises of reference compilers.
+  ; we use a promise so that the binding class form can refer to
+  ; locally defined reference compilers before their definitions.
   (define current-reference-compilers
     (make-parameter (make-immutable-free-id-table)))
 
@@ -108,9 +112,15 @@
           " may not be used as a racket expression")
          stx))
       
-      (define compile (free-id-table-ref
-                      (current-reference-compilers) bclass-id
-                      error-as-rkt))
+      (define compile (force (free-id-table-ref
+                              (current-reference-compilers) bclass-id
+                              error-as-rkt)))
+
+      ; this is an unfortunate time to have to throw the error, but because of laziness,
+      ; it cannot happen sooner
+      (check 'binding-class (disjoin procedure? set!-transformer?)
+             #:contract "(or/c (-> syntax? syntax?) set!-transformer?)"
+             compile)
 
       (define t (if (set!-transformer? compile)
                     (set!-transformer-procedure compile)
@@ -126,15 +136,15 @@
         [(v:id . rest)
          (t (datum->syntax this-syntax (cons (compile-reference #'v) #'rest) this-syntax this-syntax))])))
 
-  #;(identifier? reference-compiler? -> void?)
+  #;(identifier? (promise/c reference-compiler?) -> void?)
   ; globally associates binding class with reference compiler.
   ; NOTE: this should never be called in the dynamic extent of a with-reference-compilers,
   ; or generally within a parameterization of current-reference-compilers, since it mutates the parameter.
-  (define (add-global-reference-compiler! bclass compiler)
-    (check 'binding-class (disjoin procedure? set!-transformer?)
-           #:contract "(or/c (-> syntax? syntax?) set!-transformer?)"
-           compiler)
-    (current-reference-compilers (free-id-table-set (current-reference-compilers) bclass compiler))))
+  (define (add-global-reference-compiler! bclass compiler-promise)
+    (check 'binding-class promise?
+           #:contract "promise?"
+           compiler-promise)
+    (current-reference-compilers (free-id-table-set (current-reference-compilers) bclass compiler-promise))))
 
 (define-syntax with-reference-compilers
   (let ([who 'with-reference-compilers])
@@ -150,7 +160,7 @@
            (check who (disjoin procedure? set!-transformer?)
                   #:contract "(or/c (-> syntax? syntax?) set!-transformer?)"
                   v)
-           (free-id-table-set env k v)))
+           (free-id-table-set env k (delay v))))
        (parameterize ([current-reference-compilers binding-compilers])
          (let-values ([(_ v)
                        (syntax-local-expand-expression

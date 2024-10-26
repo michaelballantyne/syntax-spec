@@ -17,6 +17,7 @@
   
   (for-syntax
    racket/base
+   racket/promise
    racket/list
    racket/match
    racket/function
@@ -109,7 +110,7 @@
                  (quote-syntax sname)
                  (quote-syntax sname-pred)
                  (quote space.stx)))
-              (~? (add-global-reference-compiler! #'name reference-compiler.compiler)))
+              (~? (add-global-reference-compiler! #'name (delay reference-compiler.compiler))))
           #f
           #f))]
       
@@ -343,8 +344,7 @@
   (binding-class racket-var #:description "racket variable"))
 
 (begin-for-syntax
-  (define built-in-reference-compilers (list (list #'racket-var mutable-reference-compiler)))
-  (add-global-reference-compiler! #'racket-var mutable-reference-compiler))
+  (add-global-reference-compiler! #'racket-var (delay mutable-reference-compiler)))
 
 ;; for now defined in the DSL; later might become primitive and replace `host`.
 (syntax-spec
