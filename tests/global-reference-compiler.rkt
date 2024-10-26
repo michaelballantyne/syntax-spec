@@ -18,3 +18,10 @@
    (lambda ()
      (convert-compile-time-error
       (my-let ([x 2]) (set! x 3) x))))
+
+(check-decl-error
+ #rx"contract violation"
+ (syntax-spec
+   (binding-class dsl-var #:reference-compiler 2)
+   (nonterminal expr
+     [x:dsl-var x:dsl-var])))

@@ -131,6 +131,9 @@
   ; NOTE: this should never be called in the dynamic extent of a with-reference-compilers,
   ; or generally within a parameterization of current-reference-compilers, since it mutates the parameter.
   (define (add-global-reference-compiler! bclass compiler)
+    (check 'binding-class (disjoin procedure? set!-transformer?)
+           #:contract "(or/c (-> syntax? syntax?) set!-transformer?)"
+           compiler)
     (current-reference-compilers (free-id-table-set (current-reference-compilers) bclass compiler))))
 
 (define-syntax with-reference-compilers
