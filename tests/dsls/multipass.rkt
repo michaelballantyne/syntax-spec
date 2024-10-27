@@ -7,7 +7,7 @@
          (for-syntax racket/list rackunit (only-in "../../private/ee-lib/main.rkt" define/hygienic)))
 
 (syntax-spec
-  (binding-class var)
+  (binding-class var #:reference-compiler immutable-reference-compiler)
   (nonterminal expr
     n:number
     x:var
@@ -34,8 +34,7 @@
 
   (host-interface/expression
    (eval-expr e:expr)
-   #'(with-reference-compilers ([var immutable-reference-compiler])
-       (compile-expr e))))
+   #'(compile-expr e)))
 
 (begin-for-syntax
   (define local-expand-anf (nonterminal-expander anf-expr)))

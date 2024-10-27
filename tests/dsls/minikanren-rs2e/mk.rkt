@@ -6,9 +6,12 @@
 
 (require "../../../main.rkt"
          (only-in "../../../private/ee-lib/errors.rkt" raise-argument-error/stx)
+         racket/stxparam
+         racket/stxparam-exptime
          (for-syntax
           racket/base
           racket/pretty
+          racket/syntax
           syntax/parse
           syntax/id-table
           syntax/transformer
@@ -18,8 +21,11 @@
 ;; Core syntax
 ;;
 
+(define-syntax-parameter current-projected-names #f)
+
 (syntax-spec
-  (binding-class term-variable #:description "miniKanren term variable")
+  (binding-class term-variable #:description "miniKanren term variable"
+                 #:reference-compiler term-reference-compiler)
   (binding-class relation-name #:description "miniKanren relation name")
   
   (extension-class term-macro
@@ -207,17 +213,10 @@
      (for ([x (attribute x)])
        (when (not (symbol-table-ref projected-names x #f))
          (symbol-table-set! projected-names x #t)))
-       
-     (define term-reference-compiler
-       (make-variable-like-transformer
-        (lambda (id)
-          (if (symbol-table-ref projected-names id #f)
-              id
-              (raise-syntax-error #f "only projected logic variables may be used from Racket code" id)))))
 
      #`(lambda (s)
          (let ([x (walk* x s)] ...)
-           (with-reference-compilers ([term-variable #,term-reference-compiler])
+           (syntax-parameterize ([current-projected-names #,projected-names])
              ((conj-gen (check-goal e #'e) ...) s))))]
     [(_ (ifte g1 g2 g3))
      #`(ifte-rt (compile-goal g1) (compile-goal g2) (compile-goal g3))]
@@ -245,6 +244,14 @@
      #''t]
     [(_ (cons t1 t2))
      #`(cons (compile-term t1) (compile-term t2))]))
+
+(begin-for-syntax
+  (define term-reference-compiler
+    (make-variable-like-reference-compiler
+     (lambda (id)
+       (if (symbol-table-ref (syntax-parameter-value #'current-projected-names) id #f)
+           id
+           (raise-syntax-error #f "only projected logic variables may be used from Racket code" id))))))
 
 ;;
 ;; Runtime

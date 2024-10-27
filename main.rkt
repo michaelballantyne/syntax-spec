@@ -1,7 +1,6 @@
 #lang racket/base
 
 (provide (all-from-out "private/syntax/interface.rkt")
-         with-reference-compilers
          (for-syntax
           number
           id

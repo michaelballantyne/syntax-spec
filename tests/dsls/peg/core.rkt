@@ -49,7 +49,7 @@
    (rename-in syntax/parse [define/syntax-parse def/stx])))
 
 (syntax-spec
-  (binding-class var #:description "PEG variable")
+  (binding-class var #:description "PEG variable" #:reference-compiler immutable-reference-compiler)
   (binding-class nonterm #:description "PEG nonterminal")
   (extension-class peg-macro #:description "PEG macro")
 
@@ -114,8 +114,7 @@
    (define-pegs [name:nonterm p:peg] ...)
    #:binding [(export name) ...]
    (run-leftrec-check! (attribute name) (attribute p))
-   #'(begin (define name (lambda (in) (with-reference-compilers ([var immutable-reference-compiler])
-                                        (compile-peg p in))))
+   #'(begin (define name (lambda (in) (compile-peg p in)))
             ...))
 
   (host-interface/expression

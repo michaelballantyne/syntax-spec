@@ -6,7 +6,7 @@
 
 (syntax-spec
   (binding-class state-name)
-  (binding-class event-var)
+  (binding-class event-var #:reference-compiler mutable-reference-compiler)
 
   (host-interface/expression
     (machine #:initial-state s:state-name d:machine-decl ...)
@@ -35,28 +35,27 @@
           (on-enter action ...)
           e ...)
         ...)
-     #'(with-reference-compilers ([event-var mutable-reference-compiler])
-         (let ()
-           (define machine%
-             (class object%
-               (define state #f)
-               (define/public (set-state state%)
-                 (set! state (new state% [machine this])))
+     #'(let ()
+         (define machine%
+           (class object%
+             (define state #f)
+             (define/public (set-state state%)
+               (set! state (new state% [machine this])))
 
-               (compile-proxy-methods (e ... ...) state)
+             (compile-proxy-methods (e ... ...) state)
 
-               (send this set-state initial-state)
-               (super-new)))
+             (send this set-state initial-state)
+             (super-new)))
 
-           (define state-name
-             (class object%
-               (init-field machine)
-               action ...
-               (compile-event-method e machine) ...
-               (super-new)))
-           ...
+         (define state-name
+           (class object%
+             (init-field machine)
+             action ...
+             (compile-event-method e machine) ...
+             (super-new)))
+         ...
 
-           (new machine%)))]))
+         (new machine%))]))
 
 (define-syntax compile-proxy-methods
   (syntax-parser

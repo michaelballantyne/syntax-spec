@@ -440,8 +440,7 @@ Now let's update the rest of our code:
     [(_ e t-stx (~optional should-skip-contract?))
      (define t (syntax->datum #'t-stx))
      (define/syntax-parse e^
-       #'(with-reference-compilers ([typed-var typed-var-reference-compiler])
-           (compile-expr e)))
+       #'(compile-expr e))
      (if (attribute should-skip-contract?)
          #'e^
          #`(contract #,(type->contract-stx t)
@@ -506,7 +505,7 @@ Now let's update the rest of our code:
 
 To type-check a group of definitions, we must take two passes. The first pass must record the type information of all defined identifiers, and the second pass checks the types of the bodies of definitions. Since mutual recursion is possible, we need the types of all identifiers before we can start checking the types of definition bodies which may reference variables before their definitions. This is a common pattern when working with mutually recursive definition contexts in general.
 
-When compiling top-level definitions, we must wrap expressions with @racket[with-reference-compilers], so we use @racket[compile-expr/top] from @racket[compile-defn-or-expr/top]. We added an optional flag to disable the contract check for @racket[compile-expr/top] when compiling top-level definitions since it is unnecessary.
+We added an optional flag to disable the contract check for @racket[compile-expr/top] when compiling top-level definitions since it is unnecessary.
 
 We also added support for multi-body @racket[let], @racket[lambda], and @racket[let*], and we added a macro around @racket[#%define] for syntactic sugar.
 

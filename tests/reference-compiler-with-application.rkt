@@ -14,10 +14,17 @@
   (define-persistent-symbol-table number-vars))
 
 (syntax-spec
- (binding-class mutable-var)
- (binding-class immutable-var)
- (binding-class weird-var)
- (binding-class number-var)
+ (binding-class mutable-var #:reference-compiler mutable-reference-compiler)
+ (binding-class immutable-var #:reference-compiler immutable-reference-compiler)
+ (binding-class weird-var
+   #:reference-compiler (syntax-parser
+                          [x:id #'x]
+                          [(x:id . args)
+                           #`(list x `#,(length (syntax-e #'args)))]))
+ (binding-class number-var
+   #:reference-compiler (make-variable-like-reference-compiler
+                         (lambda (x)
+                           #`#,(symbol-table-ref number-vars x))))
  (nonterminal expr
               (mutable-let ([x:mutable-var e:racket-expr]) body:racket-expr)
               #:binding (scope (bind x) body)
@@ -30,16 +37,7 @@
 
  (host-interface/expression
   (expression e:expr)
-  #'(with-reference-compilers ([weird-var (syntax-parser
-                                            [x:id #'x]
-                                            [(x:id . args)
-                                             #`(list x `#,(length (syntax-e #'args)))])]
-                               [number-var (make-variable-like-reference-compiler
-                                            (lambda (x)
-                                              #`#,(symbol-table-ref number-vars x)))]
-                               [mutable-var mutable-reference-compiler]
-                               [immutable-var immutable-reference-compiler])
-      (compile-expr e))))
+  #'(compile-expr e)))
 
 (define-syntax compile-expr
   (syntax-parser

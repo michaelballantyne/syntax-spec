@@ -11,7 +11,6 @@
 
   (host-interface/expression
     (eval-my-expr e:my-expr)
-    ; no with-reference-compilers
     #'e))
 
 (check-equal?

@@ -338,8 +338,7 @@
                   #f)))
 
 ;; racket var is not super-special.
-;; It's just a binding class that gets an implicit
-;; (with-reference-compilers ([racket-var mutable-reference-compiler])).
+;; It's just a binding class that gets an implicit mutable-reference-compiler
 (syntax-spec
   (binding-class racket-var #:description "racket variable"))
 

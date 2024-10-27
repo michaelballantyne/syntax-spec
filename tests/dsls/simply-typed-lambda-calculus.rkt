@@ -199,7 +199,7 @@
        (immutable-symbol-set #'x)]
       [_ (immutable-symbol-set)])))
 
-; inserts with-reference-compilers, and contract check
+; inserts contract check
 (define-syntax compile-expr/top
   (syntax-parser
     [(_ e t-stx (~optional should-skip-contract?))
@@ -254,7 +254,7 @@
        (define/syntax-parse return-type-stx (type->contract-stx return-type))
        #'(-> arg-type-stx ... return-type-stx)])))
 
-; inserts with-reference-compilers around exprs, and contract checks
+; inserts and contract checks
 (define-syntax compile-defn-or-expr/top
   (syntax-parser
     [(_ ((~datum #%define) x:id _ body))

@@ -564,8 +564,7 @@ An example from the @hyperlink["https://github.com/michaelballantyne/syntax-spec
    (define-pegs [name:nonterm p:peg] ...)
    #:binding [(export name) ...]
    (run-leftrec-check! (attribute name) (attribute p))
-   #'(begin (define name (lambda (in) (with-reference-compilers ([var immutable-reference-compiler])
-                                        (compile-peg p in))))
+   #'(begin (define name (lambda (in) (compile-peg p in)))
             ...)))
 ]
 

@@ -8,7 +8,7 @@
 (syntax-spec
   (binding-class a-var)
   (binding-class b-var)
-  (binding-class c-var)
+  (binding-class c-var #:reference-compiler immutable-reference-compiler)
   (nonterminal my-expr
     (let/a x:a-var e:my-expr)
     #:binding (scope (bind x) e)
@@ -19,8 +19,7 @@
     (rkt e:racket-expr))
   (host-interface/expression
    (my-dsl e:my-expr)
-   #'(with-reference-compilers ([c-var immutable-reference-compiler])
-       (compile-expr e))))
+   #'(compile-expr e)))
 
 (define-syntax compile-expr
   (syntax-parser

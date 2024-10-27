@@ -20,31 +20,6 @@ set!-transformers.
 
 (require "../../testing.rkt")
 
-(syntax-spec
-  (binding-class var #:description "mylet variable")
-
-  (nonterminal mylet-expr
-    #:description "mylet expression"
-    (mylet v:var body:racket-expr)
-    #:binding (scope (bind v) body)
-    (regular-let v:var val:racket-expr body:racket-expr)
-    #:binding (scope (bind v) body)
-    (rep-let v:var body:racket-expr)
-    #:binding (scope (bind v) body)
-    (mybegin def:mydef body:racket-expr)
-    #:binding (scope (import def) body))
- 
-  (nonterminal/exporting mydef
-    #:description "mylet definition"
-    (mydefine-inner v:var)
-    #:binding (export v)
-    (regular-define-inner v:var val:racket-expr)
-    #:binding [(export v) val])
-
-  (host-interface/expression
-    (run le:mylet-expr)
-    (compile-mylet-expr #'le)))
-
 (begin-for-syntax
   (struct my-var-rep []
     #:property prop:set!-transformer
@@ -57,21 +32,45 @@ set!-transformers.
        (let ([stx* (cons #'(#%expression x) (cdr (syntax-e this-syntax)))])
          (datum->syntax this-syntax stx* this-syntax))])))
 
+(syntax-spec
+  (binding-class my-var #:reference-compiler mutable-reference-compiler)
+  (binding-class regular-var #:reference-compiler mutable-reference-compiler)
+  (binding-class rep-var #:reference-compiler (my-var-rep))
+
+  (nonterminal mylet-expr
+    #:description "mylet expression"
+    (mylet v:my-var body:racket-expr)
+    #:binding (scope (bind v) body)
+    (regular-let v:regular-var val:racket-expr body:racket-expr)
+    #:binding (scope (bind v) body)
+    (rep-let v:rep-var body:racket-expr)
+    #:binding (scope (bind v) body)
+    (mybegin def:mydef body:racket-expr)
+    #:binding (scope (import def) body))
+
+  (nonterminal/exporting mydef
+    #:description "mylet definition"
+    (mydefine-inner v:my-var)
+    #:binding (export v)
+    (regular-define-inner v:regular-var val:racket-expr)
+    #:binding [(export v) val])
+
+  (host-interface/expression
+    (run le:mylet-expr)
+    (compile-mylet-expr #'le)))
+
 (define-for-syntax compile-mylet-expr
   (syntax-parser
     [((~literal mylet) v:id body:expr)
-     #:with body^ #'(with-reference-compilers ([var mutable-reference-compiler]) body)
      #'(let-syntax ([v (make-set!-transformer
                         (syntax-parser
                           [(set! x:id val:expr) #'(list 'set! val)]
                           [x:id #''ref]))])
-         body^)]
+         body)]
     [((~literal regular-let) v:id val:expr body:expr)
-     #'(with-reference-compilers ([var mutable-reference-compiler])
-         (let ([v val]) body))]
+     #'(let ([v val]) body)]
     [((~literal rep-let) v:id body:expr)
-     #:with body^ #'(with-reference-compilers ([var (my-var-rep)]) body)
-     #'(let ([v 1]) body^)]
+     #'(let ([v 1]) body)]
     [((~literal mybegin) ((~literal mydefine-inner) var) body) (compile-mylet-expr #'(mylet var body))]
     [((~literal mybegin) ((~literal regular-define-inner) var val) body) (compile-mylet-expr #'(regular-let var val body))]))
 
@@ -89,22 +88,17 @@ set!-transformers.
             [x:id #''ref]))]))
  
   (host-interface/definition
-    (regular-define v:var val:racket-expr)
+    (regular-define v:regular-var val:racket-expr)
     #:binding [(export v) val]
   
     #:lhs
     [#'v]
     #:rhs
-    [#'(with-reference-compilers ([var mutable-reference-compiler]) val)])
- 
-  (host-interface/expression
-    (ref v:var)
-    #'v)
+    [#'val])
 
   (host-interface/expression
-    (my-set! v:var val:racket-expr)
-    #:with val^ #'(with-reference-compilers ([var mutable-reference-compiler]) val)
-    #'(set! v val^)))
+    (my-set! v:my-var val:racket-expr)
+    #'(set! v val)))
 
 ;; allows set! of dsl vars in regular racket expressions
 
@@ -121,15 +115,6 @@ set!-transformers.
 #;(let ()
     (mydefine x)
     (check-equal? x 'ref))
-;; this used to pass
-(let ()
-  (regular-define x 1)
-  (check-equal? (ref x) 1))
-;; this used to pass, but it doesn't really test set! behavior because it uses my-set!
-(let ()
-  (regular-define x 1)
-  (my-set! x 2)
-  (check-equal? (ref x) 2))
 ;; this used to fail
 (check-equal? (run (mylet x (set! x 2))) (list 'set! 2))
 ;; this used to fail
