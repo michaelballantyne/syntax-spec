@@ -49,7 +49,7 @@
     [(_ (fresh1 (x) b))
      #`(call/fresh 'x (lambda (x) (compile-goal b)))]
     [(_ (relname t ...))
-     (define actual (length (attribute t)))
+     (define actual (length (attribute t)))  ;; New
      (define expected
        (symbol-table-ref relation-arity #'relname))
      

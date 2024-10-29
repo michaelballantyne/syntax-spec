@@ -1,9 +1,12 @@
 #lang racket/base
 
+;; Our real, optimizing implementation!
+
 (require hosted-minikanren
          hosted-minikanren/racket-matche
          hosted-minikanren/inspect)
 
+;; Let's see how extensions and optimizations fit together.
 
 (defrel (appendo l1 l2 l3)
   (disj
@@ -26,4 +29,4 @@
   #;(print-relation-code appendo/m)
 
   ;; Shows the optimized code after constant prop and dead code elim.
-  (print-relation-code/after-dead-code appendo/m))
+  #;(print-relation-code/after-dead-code appendo/m))

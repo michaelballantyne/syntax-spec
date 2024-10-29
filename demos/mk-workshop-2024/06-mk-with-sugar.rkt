@@ -50,7 +50,7 @@
    (core-defrel (name:relation-name
                  x:term-variable ...)
      g:goal)
-    #:binding [(export name) (scope (bind x) g)]
+    #:binding [(export name) (scope (bind x) ... g)]
   
     #:lhs [#'name]
     #:rhs [#'(pretty-print '(defrel (name x ...) g))])

@@ -2,6 +2,8 @@
 
 (require hosted-minikanren)
 
+;; Towards multi-language programming...
+
 (defrel (route origin end path)
   (conde
     [(== origin end) (== path '())]
