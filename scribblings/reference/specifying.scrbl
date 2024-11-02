@@ -40,14 +40,11 @@ The following subsections address each kind of declaration allowed within the
 binder, it is an error if the binding class declared for the reference position
 does not match the binding class of the binding position.
 
-@defsubform[(binding-class id maybe-description maybe-binding-space maybe-reference-compiler)
+@defsubform[(binding-class id binding-class-option ...)
             #:grammar
-            [(maybe-description (code:line #:description string-literal)
-                                (code:line))
-             (maybe-binding-space (code:line #:binding-space space-symbol)
-                                  (code:line))
-             (maybe-reference-compiler (code:line #:reference-compiler reference-compiler-expr)
-                                       (code:line))]]
+            [(binding-class-option (code:line #:description string-literal)
+                                   (code:line #:binding-space space-symbol)
+                                   (code:line #:reference-compiler reference-compiler-expr))]]
 
 The @racket[#:description] option provides a user-friendly phrase describing the
 kind of binding. This description is used in error messages.
@@ -77,12 +74,10 @@ class using @racket[define-dsl-syntax].
 Nonterminals can be declared extensible by a certain extension class using @racket[#:allow-extension].
 These extensions are expanded away into core DSL forms before compilation.
 
-@defsubform[(extension-class id maybe-description maybe-binding-space)
+@defsubform[(extension-class id extension-class-option)
             #:grammar
-            [(maybe-description (code:line #:description string-literal)
-                                (code:line))
-             (maybe-binding-space (code:line #:binding-space space-symbol)
-                                  (code:line))]]
+            [(extension-class-option (code:line #:description string-literal)
+                                     (code:line #:binding-space space-symbol))]]
 
 The @racket[#:description] option provides a user-friendly phrase describing the
 kind of extension. This description is used in error messages.
@@ -92,7 +87,7 @@ to use for all extensions with this class.
 
 @section{Nonterminals}
 
-@defsubform[(nonterminal id nonterminal-options production ...)]
+@defsubform[(nonterminal id nonterminal-option production ...)]
 
 Defines a nonterminal supporting @racket[let]-like binding structure.
 
@@ -110,7 +105,7 @@ Example:
 
 @let-example
 
-@defsubform[(nonterminal/nesting id (nested-id) nonterminal-options production ...)]
+@defsubform[(nonterminal/nesting id (nested-id) nonterminal-option production ...)]
 
 Defines a @deftech{nesting nonterminal} supporting nested, @racket[let*]-like binding structure. Nesting nonterminals may also be used to describe complex binding structures like for @racket[match].
 
@@ -131,7 +126,7 @@ Example:
 ]]
 @let*-example
 
-@defsubform[(nonterminal/exporting id nonterminal-options production ...)]
+@defsubform[(nonterminal/exporting id nonterminal-option production ...)]
 
 Defines an @deftech{exporting nonterminal} which can export bindings, like @racket[define] and @racket[begin].
 
@@ -152,19 +147,11 @@ Example:
 
 @subsection{Nonterminal options}
 
-@racketgrammar*[(nonterminal-options (code:line maybe-description #;maybe-bind-literal-set
-                                                maybe-allow-extension
-                                                maybe-binding-space))
-                (maybe-description (code:line #:description string-literal)
-                                   (code:line))
-                #;(maybe-bind-literal-set (code:line #:bind-literal-set literal-set-id)
-                                        (code:line))
-                (maybe-allow-extension (code:line #:allow-extension extension-class-spec)
-                                       (code:line))
+@racketgrammar*[(nonterminal-option (code:line #:description string-literal)
+                                    (code:line #:allow-extension extension-class-spec)
+                                    (code:line #:binding-space space-symbol))
                 (extension-class-spec extension-class-id
-                                      (extension-class-id ...))
-                (maybe-binding-space (code:line #:binding-space space-symbol)
-                                     (code:line))]
+                                      (extension-class-id ...))]
 
 The @racket[#:description] option provides a user-friendly phrase describing the kind of nonterminal. This description is used in error messages.
 
