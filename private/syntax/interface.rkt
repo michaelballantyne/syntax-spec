@@ -340,10 +340,7 @@
 ;; racket var is not super-special.
 ;; It's just a binding class that gets an implicit mutable-reference-compiler
 (syntax-spec
-  (binding-class racket-var #:description "racket variable"))
-
-(begin-for-syntax
-  (add-global-reference-compiler! #'racket-var (delay mutable-reference-compiler)))
+  (binding-class racket-var #:description "racket variable" #:reference-compiler mutable-reference-compiler))
 
 ;; for now defined in the DSL; later might become primitive and replace `host`.
 (syntax-spec
