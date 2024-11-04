@@ -51,12 +51,7 @@ kind of binding. This description is used in error messages.
 
 The @racket[#:binding-space] option specifies a @tech/reference{binding space}
 to use for all bindings and references declared with this class.
-
-@margin-note{See @secref["reference compilers"] for more information about reference compilers}
-
-The @racket[#:reference-compiler] option specifies a @tech{reference compiler} for controlling how
-references to variables of this binding class are treated in Racket code.
-
+@;
 Operationally, the binding space declaration causes the syntax-spec expander to
 add the binding space scope to bindings and references.
 @;
@@ -66,6 +61,11 @@ When parsing a reference position declared with a binding
 class that has an associated binding space, the name that is looked up is
 augmented with the binding class scope in order to give it access to bindings
 defined in the space.
+
+@margin-note{See @secref["reference compilers"] for more information about reference compilers}
+
+The @racket[#:reference-compiler] option specifies a @tech{reference compiler} for controlling how
+references to variables of this binding class are treated in Racket code.
 
 @section{Extension classes}
 
