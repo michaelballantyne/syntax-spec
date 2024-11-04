@@ -12,7 +12,7 @@
          (for-syntax (only-in "../../private/ee-lib/main.rkt" compiled-from) racket/sequence racket/match syntax/transformer))
 
 (syntax-spec
-  (binding-class typed-var)
+  (binding-class typed-var #:reference-compiler typed-var-reference-compiler)
   (extension-class typed-macro #:binding-space stlc)
   (nonterminal typed-expr
     #:allow-extension typed-macro
@@ -199,14 +199,13 @@
        (immutable-symbol-set #'x)]
       [_ (immutable-symbol-set)])))
 
-; inserts with-reference-compilers, and contract check
+; inserts contract check
 (define-syntax compile-expr/top
   (syntax-parser
     [(_ e t-stx (~optional should-skip-contract?))
      (define t (syntax->datum #'t-stx))
      (define/syntax-parse e^
-       #'(with-reference-compilers ([typed-var typed-var-reference-compiler])
-           (compile-expr e)))
+       #'(compile-expr e))
      (if (attribute should-skip-contract?)
          #'e^
          #`(contract #,(type->contract-stx t)
@@ -255,7 +254,7 @@
        (define/syntax-parse return-type-stx (type->contract-stx return-type))
        #'(-> arg-type-stx ... return-type-stx)])))
 
-; inserts with-reference-compilers around exprs, and contract checks
+; inserts and contract checks
 (define-syntax compile-defn-or-expr/top
   (syntax-parser
     [(_ ((~datum #%define) x:id _ body))
@@ -273,7 +272,6 @@
      #'(begin (compile-defn-or-expr body) ...)]
     [(_ e)
      #'(compile-expr e)]))
-
 
 (define-syntax define-stlc-syntax
   (syntax-parser

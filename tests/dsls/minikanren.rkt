@@ -5,7 +5,7 @@
 (provide (all-defined-out) (for-syntax term-variable (all-defined-out)))
 
 (syntax-spec
- (binding-class term-variable #:description "miniKanren term variable")
+ (binding-class term-variable #:description "miniKanren term variable" #:reference-compiler immutable-reference-compiler)
  (binding-class relation-name #:description "miniKanren relation name")
   
  (extension-class term-macro)
@@ -19,8 +19,8 @@
    (a:quoted . d:quoted))
 
  (nonterminal term
-   #:description "miniKanren term"
    #:allow-extension term-macro
+   #:description "miniKanren term"
     
    n:number
    (#%term-ref x:term-variable)

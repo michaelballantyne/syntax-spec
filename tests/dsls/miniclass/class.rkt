@@ -35,8 +35,12 @@
     (pattern (~or (~literal lambda) (~literal #%plain-lambda)))))
 
 (syntax-spec
-  (binding-class method-var #:description "method name")
-  (binding-class field-var #:description "field name")
+  (binding-class method-var
+                 #:description "method name"
+                 #:reference-compiler method-reference-compiler)
+  (binding-class field-var
+                 #:description "field name"
+                 #:reference-compiler field-reference-compiler)
 
   (nonterminal/exporting class-form
                         #:allow-extension racket-macro
@@ -104,28 +108,26 @@
        (for ([field-name (attribute field-name)]
              [field-index (in-naturals)])
          (symbol-table-set! field-index-table field-name field-index))
-       #'(with-reference-compilers ([method-var method-reference-compiler]
-                                    [field-var field-reference-compiler])
-           (letrec ([method-table
-                     (vector (lambda (this-arg method-arg ...)
-                               (syntax-parameterize ([this (make-variable-like-transformer #'this-arg)])
-                                 method-body
-                                 ...))
-                             ...)]
-                    [constructor
-                     (lambda (field-name ...)
-                       (let ([this-val (object (vector field-name ...) cls)])
-                         (syntax-parameterize ([this (make-variable-like-transformer #'this-val)])
-                           ;; ensure body is non-empty
-                           (void)
-                           expr
-                           ...)
-                         this-val))]
-                    [method-name->index
-                     (make-name->index (list 'method-name ...))]
-                    [cls
-                     (class-info method-name->index method-table constructor)])
-             cls))]))
+       #'(letrec ([method-table
+                   (vector (lambda (this-arg method-arg ...)
+                             (syntax-parameterize ([this (make-variable-like-transformer #'this-arg)])
+                               method-body
+                               ...))
+                           ...)]
+                  [constructor
+                   (lambda (field-name ...)
+                     (let ([this-val (object (vector field-name ...) cls)])
+                       (syntax-parameterize ([this (make-variable-like-transformer #'this-val)])
+                         ;; ensure body is non-empty
+                         (void)
+                         expr
+                         ...)
+                       this-val))]
+                  [method-name->index
+                   (make-name->index (list 'method-name ...))]
+                  [cls
+                   (class-info method-name->index method-table constructor)])
+           cls)]))
 
   (define method-reference-compiler
     (make-variable-like-reference-compiler

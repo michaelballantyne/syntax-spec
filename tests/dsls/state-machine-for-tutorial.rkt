@@ -6,7 +6,7 @@
          (for-syntax racket/pretty racket/list))
 
 (syntax-spec
-  (binding-class event-var)
+  (binding-class event-var #:reference-compiler mutable-reference-compiler)
   (binding-class state-name)
   (extension-class state-macro)
 
@@ -84,32 +84,31 @@
           (~optional (on-enter action ...) #:defaults ([(action 1) '()]))
           e ...)
         ...)
-     #'(with-reference-compilers ([event-var mutable-reference-compiler])
-         (let ()
-           (define machine%
-             (class object%
-               (define state #f)
-               (define/public (set-state state%)
-                 (set! state (new state% [machine this])))
-               (define/public (get-state)
-                 (send state get-state))
+     #'(let ()
+         (define machine%
+           (class object%
+             (define state #f)
+             (define/public (set-state state%)
+               (set! state (new state% [machine this])))
+             (define/public (get-state)
+               (send state get-state))
 
-               (compile-proxy-methods (e ... ...) state)
+             (compile-proxy-methods (e ... ...) state)
 
-               (send this set-state initial-state)
-               (super-new)))
+             (send this set-state initial-state)
+             (super-new)))
 
-           (define state-name
-             (class object%
-               (init-field machine)
-               (define/public (get-state)
-                 'state-name)
-               action ...
-               (compile-event-method e machine) ...
-               (super-new)))
-           ...
+         (define state-name
+           (class object%
+             (init-field machine)
+             (define/public (get-state)
+               'state-name)
+             action ...
+             (compile-event-method e machine) ...
+             (super-new)))
+         ...
 
-           (new machine%)))]))
+         (new machine%))]))
 
 (define-syntax compile-proxy-methods
   (syntax-parser

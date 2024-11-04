@@ -364,6 +364,7 @@ Now Let's start to write the compiler:
 
 @racketblock[
 (syntax-spec
+  (binding-class event-var #:reference-compiler mutable-reference-compiler)
   ...
   (host-interface/expression
     (machine #:initial initial-state:state-name s:state-spec ...)
@@ -379,35 +380,34 @@ Now Let's start to write the compiler:
           (~optional (on-enter action ...) #:defaults ([(action 1) '()]))
           e ...)
         ...)
-     #'(with-reference-compilers ([event-var mutable-reference-compiler])
-         (let ()
-           (define machine%
-             (class object%
-               (define state #f)
-               (define/public (set-state state%)
-                 (set! state (new state% [machine this])))
-               (define/public (get-state)
-                 (send state get-state))
+     #'(let ()
+         (define machine%
+           (class object%
+             (define state #f)
+             (define/public (set-state state%)
+               (set! state (new state% [machine this])))
+             (define/public (get-state)
+               (send state get-state))
 
-               (compile-proxy-methods (e ... ...) state)
+             (compile-proxy-methods (e ... ...) state)
 
-               (send this set-state initial-state)
-               (super-new)))
+             (send this set-state initial-state)
+             (super-new)))
 
-           (define state-name
-             (class object%
-               (init-field machine)
-               (define/public (get-state)
-                 'state-name)
-               action ...
-               (compile-event-method e machine) ...
-               (super-new)))
-           ...
+         (define state-name
+           (class object%
+             (init-field machine)
+             (define/public (get-state)
+               'state-name)
+             action ...
+             (compile-event-method e machine) ...
+             (super-new)))
+         ...
 
-           (new machine%)))]))
+         (new machine%))]))
 ]
 
-We defined a macro, @racket[compile-machine], which expands to something similar to what we wrote by hand above. One thing we have to do with syntax-spec is wrap the generated code in a @racket[with-reference-compilers] form. This allows us to control whether and how DSL identifiers behave in Racket expressions like actions. In our case, we use @racket[mutable-reference-compiler], which allows event arguments to be referenced and mutated. We don't specify a reference compiler for state names, so they cannot be referenced in Racket expressions. Only @racket[goto].
+We defined a macro, @racket[compile-machine], which expands to something similar to what we wrote by hand above. One thing we have to do with syntax-spec is declare a reference compiler in the @racket[binding-class] declaration. This allows us to control whether and how DSL identifiers behave in Racket expressions like actions. In our case, we use @racket[mutable-reference-compiler], which allows event arguments to be referenced and mutated. We don't specify a reference compiler for state names, so they cannot be referenced in Racket expressions. Only @racket[goto].
 
 We have helpers to define the proxy methods in the @racket[machine%] class and transition methods in the state classes:
 

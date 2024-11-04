@@ -7,8 +7,8 @@
 ;; Syntax
 
 (syntax-spec
-  (binding-class data-var)
-  (binding-class local-var)
+  (binding-class data-var #:reference-compiler immutable-reference-compiler)
+  (binding-class local-var #:reference-compiler immutable-reference-compiler)
   (binding-class machine-name)
   (binding-class state-name)
 
@@ -203,25 +203,22 @@
               (~var st (compile-state/cls #'state #'data #'event)))
         ...]
        #'(lambda ()
-           (with-reference-compilers ([data-var immutable-reference-compiler]
-                                      [local-var immutable-reference-compiler])
-        
-             (struct machine-data [data-v ...] #:prefab)
+           (struct machine-data [data-v ...] #:prefab)
            
-             st.constructor
-             ...
+           st.constructor
+           ...
 
-             (define (step-f state data event)
-               (match-define (machine-data data-v ...) data)
-               (match (car state)
-                 ['st.state-name
-                  st.step]
-                 ...))
-             
-             (rt:machine
-              (initial-state)
-              (machine-data data-rhs ...)
-              step-f)))])))
+           (define (step-f state data event)
+             (match-define (machine-data data-v ...) data)
+             (match (car state)
+               ['st.state-name
+                st.step]
+               ...))
+
+           (rt:machine
+            (initial-state)
+            (machine-data data-rhs ...)
+            step-f))])))
 
 
 (module+ test

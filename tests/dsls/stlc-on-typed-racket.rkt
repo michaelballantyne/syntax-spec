@@ -10,6 +10,7 @@
          (for-syntax (all-defined-out)))
 (require (for-syntax racket/match)
          "../../testing.rkt"
+         "../../private/runtime/compile.rkt"
          "simply-typed-lambda-calculus.rkt")
 
 (syntax-spec
@@ -28,8 +29,7 @@
   (syntax-parser
     [(_ e)
      ; you don't need an ann around this bc the expanded code will be inferred to have the right type
-     #'(with-reference-compilers ([typed-var immutable-reference-compiler])
-         (compile-expr e))]))
+     #'(with-reference-compilers ([typed-var immutable-reference-compiler]) (compile-expr e))]))
 
 (define-syntax compile-expr
   (syntax-parser
@@ -64,7 +64,7 @@
        (define/syntax-parse t-ret (type->typed-racket-stx return-type))
        #'(-> t-arg ... t-ret)])))
 
-; inserts with-reference-compilers around exprs, and contract checks
+; inserts and contract checks
 (define-syntax compile-defn-or-expr/top
   (syntax-parser
     [(_ ((~datum #%define) x:id _ body))

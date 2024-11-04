@@ -20,8 +20,7 @@
       [n:number
        #'n]
       [(rkt e)
-       #'(with-reference-compilers ([term-variable immutable-reference-compiler])
-         e)])))
+       #'e])))
 
 (syntax-spec
   (host-interface/expression

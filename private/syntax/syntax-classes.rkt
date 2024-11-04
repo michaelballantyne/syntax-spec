@@ -7,6 +7,7 @@
 
  maybe-description
  maybe-binding-space
+ maybe-reference-compiler
 
  nested-binding-syntax
  sspec-term
@@ -69,6 +70,10 @@
 (define-splicing-syntax-class maybe-binding-space
   (pattern (~optional (~seq #:binding-space stx:id) #:defaults ([stx #'#f]))
     #:attr sym (syntax-e (attribute stx))))
+
+(define-splicing-syntax-class maybe-reference-compiler
+  (pattern (~optional (~seq #:reference-compiler ~! compiler-stx))
+           #:attr compiler (attribute compiler-stx)))
 
 (define current-orig-stx (make-parameter #f))
 
@@ -194,10 +199,12 @@
   (pattern (classes:id ...)))
 
 (define-splicing-syntax-class nonterminal-options
-  (pattern (~seq (~optional (~seq #:description description:string))
-                 (~optional (~seq #:bind-literal-set litset-binder:id))
-                 (~optional (~seq #:allow-extension extensions:extclass-spec))
-                 (~var maybe-space maybe-binding-space))
+  (pattern (~seq (~alt
+                  (~optional (~seq #:description description:string))
+                  (~optional (~seq #:bind-literal-set litset-binder:id))
+                  (~optional (~seq #:allow-extension extensions:extclass-spec))
+                  (~optional (~var maybe-space maybe-binding-space)))
+                 ...)
     #:attr space-stx (attribute maybe-space.stx)
     #:attr space-sym (attribute maybe-space.sym)
     #:attr ext-classes (if (attribute extensions) (attribute extensions.classes) '())))

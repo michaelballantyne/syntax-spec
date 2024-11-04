@@ -17,6 +17,7 @@
   
   (for-syntax
    racket/base
+   racket/promise
    racket/list
    racket/match
    racket/function
@@ -90,8 +91,11 @@
       
       [(binding-class
         ~! name:id
-        (~var descr (maybe-description #'name))
-        (~var space maybe-binding-space))
+        (~alt
+         (~optional (~var descr (maybe-description #'name)))
+         (~optional (~var space maybe-binding-space))
+         (~optional (~var reference-compiler maybe-reference-compiler)))
+        ...)
        (with-syntax ([sname (format-id #'here "~a-var" #'name)]
                      [sname-pred (format-id #'here "~a-var?" #'name)])
          (values
@@ -105,14 +109,17 @@
                  (#%datum . descr.str)
                  (quote-syntax sname)
                  (quote-syntax sname-pred)
-                 (quote space.stx))))
+                 (quote space.stx)))
+              (~? (add-global-reference-compiler! #'name (delay reference-compiler.compiler))))
           #f
           #f))]
       
       [(extension-class
         ~! name:id
-        (~var descr (maybe-description #'name))
-        (~var space maybe-binding-space))
+        (~alt
+         (~optional (~var descr (maybe-description #'name)))
+         (~optional (~var space maybe-binding-space)))
+        ...)
        (with-syntax ([sname (format-id #'here "~a" #'name)]
                      [sname-pred (format-id #'here "~a?" #'name)]
                      [sname-acc (format-id #'here "~a-transformer" #'name)])
@@ -331,14 +338,9 @@
                   #f)))
 
 ;; racket var is not super-special.
-;; It's just a binding class that gets an implicit
-;; (with-reference-compilers ([racket-var mutable-reference-compiler])).
+;; It's just a binding class that gets an implicit mutable-reference-compiler
 (syntax-spec
-  (binding-class racket-var #:description "racket variable"))
-
-(begin-for-syntax
-  (define built-in-reference-compilers (list (list #'racket-var mutable-reference-compiler)))
-  (setup-default-reference-compilers! built-in-reference-compilers))
+  (binding-class racket-var #:description "racket variable" #:reference-compiler mutable-reference-compiler))
 
 ;; for now defined in the DSL; later might become primitive and replace `host`.
 (syntax-spec

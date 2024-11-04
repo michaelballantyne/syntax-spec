@@ -15,7 +15,7 @@
 
 @title{Compiling languages}
 
-@section{Compiling references to DSL bindings within Racket code}
+@section[#:tag "reference compilers"]{Compiling references to DSL bindings within Racket code}
 
 @margin-note{@secref["compilation" #:doc '(lib "syntax-spec/scribblings/main.scrbl")] in the @secref["Basic_Tutorial__State_Machine_Language"
          #:doc '(lib "syntax-spec/scribblings/main.scrbl")] introduces the use of reference compilers.}
@@ -26,16 +26,7 @@ When a reference appears in the head of a form, such as @racket[x] in @racket[(x
 
 In all cases, the reference identifier in the syntax provided to the reference compiler is a @tech{compiled identifier}.
 
-DSL compilers specify the reference compilers to use by emitting compiled code containing @racket[with-reference-compiler] forms.
-
-@defform[(with-reference-compilers
-             ([binding-class-id reference-compiler-expr] ...)
-           body ...+)]
-
-Declares the reference compilers to use when expanding DSL-bound identifiers of the specified binding classes when expanding
-@racket[body]. Evaluates to @racket[body].
-
-
+Reference compilers can be specified in the @racket[#:reference-compiler] option of a @racket[binding-class] form. For local control over reference compiler behavior, @tech/reference{syntax parameters} are recommended.
 
 @defproc[(make-variable-like-reference-compiler [reference-stx (or/c syntax? (-> identifier? syntax?))]
                                                 [setter-stx (or/c syntax? (-> syntax? syntax?)) #f])
@@ -60,15 +51,14 @@ Here is an example for a @racket[match] DSL where pattern-bound variables cannot
 @;TODO host-interface/expression and racket-expr isn't getting linked
 @racketblock[
 (syntax-spec
+ (binding-class pat-var #:reference-compiler (make-variable-like-reference-comiler (lambda (id) id)))
  (host-interface/expression
   (match target:racket-expr c:clause ...)
-  #'(with-reference-compilers ([pat-var (make-variable-like-reference-compiler (lambda (id) id))])
-      (let ([target-pv target])
-        (match-clauses target-pv c ...)))))
+  #'(let ([target-pv target])
+      (match-clauses target-pv c ...))))
 ]
 
-Alternately we could provide @racket[immutable-reference-compiler] as the reference compiler, which behaves exactly the same.
-
+Alternately we could provide @racket[immutable-reference-compiler] as the reference compiler, which behaves the same.
 
 @defthing[immutable-reference-compiler set!-transformer?]
 

@@ -4,7 +4,7 @@
          "../../testing.rkt")
 
 (syntax-spec
-  (binding-class pat-var)
+  (binding-class pat-var #:reference-compiler immutable-reference-compiler)
   (extension-class pat-macro #:binding-space pm)
   (nonterminal/exporting pat
     #:allow-extension pat-macro
@@ -26,9 +26,8 @@
     #:binding (scope (import p) body ...))
   (host-interface/expression
     (match target:racket-expr c:clause ...)
-    #'(with-reference-compilers ([pat-var immutable-reference-compiler])
-        (let ([target-pv target])
-          (match-clauses target-pv c ...)))))
+    #'(let ([target-pv target])
+        (match-clauses target-pv c ...))))
 
 (define-syntax match-clauses
   (syntax-parser
