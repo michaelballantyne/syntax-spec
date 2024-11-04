@@ -1,6 +1,7 @@
 #lang scribble/manual
 
 @(require scribble/example
+          "../common.rkt"
           (for-label racket "../../main.rkt" syntax/id-table syntax/id-set syntax/transformer))
 
 @;-----------------------

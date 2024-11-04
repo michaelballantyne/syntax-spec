@@ -12,3 +12,5 @@
 @include-section["specifying.scrbl"]
 
 @include-section["compiling.scrbl"]
+
+@include-section["versions.scrbl"]
