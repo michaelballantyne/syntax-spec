@@ -22,7 +22,7 @@
     (machine #:initial-state init:state-name
              #:states s:state-spec ...
              #:shared-events e:event-spec ...)
-    #:binding (scope (import s) init e)
+    #:binding (scope (import s) ... init e ...)
   
     #'(compile-machine (machine #:initial-state init
                                 #:states s ...
