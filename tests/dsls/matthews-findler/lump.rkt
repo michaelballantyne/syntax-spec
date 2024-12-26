@@ -72,7 +72,7 @@
   
   (define (infer-type e)
     (syntax-parse e
-      #:datum-literals (app + - if0 lambda)
+      #:datum-literals (app + - if0 lambda MR)
       [x:id
        (type-env-ref #'x)]
       [_:number
@@ -109,7 +109,7 @@
 
 (define-syntax ml->racket
   (syntax-parser
-    #:datum-literals (app + - if0 lambda)
+    #:datum-literals (app + - if0 lambda MR)
     [(_ x:id)
      #'x]
     [(_ n:number)

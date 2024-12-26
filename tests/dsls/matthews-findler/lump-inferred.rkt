@@ -57,6 +57,11 @@
 (struct ml-value [v t])
 (struct racket-value [v])
 
+;; MLVar is Identifier
+;; MLType is Syntax
+;; MLExpr is Syntax
+
+;; RM-translation : Any MLType -> Any
 (define (RM-translation v t)
   (if (equal? (syntax->datum t) 'L)
     (if (racket-value? v)
@@ -64,6 +69,7 @@
       (error 'RM "not a Racket value"))
     (ml-value v t)))
 
+;; MR-translation : Any MLType -> Any
 (define (MR-translation v t)
   (if (equal? (syntax->datum t) 'L)
     (racket-value v)
@@ -76,10 +82,12 @@
       (error 'MR "not an ML value"))))
 
 (begin-for-syntax
+  ;; compile-RM : MLExpr -> Syntax
   (define (compile-RM e)
     (define-values (e^ t) (infer-type e))
     #`(RM-translation (ml->racket #,e^) #'#,t))
 
+  ;; assert-type-equal! : MLType MLType MLExpr -> Void
   ;; No type variables yet, so should just be datum equality.
   (define (assert-type-equal! actual expected term)
     (unless (equal? (syntax->datum actual) (syntax->datum expected))
@@ -93,12 +101,15 @@
 
   (define-local-symbol-table type-env)
 
+  ;; type-env-ref : MLVar -> MLType
   (define (type-env-ref x)
     (symbol-table-ref type-env x #'Nat))
 
+  ;; type-env-extend! : MLVar MLType -> Void
   (define (type-env-extend! x t)
     (symbol-table-set! type-env x t))
   
+  ;; infer-type : MLExpr -> (Values MLExpr MLType)
   (define (infer-type e)
     (syntax-parse e
       #:datum-literals (app + - if0 lambda MR)
@@ -138,6 +149,7 @@
        (define e^ (check-type! #'e #'t))
        (values e^ #'t)]))
 
+  ;; check-type! : MLExpr MLType -> MLExpr
   (define (check-type! e t)
     (syntax-parse e
       #:datum-literals (app MR)
@@ -155,7 +167,7 @@
 
 (define-syntax ml->racket
   (syntax-parser
-    #:datum-literals (app + - if0 lambda)
+    #:datum-literals (app + - if0 lambda MR)
     [(_ x:id)
      #'x]
     [(_ n:number)
