@@ -42,6 +42,7 @@
   (nonterminal ml-type
     #:binding-space ml
     Nat
+    L
     (-> t1:ml-type t2:ml-type))
 
   (host-interface/expression
@@ -54,23 +55,30 @@
     #`(ml->racket #,e^)))
 
 (struct ml-value [v t])
+(struct racket-value [v])
 
-(define (seal e t)
-  (ml-value e t))
+(define (RM-translation v t)
+  (if (equal? (syntax->datum t) 'L)
+    (if (racket-value? v)
+      (racket-value-v v)
+      (error 'RM "not a Racket value"))
+    (ml-value v t)))
 
-(define (unseal e t)
-  (unless (ml-value? e)
-    (error 'MR "not an ML value"))
-  (let ([v (ml-value-v e)]
-        [t (ml-value-t e)])
-    (if (equal? t t)
-       v
-      (error 'unseal "type mismatch"))))
+(define (MR-translation v t)
+  (if (equal? (syntax->datum t) 'L)
+    (racket-value v)
+    (if (ml-value? v)
+      (let ([v (ml-value-v v)]
+           [t (ml-value-t v)])
+        (if (equal? t t)
+          v
+          (error 'MR "type mismatch")))
+      (error 'MR "not an ML value"))))
 
 (begin-for-syntax
   (define (compile-RM e)
     (define-values (e^ t) (infer-type e))
-    #`(seal (ml->racket #,e^) #'#,t))
+    #`(RM-translation (ml->racket #,e^) #'#,t))
 
   ;; No type variables yet, so should just be datum equality.
   (define (assert-type-equal! actual expected term)
@@ -163,7 +171,7 @@
     [(_ (lambda ([x t]) b))
      #'(lambda (x) (ml->racket b))]
     [(_ (MR e t))
-     #'(unseal e #'t)]))
+     #'(MR-translation e #'t)]))
   
 
 (module+ test
@@ -188,7 +196,10 @@
   (check-equal? (ml ((lambda ([x Nat]) (+ (MR (let ([v x]) v)) 1)) 5))
                 6)
 
-  (ml (lambda ([x Nat]) (+ (MR (RM x)) 1)))
+  (check-equal?
+    (racket-value-v (ml (: ((lambda ([x L]) (: (MR (+ x 1)) L)) (: (MR 5) L)) L)))
+    6)
+
   
   (check-type-error
    (ml (app (lambda ([x Nat]) x) (lambda ([y Nat]) y)))
