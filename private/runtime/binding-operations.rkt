@@ -11,7 +11,7 @@
          syntax/parse
          syntax/id-table
          "../ee-lib/main.rkt"
-         (for-template "./compile.rkt"))
+         (for-template racket/base "./compile.rkt"))
 
 ;; Currently we use this as the notion of identifier equality:
 (define (identifier=? x y) (free-identifier=? (compiled-from x) (compiled-from y)))
@@ -179,9 +179,12 @@
 
 (define recording-reference-compiler
   (make-variable-like-reference-compiler
-   (lambda (x) (symbol-set-add! (current-referenced-vars) x) x)
+   ;; emit syntax instead of raw reference.
+   ;; this is necessary for languages that don't emit bindings for
+   ;; racket-reference-able identifiers.
+   (lambda (x) (symbol-set-add! (current-referenced-vars) x) #`#'#,x)
    (lambda (e)
      (syntax-parse e
        [(set! x _)
         (symbol-set-add! (current-referenced-vars) #'x)
-        #'x]))))
+        #'#'x]))))
