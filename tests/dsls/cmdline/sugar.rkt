@@ -10,9 +10,9 @@
 
 (define-option-syntax list/o
   (syntax-parser
-    [(_ names:flag-names arg:arg-spec desc:string)
+    [(_ [names:flag-names arg:arg-spec desc:string (~optional transformed #:defaults ([transformed #'arg.name]))] ...)
      #'(multi/o '()
-              [names arg desc (lambda (acc) (append acc (list arg.name)))])]))
+                [names arg desc (lambda (acc) (append acc (list transformed)))] ...)]))
 
 (define (int-range/p min max)
   (lambda (s)

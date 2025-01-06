@@ -19,6 +19,7 @@
                 (numbered-flags/f "--o" [0 3] "optimization level"))]
     [output
       (required/o "-o" outfile "the output filename" outfile)]
-    [link-flags (list/o ["-l" "--link-flags"] lf "Add a flag <lf> for the linker")]
+    [link-flags (list/o
+                 [["-l" "--link-flags"] lf "Add a flag <lf> for the linker"])]
     #:arguments
     [file-to-compile existing-file/p]))
