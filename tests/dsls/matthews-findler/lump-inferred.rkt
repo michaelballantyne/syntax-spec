@@ -74,10 +74,10 @@
   (if (equal? (syntax->datum t) 'L)
     (racket-value v)
     (if (ml-value? v)
-      (let ([v (ml-value-v v)]
-           [t (ml-value-t v)])
-        (if (equal? t t)
-          v
+      (let ([v-v (ml-value-v v)]
+            [v-t (ml-value-t v)])
+        (if (equal? (syntax->datum v-t) (syntax->datum t)) ;; Add test showing old one broke
+          v-v
           (error 'MR "type mismatch")))
       (error 'MR "not an ML value"))))
 

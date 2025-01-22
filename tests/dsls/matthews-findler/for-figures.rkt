@@ -7,10 +7,11 @@
   (nonterminal ml-expr
     #:binding-space ml
 
-    (~> x:ml-var
+    (~> x:id
+        #:when (not (lookup #'x (binding-class-predicate ml-var)))
         (syntax/loc #'x (MR x)))
-
     x:ml-var
+
     n:number
     (app e1:ml-expr e2:ml-expr)
     (+ e1:ml-expr e2:ml-expr)
@@ -35,12 +36,15 @@
     (RM e:ml-expr)
     (compile-RM #'e)))
 
+
+;; Put runtime support in a separate figure.
+
 (struct ml-value [v t])
 (struct racket-value [v])
 
-;; MLVar is Identifier
-;; MLType is Syntax
-;; MLExpr is Syntax
+;; Compilation might also be a separate figure from grammar.
+
+
 
 ;; RM-translation : Any MLType -> Any
 (define (RM-translation v t) #| elided ... |#)
@@ -48,30 +52,34 @@
 ;; MR-translation : Any MLType -> Any
 (define (MR-translation v t) #| elided ... |#)
 
+;; MLVar is Identifier
+;; MLType is Syntax
+;; MLExpr is Syntax
+
 (begin-for-syntax
-    ;; compile-RM : MLExpr -> Syntax
-    (define (compile-RM e)
-      (define-values (e^ t) (infer-type e))
-      #`(RM-translation (ml->racket #,e^) #'#,t))
+  ;; compile-RM : MLExpr -> Syntax
+  (define (compile-RM e)
+    (define-values (e^ t) (infer-type e))
+    #`(RM-translation (ml->racket #,e^) #'#,t))
 
-    ;; assert-type-equal! : MLType MLType MLExpr -> Void
-    (define (assert-type-equal! actual expected term) #| elided ... |#)
+  ;; assert-type-equal! : MLType MLType MLExpr -> Void
+  (define (assert-type-equal! actual expected term) #| elided ... |#)
 
-    (define-local-symbol-table type-env)
+  (define-local-symbol-table type-env)
 
-    ;; type-env-ref : MLVar -> MLType
-    (define (type-env-ref x)
-      (symbol-table-ref type-env x #'Nat))
+  ;; type-env-ref : MLVar -> MLType
+  (define (type-env-ref x)
+    (symbol-table-ref type-env x #'Nat))
 
-    ;; type-env-extend! : MLVar MLType -> Void
-    (define (type-env-extend! x t)
-      (symbol-table-set! type-env x t))
-    
-    ;; infer-type : MLExpr -> (Values MLExpr MLType)
-    (define (infer-type e) #| elided ... |#)
+  ;; type-env-extend! : MLVar MLType -> Void
+  (define (type-env-extend! x t)
+    (symbol-table-set! type-env x t))
+  
+  ;; infer-type : MLExpr -> (Values MLExpr MLType)
+  (define (infer-type e) #| elided ... |#)
 
-    ;; check-type! : MLExpr MLType -> MLExpr
-    (define (check-type! e t) #| elided ... |#))
+  ;; check-type! : MLExpr MLType -> MLExpr
+  (define (check-type! e t) #| elided ... |#))
 
 (define-syntax ml->racket
   (syntax-parser
