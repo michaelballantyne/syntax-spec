@@ -16,6 +16,8 @@
     #:binding (scope (bind x) e)
     (let/c x:c-var e:my-expr)
     #:binding (scope (bind x) e)
+    (let/no-binding x:a-var e:my-expr)
+    #:binding (scope (bind x) e)
     (rkt e:racket-expr))
   (host-interface/expression
    (my-dsl e:my-expr)
@@ -23,9 +25,11 @@
 
 (define-syntax compile-expr
   (syntax-parser
-    #:datum-literals (let/a let/b let/c rkt)
+    #:datum-literals (let/a let/b let/c let/no-binding rkt)
     [(_ ((~or let/a let/b let/c) x:id e:expr))
      #'(let ([x 1]) (compile-expr e))]
+    [(_ (let/no-binding x:id e:expr))
+     #'(compile-expr e)]
     [(_ (rkt e:expr))
      (define/syntax-parse (x ...) (get-racket-referenced-identifiers (a-var b-var)
                                     #'e))
@@ -50,3 +54,5 @@
                                        (let/b z
                                          (rkt (+ x y z)))))))
               (seteq 'y 'z))
+(check-equal? (my-dsl (let/no-binding x (rkt (+ x x))))
+              '(x))
