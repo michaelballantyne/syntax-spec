@@ -84,7 +84,7 @@
  ['() #f] ['("--verbose") #t] ['("-v") #t])
 
 (test-option
- (list/o ["--lf" "-l"] lf "add a link flag")
+ (list/o [["--lf" "-l"] lf "add a link flag"])
  ['() '()]
  ['("--lf" "a" "-l" "b") '("a" "b")])
 
