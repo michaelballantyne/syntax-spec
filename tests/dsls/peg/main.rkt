@@ -44,7 +44,7 @@
 
 (define-peg-syntax-parser char-range
   [(_ lower:character upper:character)
-   #'(char (lambda (c) (and (>= lower c) (<= c upper))))])
+   #'(char (lambda (c) (and (char>=? lower c) (char<=? c upper))))])
 
 (define-peg-syntax-parser symbol-token
   [(_ (~or v:string v:id))
