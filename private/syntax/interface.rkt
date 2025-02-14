@@ -3,6 +3,7 @@
 (provide syntax-spec
          define-dsl-syntax
          (for-syntax racket-expr
+                     racket-body
                      racket-var
                      racket-macro
                      
@@ -348,7 +349,19 @@
     e:expr
     #:binding (host e)))
 
+(syntax-spec
+  (nonterminal/exporting racket-body
+    #:description "racket body"
+    #:allow-extension racket-macro
+    ((~literal define-values) (x:racket-var ...) e:racket-expr)
+    #:binding [(export x) ...]
 
+    ((~literal define-syntaxes) (x:racket-macro ...) e:expr)
+    #:binding (export-syntaxes x ... e)
+
+    x:racket-var
+
+    e:racket-expr))
 
 (define-syntax define-dsl-syntax
   (syntax-parser

@@ -578,7 +578,20 @@ This defines a macro @racket[conj] that expands to a goal in miniKanren.
 
 @defidform[#:kind "nonterminal" racket-expr]
 
-A nonterminal that allows arbitrary host language expressions. Expressions are wrapped with @racket[#%host-expression] during DSL expansion.
+A nonterminal that allows arbitrary host language expressions. Expressions are wrapped with @racket[#%host-expression] during DSL expansion. This nonterminal does not support definitions.
+
+@defidform[#:kind "nonterminal" racket-body]
+
+A nonterminal that allows arbitrary host language expressions and definitions. This is an exporting nonterminal, so it must be explicitly mentioned in a binding spec, usually with @racket[import].
+
+Example:
+
+@racketblock[
+(syntax-spec
+  (nonterminal my-expr
+    (my-let ([x:racket-var e:racket-expr]) body:racket-body ...+)
+    #:binding (scope (bind x) (import body) ...)))
+]
 
 @defidform[#:kind "binding class" racket-var]
 
