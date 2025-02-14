@@ -13,18 +13,18 @@
   (nonterminal/exporting state-spec
     #:allow-extension state-macro
 
-    (state name:state-name ((~datum on-enter) body:racket-expr ...+) transition:transition-spec ...)
-    #:binding (export name)
+    (state name:state-name ((~datum on-enter) body:racket-body ...+) transition:transition-spec ...)
+    #:binding [(export name) (scope (import body) ...)]
 
     (state name:state-name transition:transition-spec ...)
     #:binding (export name))
 
   (nonterminal transition-spec
     (on (event-name:id arg:event-var ...)
-        body:racket-expr
+        body:racket-body
         ...
         ((~datum goto) next-state-name:state-name))
-    #:binding (scope (bind arg) ... body ...))
+    #:binding (scope (bind arg) ... (import body) ...))
 
   (host-interface/expression
     (machine #:initial initial-state:state-name s:state-spec ...)

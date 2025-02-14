@@ -250,24 +250,24 @@ An action expression can only @racket[displayln] the value of a variable. What i
      ...
 
      (nonterminal/exporting state-spec
-       (state name:state-name ((~datum on-enter) body:racket-expr ...+)  transition:transition-spec ...)
-       #:binding (export name)
+       (state name:state-name ((~datum on-enter) body:racket-body ...+)  transition:transition-spec ...)
+       #:binding [(export name) (scope (import body) ...)]
 
        (state name:state-name transition:transition-spec ...)
        #:binding (export name))
 
      (nonterminal transition-spec
        (on (event-name:id arg:event-var ...)
-         body:racket-expr
+         body:racket-body
          ...
          ((~datum goto) next-state-name:state-name))
-       #:binding (scope (bind arg) ... body))
+       #:binding (scope (bind arg) ... (import body) ...))
 
      ...))
 
-Instead of using @racket[action-spec] and defining our own nonterminal for action expressions, we can just use @racket[racket-expr], which allows arbitrary racket expressions. And our @racket[event-var] identifiers will be in scope in the racket expression! We can control how references to our DSL-bound variables behave in Racket expressions and whether they're allowed at all using reference compilers, which we'll discuss in the @secref["compilation"] section.
+Instead of using @racket[action-spec] and defining our own nonterminal for action expressions, we can just use @racket[racket-body], which allows arbitrary racket expressions and definitions. And our @racket[event-var] identifiers will be in scope in the racket expression! We can control how references to our DSL-bound variables behave in Racket expressions and whether they're allowed at all using reference compilers, which we'll discuss in the @secref["compilation"] section.
 
-In addition to @racket[racket-expr], syntax-spec provides @racket[racket-var] for allowing references to Racket-defined variables in DSL expressions, and @racket[racket-macro] for allowing the language to be extended by arbitrary Racket macros. We'll talk more about macros in the @secref["macros"] section.
+In addition to @racket[racket-body], syntax-spec provides @racket[racket-expr] for allowing Racket expressions, @racket[racket-var] for allowing references to Racket-defined variables in DSL expressions, and @racket[racket-macro] for allowing the language to be extended by arbitrary Racket macros. We'll talk more about macros in the @secref["macros"] section.
 
 @section[#:tag "compilation"]{Compilation}
 
