@@ -10,23 +10,23 @@ If you'd like to learn more about syntax-spec, you can check out our [ICFP 2024 
 
 ## Installing the release
 
-A release is available on the Racket package server as [`syntax-spec-v2`](https://pkgs.racket-lang.org/package/syntax-spec-v2). 
+A release is available on the Racket package server as [`syntax-spec-v3`](https://pkgs.racket-lang.org/package/syntax-spec-v3). 
 
 This is still a prototype: future releases will likely contain breaking changes, and the documentation is incomplete. However, breaking changes will be released under an updated package name.
 
 To use the released package, install via:
 
 ```
-raco pkg install syntax-spec-v2
+raco pkg install syntax-spec-v3
 ```
 
 and import as
 
 ```
-(require syntax-spec-v2)
+(require syntax-spec-v3)
 ```
 
-Its documentation is available on [the Racket documentation site](https://docs.racket-lang.org/syntax-spec-v2).
+Its documentation is available on [the Racket documentation site](https://docs.racket-lang.org/syntax-spec-v3).
 
 
 ## Installing the development version
