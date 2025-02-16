@@ -1,6 +1,6 @@
 #lang scribble/manual
 
-@(require "../common.rkt" (for-label racket syntax-spec-dev racket/stxparam))
+@(require "../common.rkt" (for-label racket syntax-spec-v3 racket/stxparam))
 
 @title{Release Notes}
 

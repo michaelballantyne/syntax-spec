@@ -1,6 +1,6 @@
 #lang racket/base
 
-(require syntax-spec-dev (for-syntax racket/base syntax/parse))
+(require syntax-spec-v3 (for-syntax racket/base syntax/parse))
 
 (syntax-spec
   (binding-class ml-var #:binding-space ml)
