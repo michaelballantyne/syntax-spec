@@ -41,14 +41,21 @@ raco pkg install
 Then import as
 
 ```
-(require syntax-spec)
+(require syntax-spec-dev)
 ```
 
 Once installed, you can access the documentation via:
 
 ```
-raco docs syntax-spec
+raco docs syntax-spec-dev
 ```
 
+Note that the package name when installed this way is based on the directory name, so if you checked out this repository as the directory `syntax-spec`, you would use
+
+```
+raco pkg remove syntax-spec
+```
+
+to uninstall the package.
 
 

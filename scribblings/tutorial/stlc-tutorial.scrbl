@@ -222,7 +222,7 @@ Right now, these don't need to be macros. But when we add definitions, We will d
 Now we can run some programs:
 
 @examples[#:label #f
-(require syntax-spec/tests/dsls/simply-typed-lambda-calculus)
+(require syntax-spec-dev/tests/dsls/simply-typed-lambda-calculus)
 (stlc/infer 1)
 (stlc/expr 1)
 (stlc/infer (lambda ([x : Number]) x))
@@ -328,7 +328,7 @@ This implementation is far from efficient. Instead of generating the syntax for 
 Let's run some example programs now:
 
 @examples[#:label #f
-(require syntax-spec/tests/dsls/simply-typed-lambda-calculus)
+(require syntax-spec-dev/tests/dsls/simply-typed-lambda-calculus)
 (stlc/expr
   (let ([add (rkt + : (-> Number Number Number))])
     (add 1 2)))
@@ -512,7 +512,7 @@ We also added support for multi-body @racket[let], @racket[lambda], and @racket[
 Let's run it!
 
 @examples[#:label #f
-(require syntax-spec/tests/dsls/simply-typed-lambda-calculus)
+(require syntax-spec-dev/tests/dsls/simply-typed-lambda-calculus)
 (stlc
   (begin
    (define two : Number

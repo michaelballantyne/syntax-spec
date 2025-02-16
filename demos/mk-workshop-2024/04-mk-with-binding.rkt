@@ -2,7 +2,7 @@
 
 (provide (all-defined-out))
 
-(require syntax-spec
+(require syntax-spec-dev
          (for-syntax syntax/parse))
 
 ;;
@@ -55,5 +55,5 @@
 
 
 (begin-for-syntax
-  (require (only-in syntax-spec/private/ee-lib/main show-var-numbers))
+  (require (only-in syntax-spec-dev/private/ee-lib/main show-var-numbers))
   (show-var-numbers #t))

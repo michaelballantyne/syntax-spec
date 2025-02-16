@@ -60,7 +60,7 @@ Our initial specification with @racket[syntax-spec] supplies the grammar:
 @codeblock|{
   #lang racket
 
-  (require syntax-spec (for-syntax syntax/parse racket/list))
+  (require syntax-spec-dev (for-syntax syntax/parse racket/list))
 
   (syntax-spec
     (host-interface/expression
@@ -445,7 +445,7 @@ Now we have all the pieces to run programs using state machines:
 @examples[
 #:label #f
 (require racket/class
-         syntax-spec/tests/dsls/state-machine-for-tutorial)
+         syntax-spec-dev/tests/dsls/state-machine-for-tutorial)
 (define vending-machine
   (machine
    #:initial idle
@@ -533,7 +533,7 @@ This static check runs before we generate the compiled code. Compilers may have 
 @examples[
 #:label #f
 (require racket/class
-         syntax-spec/tests/dsls/state-machine-for-tutorial)
+         syntax-spec-dev/tests/dsls/state-machine-for-tutorial)
 (eval:error
  (define gas-tank
    (machine
@@ -573,7 +573,7 @@ Now let's create a macro in our language!
 
 @examples[#:label #f
 (require racket/class
-         syntax-spec/tests/dsls/state-machine-for-tutorial)
+         syntax-spec-dev/tests/dsls/state-machine-for-tutorial)
 (define-state-syntax simple-state
     (syntax-rules ()
       [(_ name [evt next] ...)

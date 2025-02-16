@@ -5,7 +5,7 @@
 
 (require
   "runtime.rkt"
-  syntax-spec
+  syntax-spec-dev
   (for-syntax syntax/parse
               (only-in ee-lib compiled-from)))
 
