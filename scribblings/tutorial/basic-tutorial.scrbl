@@ -60,8 +60,8 @@ Our initial specification with @racket[syntax-spec] supplies the grammar:
 @codeblock|{
   #lang racket
 
-  (require syntax-spec)
-  
+  (require syntax-spec (for-syntax syntax/parse racket/list))
+
   (syntax-spec
     (host-interface/expression
       (machine #:initial initial-state:id s:state-spec ...)
@@ -373,8 +373,6 @@ Now Let's start to write the compiler:
     #'(compile-machine initial-state s ...))
   ...)
 
-(require (for-syntax syntax/parse racket/list))
-
 (define-syntax compile-machine
   (syntax-parser
     #:datum-literals (machine state on-enter)
@@ -498,7 +496,7 @@ In our language's compiler, we can use symbol set to raise an error when a state
       (error 'machine "Inaccessible state: ~a" (syntax->datum (state-spec-name state-spec)))))
 
   (define (get-accessible-states initial-state-id state-specs)
-    (define-local-symbol-set accessible-states)
+    (define accessible-states (local-symbol-set))
     (define (find-state-spec state-name)
       (findf (lambda (state-spec)
                (compiled-identifier=? state-name (state-spec-name state-spec)))
