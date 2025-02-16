@@ -205,7 +205,8 @@ Now let's add binding rules for state names. We can't just use @racket[scope] an
     (on (event-name:id arg:event-var ...)
       action:action-spec
       ...
-      ((~datum goto) next-state:state-name))))
+      ((~datum goto) next-state:state-name))
+    #:binding (scope (bind arg) ... action ...)))
 
 We use an exporting nonterminal for @racket[state-spec], which allows us to use the @racket[export] binding rule. This binds @racket[name] in @racket[transition] and the other @racket[state-spec] forms in the body of the machine, like @racket[define] in a @racket[class] body or a @racket[block] form.
 
@@ -371,6 +372,8 @@ Now Let's start to write the compiler:
     #:binding (scope (import s) ... initial-state)
     #'(compile-machine initial-state s ...))
   ...)
+
+(require (for-syntax syntax/parse racket/list))
 
 (define-syntax compile-machine
   (syntax-parser
