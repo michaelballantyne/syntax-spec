@@ -4,15 +4,6 @@
           "../common.rkt"
           (for-label racket "../../main.rkt" syntax/id-table syntax/id-set syntax/transformer))
 
-@;-----------------------
-
-@(define (tech/reference str)
-   (tech #:doc '(lib "scribblings/reference/reference.scrbl") str))
-
-@(define (seclink/reference sec str)
-   (seclink sec #:doc '(lib "scribblings/reference/reference.scrbl") str))
-
-@;-----------------------
 
 @title{Compiling languages}
 

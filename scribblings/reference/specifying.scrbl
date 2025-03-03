@@ -1,20 +1,9 @@
 #lang scribble/manual
 
-@(require (for-label racket syntax/parse "../../main.rkt"))
-
-@;-----------------------
-
-@(define (tech/reference str)
-   (tech #:doc '(lib "scribblings/reference/reference.scrbl") str))
-
-@(define (seclink/reference sec str)
-   (seclink sec #:doc '(lib "scribblings/reference/reference.scrbl") str))
-
-@;-----------------------
+@(require "../common.rkt" (for-label racket syntax/parse "../../main.rkt"))
 
 
 @title{Specifying languages}
-
 
 This section describes the syntax of the @racket[syntax-spec] metalanguage,
 used to describe the grammar, binding structure, and host interface of a DSL.
