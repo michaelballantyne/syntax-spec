@@ -4,15 +4,6 @@
           "../common.rkt"
           (for-label racket "../../main.rkt" syntax/id-table syntax/id-set syntax/transformer))
 
-@;-----------------------
-
-@(define (tech/reference str)
-   (tech #:doc '(lib "scribblings/reference/reference.scrbl") str))
-
-@(define (seclink/reference sec str)
-   (seclink sec #:doc '(lib "scribblings/reference/reference.scrbl") str))
-
-@;-----------------------
 
 @title{Compiling languages}
 
@@ -52,7 +43,7 @@ Here is an example for a @racket[match] DSL where pattern-bound variables cannot
 @;TODO host-interface/expression and racket-expr isn't getting linked
 @racketblock[
 (syntax-spec
- (binding-class pat-var #:reference-compiler (make-variable-like-reference-comiler (lambda (id) id)))
+ (binding-class pat-var #:reference-compiler (make-variable-like-reference-compiler (lambda (id) id)))
  (host-interface/expression
   (match target:racket-expr c:clause ...)
   #'(let ([target-pv target])

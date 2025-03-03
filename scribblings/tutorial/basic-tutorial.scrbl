@@ -1,6 +1,7 @@
 #lang scribble/manual
 
 @(require (for-label racket racket/block racket/class racket/match racket/list syntax/parse "../../main.rkt")
+          "../common.rkt"
           scribble/example)
 
 @title{Basic Tutorial: State Machine Language}
@@ -469,6 +470,8 @@ Now we have all the pieces to run programs using state machines:
 (send vending-machine select-item "chips")
 (send vending-machine get-state)
 ]
+
+@bold{Note:} a @hyperlink["https://github.com/racket/racket/issues/5212"]{bug} in versions of Racket prior to the (future) v8.17 release creates a problem when a DSL defined with @racket[syntax-spec] is used in the same module scope as it is defined. If you put the @racket[syntax-spec] declaration, @racket[compile-machine] macro, and example use above together in one module, expansion will raise an error for the @racket[item] reference. As a workaround until the v8.17 release, put your uses of the DSL in another module or submodule. For example, you could put the vending machine example above in a @seclink/guide["main-and-test"]{main or test submodule}.
 
 @subsection[#:tag "symbol tables"]{Symbol Tables}
 
