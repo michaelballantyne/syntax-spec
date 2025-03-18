@@ -67,7 +67,7 @@
        #'r.var]
       [r:ref-id
        #:with c:special-syntax-class #'r.ref
-       #'r.var]
+       #'(~var r.var r.ref)]
       [r:ref-id
        #:do [(define binding (lookup #'r.ref stxclass-rep?))]
        #:when binding

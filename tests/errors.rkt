@@ -37,7 +37,7 @@
      x:unbound-name)))
 
 (check-decl-error
- #rx"syntax-spec: duplicate pattern variable\n  at: x"
+ #rx"syntax-spec: duplicate pattern variable"
  (syntax-spec
    (binding-class dsl-var #:description "dsl-var")
    (nonterminal expr
@@ -274,6 +274,7 @@
   (nonterminal expr1
     #:allow-extension (dsl-macro1 dsl-macro2)
     n:number
+    s:string
     v:dsl-var2
     (dsl-begin e:expr1 ...+)
     ; for testing incompatible ellipsis match counts
