@@ -10,7 +10,7 @@
    v:var
    (+ e1:expr e2:expr)
    (host e:racket-expr)
-   
+
    (lambda (x:var) e:expr)
    #:binding (scope (bind x) e)
 
@@ -26,8 +26,11 @@
 (syntax-spec
  (host-interface/expression
   (expr/free-vars-as-symbols e:expr)
+  #`(list #,@(map (lambda (id) #`'#,id) (free-identifiers #'e))))
 
-  #`(list #,@(map (lambda (id) #`'#,id) (free-identifiers #'e)))))
+ (host-interface/expression
+  (expr/binding-vars-as-symbols e:expr)
+  #`(list #,@(map (lambda (id) #`'#,id) (binding-identifiers #'e)))))
 
 
 (define-var x)
@@ -42,6 +45,16 @@
         (+ y z)))
    z))
  '(x z))
+
+(check-equal?
+ (expr/binding-vars-as-symbols
+  (lambda (w)
+    (+
+     (+ x
+        (lambda (y)
+          (+ y z)))
+     z)))
+ '(w y))
 
 (check-exn
  #rx"free-identifiers: can't enter a #%host-expression"

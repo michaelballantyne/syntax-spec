@@ -220,6 +220,12 @@ Get a DSL expression's free identifiers (deduplicated).
 
 Host expressions currently are not supported.
 
+@defproc[(binding-identifiers [stx syntax?] [#:allow-host? allow-host? boolean? #f]) (listof identifier?)]
+
+Get a DSL expression's binding identifiers.
+
+Host expressions currently are not supported.
+
 @defproc[(alpha-equivalent? [stx-a syntax?] [stx-b syntax?] [#:allow-host? allow-host? boolean? #f]) boolean?]
 
 Returns @racket[#t] if the two DSL expressions are alpha-equivalent, @racket[#f] otherwise.
