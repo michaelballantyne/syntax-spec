@@ -1,6 +1,7 @@
 #lang racket/base
 
 (provide free-identifiers
+         binding-identifiers
          alpha-equivalent?
          get-racket-referenced-identifiers
          (rename-out [identifier=? compiled-identifier=?]))
@@ -48,6 +49,10 @@
   (define refs (deduplicate-references (all-references stx allow-host?)))
   (define binders (all-binders stx allow-host?))
   (subtract-identifiers refs binders))
+
+;; Syntax, [#:allow-host? Boolean] -> (ListOf Identifier)
+(define (binding-identifiers stx #:allow-host? [allow-host? #f])
+  (all-binders stx allow-host?))
 
 ;; Syntax, Boolean -> (ListOf Identifier)
 ;; The result list may have duplicates.
