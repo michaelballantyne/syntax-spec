@@ -51,6 +51,7 @@
 
           compiled-identifier=?
           free-identifiers
+          binding-identifiers
           alpha-equivalent?
           get-racket-referenced-identifiers))
 
