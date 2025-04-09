@@ -9,6 +9,7 @@
       (symbol? v)
       (boolean? v)
       (number? v)
+      (string? v)
       (and (pair? v) (syntax-datum? (car v)) (syntax-datum? (cdr v)))
       (and (vector? v) (for/and ([el v]) (syntax-datum? el)))
       (and (box? v) (syntax-datum? (unbox v)))
