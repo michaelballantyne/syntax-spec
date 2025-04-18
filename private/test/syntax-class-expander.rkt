@@ -20,39 +20,48 @@
   (nonterminal a-expr
     e:c-expr
     (my-let ([x:my-var e:c-expr]) b:a-expr)
+    #:binding (scope (bind x) b)
+    ;; body will expand before binding x
+    (where b:a-expr
+      ([x:my-var e:c-expr]))
     #:binding (scope (bind x) b))
   (nonterminal c-expr
     e:i-expr
-    (my-+ a:i-expr b:i-expr))
+    (my-+ a:i-expr b:i-expr)
+    ;; application
+    (a:i-expr b:i-expr c:i-expr))
   (nonterminal i-expr
     n:number
     x:my-var))
 
 (define-literal-forms anf-lits
   "mylang forms may only be used in mylang"
-  (my-let my-+))
+  (my-let my-+ where))
 
 (begin-for-syntax
   (struct my-var-rep ())
 
   ;; hash from symbols to binding representations
   ;; to simulate the real expander environment
-  (define pretend-binding-store (make-hash))
-  (hash-set! pretend-binding-store 'bogus #f)
+  (define pretend-binding-store (make-hash (list (cons 'bogus #f))))
 
   (define-syntax-class a-expr
     #:literal-sets (anf-lits)
     (pattern e:c-expr
              #:attr expanded #'e.expanded)
     (pattern (my-let ([x:my-var-bind e:c-expr]) b:a-expr)
-             #:attr expanded #'(my-let ([x.expanded e.expanded]) b.expanded)))
+             #:attr expanded #'(my-let ([x.expanded e.expanded]) b.expanded))
+    (pattern (where b:a-expr ([x:my-var-bind e:c-expr]))
+             #:attr expanded #'(where b.expanded ([x.expanded e.expanded]))))
 
   (define-syntax-class c-expr
     #:literal-sets (anf-lits)
     (pattern e:i-expr
              #:attr expanded (attribute e.expanded))
     (pattern (my-+ a:i-expr b:i-expr)
-             #:attr expanded #'(my-+ a.expanded b.expanded)))
+             #:attr expanded #'(my-+ a.expanded b.expanded))
+    (pattern (a:i-expr b:i-expr c:i-expr)
+             #:attr expanded #'(#%app a.expanded b.expanded c:i-expr)))
 
   (define-syntax-class i-expr
     #:literal-sets (anf-lits)
@@ -77,6 +86,7 @@
              #:attr expanded #'x)))
 
 (define-syntax (mylang stx)
+  (set! pretend-binding-store (make-hash (list (cons 'bogus #f))))
   (syntax-parse stx
     [(_ e:a-expr)
      #''e.expanded]))
@@ -109,3 +119,61 @@
 (check-failure
  (my-+ (my-let ([z 1]) z) 2)
  #rx"expected number or expected identifier")
+;; problems
+;; this fails because the reference parses/expands before the binding
+#;(check-success
+ (where x
+   ([x 1])))
+;; this fails because my-+ gets bound after parsing/expanding the body,
+;; so my-+ gets resolved to the literal.
+;; (there would be no actual binding anyway in this toy example, but there would be in ss)
+#;(check-equal? (mylang (where (my-+ 1 2)
+                        ([my-+ 3])))
+              ;; should not treat my-+ as a literal in the where body
+              '(where (#%app my-+ 1 2)
+                 ([my-+ 3])))
+
+#|
+examples that broke the original eager design:
+(where x
+  ([x 1]))
+this broke bc the reference parsed/expanded before the binding. syntax-parse parses (and thus expands bc of attr eagerness)
+left to right.
+(where (my-+ 1 2)
+  ([my-+ 3]))
+this broke for a similar reason. This shows that even "structural" parsing needs bindings to detect literal shadowing.
+
+problems:
+- if you do everything eager (and do binding class resolution in parsing), then where breaks because the body
+gets parsed before the binding happens
+- if you treat all ids as ids and ignore binding classes during parsing, then the my-+ shadow thing fails
+because it will resolve to the literal instead of the shadowed thing
+- the solution is to do binding-spec-driven expansion order, which requires promises and binding stuff has to happen in the post of the production.
+but then, you'll still get the my-+ shadow problem because parsing needs to be driven by binding classes
+to distinguish between shadowed literals and actual literals.
+
+constraints:
+- to resolve literals vs references to bindings that shadow literals, you need to bind as you parse
+- to do that, you need to delay parsing. parsing and expansion order must be driven by the binding spec.
+- to avoid backtracking over a binding, you need to commit when you bind
+
+you can delay parsing with #:with
+
+current desired semantics:
+full backtracking (even over binding classes), except you commit when you bind a variable.
+TODO does cut in a post commit the way you need it to?
+
+example:
+
+(nonterminal my-expr
+  n:number
+  x:a-var
+  x:b-var
+  (let ([x:a-var e:my-expr]) b:my-expr)
+  #:binding (scope (bind x) b)
+  (let ([x:b-var e:my-expr]) b:my-expr)
+  #:binding (scope (bind x) b))
+
+identifiers don't commit to a-var (which I'm pretty sure is the current syntax-spec behavior)
+but (let ([x 1]) x) commits to the a-var let production
+|#
