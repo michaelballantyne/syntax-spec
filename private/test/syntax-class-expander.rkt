@@ -49,19 +49,39 @@
     #:literal-sets (anf-lits)
     (pattern e:c-expr
              #:attr expanded #'e.expanded)
-    (pattern (my-let ([x:my-var-bind e:c-expr]) b:a-expr)
-             #:attr expanded #'(my-let ([x.expanded e.expanded]) b.expanded))
-    (pattern (where b:a-expr ([x:my-var-bind e:c-expr]))
-             #:attr expanded #'(where b.expanded ([x.expanded e.expanded]))))
+    (pattern (my-let ([x:id ~! e:expr]) b:expr)
+             #:with x^:my-var-bind #'x
+             #:with e^:c-expr #'e
+             #:with b^:a-expr #'b
+             #:attr expanded #'(my-let ([x^.expanded e^.expanded]) b^.expanded))
+    (pattern (where b:expr ([x:id ~! e:expr]))
+             ;; we expand x and e BEFORE e because the binding spec is
+             ;; [(scope (bind x) b) e]
+             ;; expansion order is driven by the binding spec
+             #:with x^:my-var-bind #'x
+             #:with b^:a-expr #'b
+             #:with e^:c-expr #'e
+             #:attr expanded #'(where b^.expanded ([x^.expanded e^.expanded]))))
 
   (define-syntax-class c-expr
     #:literal-sets (anf-lits)
     (pattern e:i-expr
              #:attr expanded (attribute e.expanded))
-    (pattern (my-+ a:i-expr b:i-expr)
-             #:attr expanded #'(my-+ a.expanded b.expanded))
-    (pattern (a:i-expr b:i-expr c:i-expr)
-             #:attr expanded #'(#%app a.expanded b.expanded c:i-expr)))
+    ;; my-+ should be first, but due to the fake binding store,
+    ;; to get the my-+ shadowing test passing, this needed to be first.
+    ;; in a real implementation with the real binding store, the my-+ pattern would
+    ;; fail because the identifier wouldn't be referencing the literal, right?.
+    ;; you'd need to be painting scopes on syntax as you go, but that could happen in
+    ;; the pattern actions I guess.
+    (pattern (a:expr b:expr c:expr)
+             #:with a^:i-expr #'a
+             #:with b^:i-expr #'b
+             #:with c^:i-expr #'c
+             #:attr expanded #'(#%app a^.expanded b^.expanded c^.expanded))
+    (pattern (my-+ a:expr b:expr)
+             #:with a^:i-expr #'a
+             #:with b^:i-expr #'b
+             #:attr expanded #'(my-+ a^.expanded b^.expanded)))
 
   (define-syntax-class i-expr
     #:literal-sets (anf-lits)
@@ -118,16 +138,15 @@
  #rx"expected a my-var")
 (check-failure
  (my-+ (my-let ([z 1]) z) 2)
- #rx"expected number or expected identifier")
-;; problems
-;; this fails because the reference parses/expands before the binding
-#;(check-success
+ #rx"expected a-expr")
+;; where.
+;; this test fails if you expand left-to-right
+(check-success
  (where x
    ([x 1])))
-;; this fails because my-+ gets bound after parsing/expanding the body,
-;; so my-+ gets resolved to the literal.
-;; (there would be no actual binding anyway in this toy example, but there would be in ss)
-#;(check-equal? (mylang (where (my-+ 1 2)
+;; shadow my-+ in where.
+;; this test fails if you expand left-to-right
+(check-equal? (mylang (where (my-+ 1 2)
                         ([my-+ 3])))
               ;; should not treat my-+ as a literal in the where body
               '(where (#%app my-+ 1 2)
