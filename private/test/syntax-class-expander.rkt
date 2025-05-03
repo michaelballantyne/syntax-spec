@@ -46,16 +46,20 @@
   (define pretend-binding-store (make-hash (list (cons 'bogus #f))))
 
   (define-syntax-class a-expr
+    #:no-delimit-cut
     #:literal-sets (anf-lits)
     (pattern e:c-expr
              #:attr expanded #'e.expanded)
-    (pattern (my-let ([x:id ~! e:expr]) b:expr)
+    (pattern (my-let ~! ([x:id e:expr]) b:expr)
+             ;; we expand x and b BEFORE e because the binding spec is
+             ;; [(scope (bind x) b) e]
+             ;; expansion order is driven by the binding spec
              #:with x^:my-var-bind #'x
-             #:with e^:c-expr #'e
              #:with b^:a-expr #'b
+             #:with e^:c-expr #'e
              #:attr expanded #'(my-let ([x^.expanded e^.expanded]) b^.expanded))
-    (pattern (where b:expr ([x:id ~! e:expr]))
-             ;; we expand x and e BEFORE e because the binding spec is
+    (pattern (where ~! b:expr ([x:id e:expr]))
+             ;; we expand x and b BEFORE e because the binding spec is
              ;; [(scope (bind x) b) e]
              ;; expansion order is driven by the binding spec
              #:with x^:my-var-bind #'x
@@ -64,6 +68,7 @@
              #:attr expanded #'(where b^.expanded ([x^.expanded e^.expanded]))))
 
   (define-syntax-class c-expr
+    #:no-delimit-cut
     #:literal-sets (anf-lits)
     (pattern e:i-expr
              #:attr expanded (attribute e.expanded))
@@ -78,12 +83,13 @@
              #:with b^:i-expr #'b
              #:with c^:i-expr #'c
              #:attr expanded #'(#%app a^.expanded b^.expanded c^.expanded))
-    (pattern (my-+ a:expr b:expr)
+    (pattern (my-+ ~! a:expr b:expr)
              #:with a^:i-expr #'a
              #:with b^:i-expr #'b
              #:attr expanded #'(my-+ a^.expanded b^.expanded)))
 
   (define-syntax-class i-expr
+    #:no-delimit-cut
     #:literal-sets (anf-lits)
     (pattern n:number
              #:attr expanded #'n)
@@ -91,15 +97,16 @@
              #:attr expanded #'x.expanded))
 
   (define-syntax-class my-var-bind
-    (pattern x:id
-             #:fail-when (hash-has-key? pretend-binding-store (syntax->datum #'x)) "duplicate binding"
-             ;; we need the do because the bind! needs to happen before the body expands.
-             ;; attrs are eagerly evaluated when a pattern with a syntax class is matched,
-             ;; so the bind! needs to happen before the body is even matched.
-             #:do [(hash-set! pretend-binding-store (syntax->datum #'x) (my-var-rep))]
+    #:no-delimit-cut
+    (pattern (~and x:id
+                   (~do (when (hash-has-key? pretend-binding-store (syntax->datum #'x))
+                          (raise-syntax-error 'my-lang "duplicate binding" #'x))
+                        (hash-set! pretend-binding-store (syntax->datum #'x) (my-var-rep)))
+                   (~undo (error "backtracked over a binding. flaw in language itself")))
              #:attr expanded #'x))
 
   (define-syntax-class my-var-ref
+    #:no-delimit-cut
     (pattern x:id
              #:fail-unless (hash-has-key? pretend-binding-store (syntax->datum #'x)) "unbound variable"
              #:fail-unless (my-var-rep? (hash-ref pretend-binding-store (syntax->datum #'x))) "expected a my-var"
@@ -138,7 +145,7 @@
  #rx"expected a my-var")
 (check-failure
  (my-+ (my-let ([z 1]) z) 2)
- #rx"expected a-expr")
+ #rx"expected number or expected identifier")
 ;; where.
 ;; this test fails if you expand left-to-right
 (check-success
@@ -151,6 +158,15 @@
               ;; should not treat my-+ as a literal in the where body
               '(where (#%app my-+ 1 2)
                  ([my-+ 3])))
+;; can't backtrack over a binding
+(check-failure
+ (my-let ([x y]) x)
+ ;; an unbound var error would be better here
+ #rx"backtracked over a binding")
+;; can't backtrack over a binding
+(check-failure
+ (my-let ([x (my-+ y y)]) x)
+ #rx"backtracked over a binding")
 
 #|
 examples that broke the original eager design:
@@ -181,6 +197,7 @@ you can delay parsing with #:with
 current desired semantics:
 full backtracking (even over binding classes), except you commit when you bind a variable.
 TODO does cut in a post commit the way you need it to?
+No, I don't think so. I ended up needing to put ~! in the production structure pattern
 
 example:
 
@@ -195,4 +212,27 @@ example:
 
 identifiers don't commit to a-var (which I'm pretty sure is the current syntax-spec behavior)
 but (let ([x 1]) x) commits to the a-var let production
+|#
+
+#|
+After solving where and literal shadowing:
+
+The current semantics are full backtracking, with the exception that
+binding sites cause commitment.
+
+limitation: moving sub-parsing into #:with messes up failure progress measurement.
+many parse attempt paths end up with the same LATE progress so error messages suck.
+
+constraints:
+- we need #:post or equivalent to control order of sub-expansion and therefore sub-parsing
+- when most sub-parsing happens in posts, we get failure progress ties (lots of things are just LATE), which cause vague error messages.
+- within a pattern, it looks like each post does not contribute additional progress beyond a single LATE. Not sure about this though.
+
+
+
+
+
+new design:
+- form groups commit on literals
+- trying to backtrack over bindings is an error
 |#
