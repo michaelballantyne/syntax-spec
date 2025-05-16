@@ -16,4 +16,6 @@
 
 (define/who (flip-intro-scope stx)
   (check who syntax? stx)
-  ((make-intro-scope-introducer) stx 'flip))
+  (if (syntax-transforming?)
+      ((make-intro-scope-introducer) stx 'flip)
+      stx))

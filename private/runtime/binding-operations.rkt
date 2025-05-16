@@ -2,7 +2,9 @@
 
 (provide free-identifiers
          binding-identifiers
+         identifier=?
          alpha-equivalent?
+         subst
          get-racket-referenced-identifiers
          (rename-out [identifier=? compiled-identifier=?]))
 
@@ -99,25 +101,22 @@
 ; Syntax, Syntax [#:allow-host? Boolean] -> Boolean
 ; Are the two expressions alpha-equivalent?
 (define (alpha-equivalent? stx-a stx-b #:allow-host? [allow-host? #f])
-  (define bound-reference=? (alpha-equivalent?/bindings stx-a stx-b allow-host?))
+  (define bound-reference=? (syntaxes->bound-reference=? stx-a stx-b allow-host?))
   (and bound-reference=?
        (alpha-equivalent?/references stx-a stx-b bound-reference=? allow-host?)))
 
 ; Syntax Syntax Boolean -> (or/c #f (Identifier Identifier -> Boolean))
-; check that the bindings of both expressions can be alpha-equivalent.
-; returns bound-reference=?, or #f if the binding check fails.
-(define (alpha-equivalent?/bindings stx-a stx-b allow-host?)
+; if the two terms have corresponding binders, build bound-reference=?
+; If they have different numbers of binders, return #f
+; bound-reference=? answers "do these two references refer to corresponding binders?"
+(define (syntaxes->bound-reference=? stx-a stx-b allow-host?)
   (define table-a (make-free-id-table))
   (define table-b (make-free-id-table))
+  ;; associate both binders with the same gensym
   (define (bind! identifier-a identifier-b)
     (define x (gensym))
-    (free-id-table-set! table-a identifier-a x)
-    (free-id-table-set! table-b identifier-b x))
-  (define (bound-reference=? identifier-a identifier-b)
-    (and (dict-has-key? table-a identifier-a)
-         (dict-has-key? table-b identifier-b)
-         (eq? (free-id-table-ref table-a identifier-a)
-              (free-id-table-ref table-b identifier-b))))
+    (free-id-table-set! table-a (compiled-from identifier-a) x)
+    (free-id-table-set! table-b (compiled-from identifier-b) x))
   (define binders-a (binding-identifiers stx-a #:allow-host? allow-host?))
   (define binders-b (binding-identifiers stx-b #:allow-host? allow-host?))
   ; must traverse binders before references
@@ -127,7 +126,16 @@
         [binder-b binders-b])
     (bind! binder-a binder-b))
   (and (= (length binders-a) (length binders-b))
-       bound-reference=?))
+       (substitutions->bound-reference=? table-a table-b)))
+
+;; FreeIdTable FreeIdTable -> (Identifier Identifier -> Boolean)
+;; Do these two references refer to corresponding binders?
+;; table-a and table-b should map corresponding binders to the same, unique value
+(define ((substitutions->bound-reference=? table-a table-b) identifier-a identifier-b)
+  (and (dict-has-key? table-a (compiled-from identifier-a))
+       (dict-has-key? table-b (compiled-from identifier-b))
+       (eq? (free-id-table-ref table-a (compiled-from identifier-a))
+            (free-id-table-ref table-b (compiled-from identifier-b)))))
 
 ; Syntax Syntax (Identifier Identifier -> Boolean) Boolean -> Boolean
 ; check that the references are alpha-equivalent.
@@ -158,6 +166,22 @@
             (loop #'a-cdr #'b-cdr))]
       [(a b) (equal? (syntax->datum #'a)
                      (syntax->datum #'b))])))
+
+;; Syntax Syntax Syntax -> Syntax
+;; Replace all occurrences of target (by alpha equivalence) with replacement in stx.
+;; Leaves host expressions unchanged.
+(define (subst stx target replacement)
+  (let loop ([stx stx])
+    (if (if (compiled-binder? target)
+            (and (compiled-reference? stx) (identifier=? stx target))
+            (alpha-equivalent? stx target))
+        replacement
+        (syntax-parse stx
+          ;; ignore host expressions
+          [((~literal #%host-expression) . _) this-syntax]
+          [(a . b)
+           (quasisyntax/loc this-syntax (#,(loop #'a) . #,(loop #'b)))]
+          [_ stx]))))
 
 (define current-referenced-vars (make-parameter #f))
 
