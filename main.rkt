@@ -53,7 +53,6 @@
           free-identifiers
           binding-identifiers
           alpha-equivalent?
-          identifier=?
           subst
           get-racket-referenced-identifiers))
 
