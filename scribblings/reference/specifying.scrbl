@@ -567,7 +567,7 @@ This defines a macro @racket[conj] that expands to a goal in miniKanren.
 
 @defidform[#:kind "nonterminal" racket-expr]
 
-A nonterminal that allows arbitrary host language expressions. Expressions are wrapped with @racket[#%host-expression] during DSL expansion. This nonterminal does not support definitions.
+A nonterminal that allows arbitrary host language expressions. Such @deftech{host expressions} are wrapped with @racket[#%host-expression] during DSL expansion. This nonterminal does not support definitions.
 
 @defidform[#:kind "nonterminal" racket-body]
 

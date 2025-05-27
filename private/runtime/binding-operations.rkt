@@ -47,12 +47,8 @@
 ;; Syntax, [#:allow-host? Boolean] -> (ListOf Identifier)
 (define (free-identifiers stx #:allow-host? [allow-host? #f])
   (define refs (deduplicate-references (all-references stx allow-host?)))
-  (define binders (all-binders stx allow-host?))
+  (define binders (binding-identifiers stx #:allow-host? allow-host?))
   (subtract-identifiers refs binders))
-
-;; Syntax, [#:allow-host? Boolean] -> (ListOf Identifier)
-(define (binding-identifiers stx #:allow-host? [allow-host? #f])
-  (all-binders stx allow-host?))
 
 ;; Syntax, Boolean -> (ListOf Identifier)
 ;; The result list may have duplicates.
@@ -70,9 +66,9 @@
               (list))]
     [_ (list)]))
 
-;; Syntax, Boolean -> (ListOf Identifier)
+;; Syntax, [#:allow-host? Boolean] -> (ListOf Identifier)
 ;; The result list has no duplicates as renaming ensures all binders are distinct.
-(define (all-binders stx allow-host?)
+(define (binding-identifiers stx #:allow-host? [allow-host? #f])
   (syntax-parse stx
     [((~literal #%host-expression) . _)
      (raise-host-expression-error-or-value
@@ -80,8 +76,8 @@
       allow-host?
       (list))]
     [(a . b)
-     (append (all-binders #'a allow-host?)
-             (all-binders #'b allow-host?))]
+     (append (binding-identifiers #'a #:allow-host? allow-host?)
+             (binding-identifiers #'b #:allow-host? allow-host?))]
     [x:id (if (compiled-binder? #'x)
               (list #'x)
               (list))]
@@ -122,8 +118,8 @@
          (dict-has-key? table-b identifier-b)
          (eq? (free-id-table-ref table-a identifier-a)
               (free-id-table-ref table-b identifier-b))))
-  (define binders-a (all-binders stx-a allow-host?))
-  (define binders-b (all-binders stx-b allow-host?))
+  (define binders-a (binding-identifiers stx-a #:allow-host? allow-host?))
+  (define binders-b (binding-identifiers stx-b #:allow-host? allow-host?))
   ; must traverse binders before references
   ; in case a variable is referenced before it is bound,
   ; like mutual recursion
