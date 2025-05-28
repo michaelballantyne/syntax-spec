@@ -210,7 +210,7 @@ Like @racket[free-id-set-subtract].
 
 @;TODO run this by michael, not sure how to explain it.
 
-Returns @racket[#t] if the two compiled DSL identifiers correspond to the same binding, returns @racket[#f] otherwise. Similar to @racket[free-identifier=?].
+Returns @racket[#t] if the two compiled DSL identifiers correspond to the same binding from the surface syntax. Returns @racket[#f] otherwise. Similar to @racket[free-identifier=?].
 
 This is the equality used by symbol tables.
 
@@ -218,13 +218,19 @@ This is the equality used by symbol tables.
 
 Get a DSL expression's free identifiers (deduplicated).
 
-Host expressions currently are not supported.
+Analysis of @tech{host expressions} is currently not supported. When given syntax that contains a host expression, the operation raises an error if @racket[allow-host?] is @racket[#f], or ignores that portion is syntax if @racket[allow-host?] is @racket[#t].
+
+@defproc[(binding-identifiers [stx syntax?] [#:allow-host? allow-host? boolean? #f]) (listof identifier?)]
+
+Get a DSL expression's binding identifiers.
+
+Analysis of @tech{host expressions} is currently not supported. When given syntax that contains a host expression, the operation raises an error if @racket[allow-host?] is @racket[#f], or ignores that portion is syntax if @racket[allow-host?] is @racket[#t].
 
 @defproc[(alpha-equivalent? [stx-a syntax?] [stx-b syntax?] [#:allow-host? allow-host? boolean? #f]) boolean?]
 
 Returns @racket[#t] if the two DSL expressions are alpha-equivalent, @racket[#f] otherwise.
 
-Host expressions currently are not supported.
+Analysis of @tech{host expressions} is currently not supported. When given syntax that contains a host expression, the operation raises an error if @racket[allow-host?] is @racket[#f], or ignores that portion is syntax if @racket[allow-host?] is @racket[#t].
 
 @defform[(get-racket-referenced-identifiers [binding-class-id ...] expr)]
 
