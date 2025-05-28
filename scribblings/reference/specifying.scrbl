@@ -24,6 +24,8 @@ The following subsections address each kind of declaration allowed within the
 
 
 @section{Binding classes}
+@mk-exact["\\label{doc:binding-classes}"]
+
 
 @deftech{Binding classes} distinguish types of binding. When a reference resolves to a
 binder, it is an error if the binding class declared for the reference position

@@ -2,7 +2,7 @@
 
 @(require (for-label racket))
 
-@title[#:style '(toc unnumbered)]{Tutorial}
+@title[#:style '(toc)]{Tutorial}
 
 The tutorial is broken down into illustrative examples:
 
