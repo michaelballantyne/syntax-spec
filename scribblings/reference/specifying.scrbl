@@ -24,14 +24,14 @@ The following subsections address each kind of declaration allowed within the
 
 
 @section{Binding classes}
-@mk-exact["\\label{doc:binding-classes}"]
+@tex-label["doc:binding-classes"]
 
 
 @deftech{Binding classes} distinguish types of binding. When a reference resolves to a
 binder, it is an error if the binding class declared for the reference position
 does not match the binding class of the binding position.
 
-@defsubform[(binding-class id binding-class-option ...)
+@defform[(binding-class id binding-class-option ...)
             #:grammar
             [(binding-class-option (code:line #:description string-literal)
                                    (code:line #:binding-space space-symbol)
@@ -65,7 +65,7 @@ class using @racket[define-dsl-syntax].
 Nonterminals can be declared extensible by a certain extension class using @racket[#:allow-extension].
 These extensions are expanded away into core DSL forms before compilation.
 
-@defsubform[(extension-class id extension-class-option)
+@defform[(extension-class id extension-class-option)
             #:grammar
             [(extension-class-option (code:line #:description string-literal)
                                      (code:line #:binding-space space-symbol))]]
@@ -78,7 +78,7 @@ to use for all extensions with this class.
 
 @section{Nonterminals}
 
-@defsubform[(nonterminal id nonterminal-option production ...)]
+@defform[(nonterminal id nonterminal-option production ...)]
 
 Defines a nonterminal supporting @racket[let]-like binding structure.
 
@@ -96,7 +96,7 @@ Example:
 
 @let-example
 
-@defsubform[(nonterminal/nesting id (nested-id) nonterminal-option production ...)]
+@defform[(nonterminal/nesting id (nested-id) nonterminal-option production ...)]
 
 Defines a @deftech{nesting nonterminal} supporting nested, @racket[let*]-like binding structure. Nesting nonterminals may also be used to describe complex binding structures like for @racket[match].
 
@@ -117,7 +117,7 @@ Example:
 ]]
 @let*-example
 
-@defsubform[(nonterminal/exporting id nonterminal-option production ...)]
+@defform[(nonterminal/exporting id nonterminal-option production ...)]
 
 Defines an @deftech{exporting nonterminal} which can export bindings, like @racket[define] and @racket[begin].
 
@@ -252,6 +252,7 @@ When a form production's form is used outside of the context of a syntax-spec DS
 ]
 
 @section{Binding specs}
+@tex-label{doc:bindingspecs}
 
 
 @racketgrammar*[#:literals (bind bind-syntax bind-syntaxes import re-export export export-syntax export-syntaxes nest ...)
@@ -448,7 +449,7 @@ There are several other constraints on binding specs:
 Host interface forms are the entry point to the DSL from the host language. They often invoke a compiler macro to translate
 the DSL forms into Racket expressions.
 
-@defsubform[(host-interface/expression
+@defform[(host-interface/expression
               (id . syntax-spec)
               maybe-binding-spec
               pattern-directive ...
@@ -476,7 +477,7 @@ An example from the @hyperlink["https://github.com/michaelballantyne/syntax-spec
 This defines @racket[run], which takes in a Racket expression representing a number, a term variable, and a goal, and invokes
 the compiler @racket[compile-goal] to translate the DSL forms into Racket.
 
-@defsubform[#:literals (-> define)
+@defform[#:literals (-> define)
             (host-interface/definition
               (id . syntax-spec)
               maybe-binding-spec
@@ -522,7 +523,7 @@ An example from the @hyperlink["https://github.com/michaelballantyne/syntax-spec
 
 This defines @racket[defrel], which defines a relation. In the @racket[#:lhs], We record arity information about the identifier before producing it. Since the left-hand-sides all run before the right-hand-sides, even if there is mutual recursion, all arity information will be available before any goals are compiled. Note that the @racket[#:rhs] produces a lambda expression, not a @racket[define].
 
-@defsubform[(host-interface/definitions
+@defform[(host-interface/definitions
               (id . syntax-spec)
               maybe-binding-spec
               pattern-directive ...

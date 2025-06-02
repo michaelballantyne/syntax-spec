@@ -1,8 +1,9 @@
 #lang scribble/manual
 
-@(require (for-label racket))
+@(require (for-label racket) "../common.rkt")
 
-@title[#:style '(toc)]{Tutorial}
+@title[#:tag "tutorials" #:style '(toc)]{Tutorial}
+@tex-label{doc:tutorials}
 
 The tutorial is broken down into illustrative examples:
 

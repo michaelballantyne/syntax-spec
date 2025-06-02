@@ -21,3 +21,6 @@
   (cond-element
     [latex (make-element (make-style #false '(exact-chars)) items)]
     [else ""]))
+
+(define (tex-label label)
+  (mk-exact (format "\\label{~a}" label)))

@@ -1,8 +1,9 @@
 #lang scribble/manual
 
-@(require (for-label racket))
+@(require (for-label racket) "../common.rkt")
 
 @title[#:style '(toc)]{Reference}
+@tex-label{doc:reference}
 
 @require[(for-label "../../main.rkt")]
 @defmodule[syntax-spec-dev]
