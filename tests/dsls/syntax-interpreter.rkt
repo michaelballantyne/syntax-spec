@@ -34,6 +34,7 @@
     x:lc-var
     (lambda (x:lc-var) e:lc-expr)
     #:binding (scope (bind x) e)
+    (rkt e:expr)
     (~> (e1 e2)
         ;; this is necessary to preserve source location, properties, etc.
         (syntax/loc this-syntax (#%app e1 e2)))
@@ -64,9 +65,6 @@
 ;; Env Identifier Value -> Void
 (define (env-extend env x v)
   (symbol-table-set env x v))
-;; this seems weird. not sure if this will work
-;; from michael:
-;; will work fine locally, will get weird if you have host expressions.
 
 ;; A Value is one of
 ;; a Number
@@ -85,7 +83,7 @@
 ;; Syntax Env -> Value
 (define (lc-eval stx env)
   (syntax-parse stx
-    #:datum-literals (+ lambda #%app)
+    #:datum-literals (+ lambda #%app rkt)
     [n:number
      (syntax->datum #'n)]
     [(+ e1 e2)
@@ -112,7 +110,9 @@
        [(? syntax? f)
         #`(#,f #,(lc-eval #'e2 env))]
        [_
-        (lc-error this-syntax "applied non-function")])]))
+        (lc-error this-syntax "applied non-function")])]
+    [(rkt e)
+     (eval #'e)]))
 
 ;; Value -> Syntax
 (define (lc-uneval v)
@@ -145,6 +145,8 @@
   (if loc
       (raise-user-error (format "~a: ~a" (srcloc->string loc) msg))
       (raise-user-error 'lc msg)))
+
+(define top-level-var 4)
 
 (module+ test
   (define-syntax-rule (teval e) (check-equal? (lc e) e))
@@ -199,9 +201,12 @@
   (tnormalize 1 1)
   (tnormalize (lambda (x) x)
               (lambda (_.0) _.0))
+  ;; evaluates in lambda bodies
   (tnormalize (lambda (x) (+ (+ 1 1) x))
               (lambda (_.0) (+ 2 _.0)))
   (tnormalize (lambda (x) (+ x (+ 1 1)))
               (lambda (_.0) (+ _.0 2)))
   (tnormalize (lambda (x) (x (lambda (y) y)))
-              (lambda (_.0) (_.0 (lambda (_.1) _.1)))))
+              (lambda (_.0) (_.0 (lambda (_.1) _.1))))
+  (check-equal? (lc (rkt (* 2 2))) 4)
+  (check-equal? (lc (rkt top-level-var)) 4))
