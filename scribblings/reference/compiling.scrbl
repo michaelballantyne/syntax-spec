@@ -247,7 +247,7 @@ NOTE: In order to avoid hygiene issues, it may be necessary to re-expand using @
 
 @defform[(get-racket-referenced-identifiers [binding-class-id ...] expr)]
 
-Returns an immutable symbol set containing identifiers of the specified binding classes that were referenced in racket (host) expressions in @racket[expr].
+Returns an immutable symbol set containing identifiers of the specified binding classes that were referenced in racket (host) expressions in @racket[expr]. If @racket[expr] is not a host expression, an exception is raised.
 
 @section{Expansion}
 
