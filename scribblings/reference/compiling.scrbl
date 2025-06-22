@@ -5,7 +5,7 @@
           (for-label racket "../../main.rkt" syntax/id-table syntax/id-set syntax/transformer))
 
 
-@title{Compiling languages}
+@title{Compiling Languages}
 
 @section[#:tag "reference compilers"]{Compiling references to DSL bindings within Racket code}
 

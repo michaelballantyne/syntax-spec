@@ -3,7 +3,7 @@
 @(require "../common.rkt" (for-label racket syntax/parse "../../main.rkt"))
 
 
-@title{Specifying languages}
+@title{Specifying Languages}
 
 This section describes the syntax of the @racket[syntax-spec] metalanguage,
 used to describe the grammar, binding structure, and host interface of a DSL.
