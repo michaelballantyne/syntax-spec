@@ -129,7 +129,8 @@
     [r:ref-id #t]
     [_ #f]))
     
-
+;; Create expand-time bindings for the pattern variables in the given
+;; syntax spec, and also return a list of these variables.
 (define (sspec-bind-pvars! stx)
   (define res '())
 

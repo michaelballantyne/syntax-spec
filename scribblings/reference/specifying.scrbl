@@ -3,7 +3,7 @@
 @(require "../common.rkt" (for-label racket syntax/parse "../../main.rkt"))
 
 
-@title{Specifying languages}
+@title{Specifying Languages}
 
 This section describes the syntax of the @racket[syntax-spec] metalanguage,
 used to describe the grammar, binding structure, and host interface of a DSL.
@@ -570,7 +570,7 @@ This defines a macro @racket[conj] that expands to a goal in miniKanren.
 
 @defidform[#:kind "nonterminal" racket-expr]
 
-A nonterminal that allows arbitrary host language expressions. Expressions are wrapped with @racket[#%host-expression] during DSL expansion. This nonterminal does not support definitions.
+A nonterminal that allows arbitrary host language expressions. Such @deftech{host expressions} are wrapped with @racket[#%host-expression] during DSL expansion. This nonterminal does not support definitions.
 
 @defidform[#:kind "nonterminal" racket-body]
 
