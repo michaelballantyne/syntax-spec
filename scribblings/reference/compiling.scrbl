@@ -8,7 +8,7 @@
 @title{Compiling Languages}
 
 @section[#:tag "reference compilers"]{Compiling references to DSL bindings within Racket code}
-@tex-label{doc:referencecompilers}
+@tex-label{doc:reference-compilers}
 
 @margin-note{@secref["compilation"] in the @secref["Basic_Tutorial__State_Machine_Language"] introduces the use of reference compilers.}
 
@@ -74,7 +74,7 @@ Another concept that comes up when discussing identifiers and compilation is pos
 During the expansion of the invocation, when a macro's transformer is running, the macro transformer will see this introduction scope on the incoming syntax. This syntax is in @deftech{negative space}. After the scope is flipped off on the result, the syntax is in @deftech{positive space}. It's important to note that positive vs negative space depends on the @emph{current} introduction scope, as there may be many introduction scopes floating around. It is also possible to manually flip this scope in a transformer to convert syntax between positive and negative space.
 
 @section{Symbol collections}
-@tex-label{doc:symboltables}
+@tex-label{doc:symbol-tables}
 
 Symbol collections allow compilers to track information related to dsl variables. Symbol collections expect to receive @tech{compiled identifiers} in @tech{negative space}.
 
@@ -206,6 +206,7 @@ Like @racket[free-id-set-intersect].
 Like @racket[free-id-set-subtract].
 
 @section{Binding Operations}
+@tex-label["doc:binding-operations"]
 
 @defproc[(compiled-identifier=? [a-id identifier?] [b-id identifier?]) boolean?]
 

@@ -24,8 +24,6 @@ The following subsections address each kind of declaration allowed within the
 
 
 @section{Binding classes}
-@tex-label["doc:binding-classes"]
-
 
 @deftech{Binding classes} distinguish types of binding. When a reference resolves to a
 binder, it is an error if the binding class declared for the reference position
@@ -97,6 +95,7 @@ Example:
 @let-example
 
 @defform[(nonterminal/nesting id (nested-id) nonterminal-option production ...)]
+@tex-label["doc:nesting-binding"]
 
 Defines a @deftech{nesting nonterminal} supporting nested, @racket[let*]-like binding structure. Nesting nonterminals may also be used to describe complex binding structures like for @racket[match].
 
@@ -118,6 +117,7 @@ Example:
 @let*-example
 
 @defform[(nonterminal/exporting id nonterminal-option production ...)]
+@tex-label["doc:exporting-binding"]
 
 Defines an @deftech{exporting nonterminal} which can export bindings, like @racket[define] and @racket[begin].
 
@@ -252,7 +252,7 @@ When a form production's form is used outside of the context of a syntax-spec DS
 ]
 
 @section{Binding specs}
-@tex-label{doc:bindingspecs}
+@tex-label{doc:binding-specs}
 
 
 @racketgrammar*[#:literals (bind bind-syntax bind-syntaxes import re-export export export-syntax export-syntaxes nest ...)
