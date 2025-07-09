@@ -6,11 +6,11 @@
 @(define eval (make-base-eval '(require racket)))
 @(define-syntax-rule (repl body ...) (examples #:eval eval #:label #f body ...))
 
-@title[#:tag "syntax-interpreter"]{Advanced Tutorial: An Interpreter}
+@title[#:tag "syntax-interpreter"]{Advanced Tutorial: An Interpreted Language}
 
-This guide demonstrates how to use syntax-spec to create an interpreter, as well as the benefits of this approach.
+This guide demonstrates how to use syntax-spec to create an interpreted language, as well as the benefits of this approach.
 
-Typically, syntax-spec is used to create a compiler, usually to Racket. However, it's possible to use it to create an interpreter as well. In such an interpreter, syntax-spec will enforce the grammar, check binding, macro-expand the source program, etc. and the interpreter takes in the expanded, core syntax and evaluates it to a value. As an example, let's create an interpreter for lambda calculus.
+Typically, syntax-spec is used to create languages that compile to Racket. However, it's possible to use it to create an interpreted language as well. In such an implementation, syntax-spec will enforce the grammar, check binding, macro-expand the source program, etc. and pass off the expanded, core syntax to an interpreter that evaluates it to a value. As an example, let's create an interpreted implementation of the lambda calculus.
 
 @section{Expander}
 
@@ -34,7 +34,6 @@ Here is the syntax-spec:
       #:binding (scope (bind x) e)
       (rkt e:expr)
       (~> (e1 e2)
-          ;; this is necessary to preserve source location, properties, etc.
           (syntax/loc this-syntax (#%app e1 e2)))
       (#%app e1:lc-expr e2:lc-expr))
 
@@ -44,7 +43,8 @@ Here is the syntax-spec:
 (require 'grammar "main.rkt" (for-syntax syntax/parse))
 ]
 
-@racketmod[racket
+@racketmod[
+racket
 (require syntax-spec (for-syntax syntax/parse))
 (syntax-spec
   (binding-class lc-var #:binding-space lc)
@@ -94,7 +94,7 @@ Our language is also macro-extensible, so the result of @racket[lc-expand] expan
 (lc-expand (let ([x 1]) (+ x x)))
 ]
 
-@section{Evaluator}
+@section{Interpreter}
 
 We can use the output of @racket[lc-expand] as the input of an interpreter. But first, let's define some helpers.
 
@@ -145,7 +145,7 @@ One more thing we'll need is the ability to raise errors. Luckily, since we're o
 (eval:error (lc-error #'x "something went wrong"))
 ]
 
-Alright, now let's define our evaluator:
+Alright, now let's define our interpreter:
 
 @repl[
 (eval:no-prompt (require syntax/parse))
@@ -221,7 +221,7 @@ We can add limited support for Racket subexpressions to our language:
     (#%app e1:lc-expr e2:lc-expr)))
 ]
 
-We added @racket[(rkt e:expr)] to the productions. Usually, for a Racket expression position like this, we'd use the @racket[racket-expr] nonterminal instead of the @racket[expr] syntax class, but since we're evaluating syntax, we want the unmodified syntax of the Racket expression with no @racket[#%host-expression] wrapper. Evaluation is simple:
+We added @racket[(rkt e:expr)] to the productions. Usually for racket expressions, we use @racket[racket-expr], which wraps the expression with @racket[#%host-expression]. This does some work behind the scenes to make sure we can refer to DSL bindings in the Racket expression. But for this syntax interpreter, that won't work, so we'll just use @racket[expr] to avoid wrapping the expression in a @racket[#%host-expression]. Evaluation is simple:
 
 @repl[
 (eval:no-prompt
