@@ -4,7 +4,7 @@
 ;; arithmetic + let -> ANF -> prune unused variables -> racket
 
 (require "../../testing.rkt"
-         (for-syntax racket/list rackunit (only-in "../../private/ee-lib/main.rkt" define/hygienic)))
+         (for-syntax racket/pretty racket/list rackunit (only-in "../../private/ee-lib/main.rkt" define/hygienic)))
 
 (syntax-spec
   (binding-class var #:reference-compiler immutable-reference-compiler)
@@ -100,16 +100,15 @@
   ; anf-expr -> anf-expr
   (define/hygienic (prune-unused-variables e)
     #:expression
-    (define var-used? (get-used-vars e))
-    (remove-unused-vars e var-used?))
+    (define used-vars (get-used-vars e))
+    (remove-unused-vars e used-vars))
 
-  ; anf-expr -> (Identifier -> Bool)
+  ; anf-expr -> SymbolTable
   ; non-hygienic because it's just an analysis pass
   (define (get-used-vars e)
-    (define-local-symbol-table used-vars)
+    (define used-vars (local-symbol-set))
     (define (mark-as-used! x)
-      (symbol-table-set! used-vars x #t))
-    (define (var-used? x) (symbol-table-ref used-vars x #f))
+      (symbol-set-add! used-vars x))
     ; Go bottom-up, seeing references before their binders.
     ; The invariant is that we only traverse expressions that need
     ; to be evaluated.
@@ -124,25 +123,25 @@
       (syntax-parse e
         [((~literal let) ([x e]) body)
          (mark-used-variables! #'body)
-         (when (var-used? #'x)
+         (when (symbol-set-member? used-vars #'x)
            (mark-used-variables! #'e))]
         [(op a b)
          (mark-used-variables! #'a)
          (mark-used-variables! #'b)]
         [x:id
          (mark-as-used! #'x)]
-        ; don't descent into racket expressions.
-        ; this means we'll miss references like (rkt (eval-expr x)).
-        ; TODO use free-variables once it supports host-expressions
+        [((~datum rkt) e)
+         (for ([x (get-racket-referenced-identifiers [var] #'e)])
+           (mark-as-used! x))]
         [_ (void)]))
-    var-used?)
+    used-vars)
 
-  ; anf-expr (Identifier -> Boolean) -> anf-expr
-  (define (remove-unused-vars e var-used?)
+  ; anf-expr SymbolTable -> anf-expr
+  (define (remove-unused-vars e used-vars)
     (let loop ([e e])
       (syntax-parse e
         [((~and let (~literal let)) ([x e]) body)
-         (if (var-used? #'x)
+         (if (symbol-set-member? used-vars #'x)
              ; no need to recur on e since it's not a let
              #`(let ([x e])
                  #,(loop #'body))
@@ -215,6 +214,7 @@
     (+ x
        (rkt x))))
  2)
+#;; this breaks because of get-racket-referenced-identifiers
 (test-equal? "use outer dsl var in dsl in rkt"
  (eval-expr
   (let ([x 1])
@@ -231,9 +231,10 @@
   (let ([unused (rkt (error "bad"))])
     1))
  1)
-#;; since we don't descend into racket exprs, it thinks it's unused, so it removes it and we get an unbound reference
-(check-equal?
+#;(check-equal?
  (eval-expr
   (let ([used-only-in-rkt 1])
     (let ([x (rkt used-only-in-rkt)])
-      x))))
+      x)))
+ 1)
+
