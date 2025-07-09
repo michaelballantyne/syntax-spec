@@ -198,9 +198,7 @@
                   'expression
                   '())
 
-    (sequence->list (in-symbol-set (for/fold ([references (immutable-symbol-set)])
-                                             ([x (in-symbol-set (current-referenced-vars))])
-                                     (symbol-set-add references x))))))
+    (sequence->list (in-symbol-set (current-referenced-vars)))))
 
 (define recording-reference-compiler
   (make-variable-like-reference-compiler

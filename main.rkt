@@ -7,6 +7,8 @@
           ...
           ...+
 
+          #%host-expression
+
           mutable-reference-compiler
           immutable-reference-compiler
 
@@ -60,6 +62,7 @@
          "private/runtime/compile.rkt"
          (for-syntax syntax/parse
                      (except-in "private/ee-lib/main.rkt" racket-var)
+                     "private/runtime/compile.rkt"
                      "private/ee-lib/persistent-id-table.rkt"
                      "private/ee-lib/binding.rkt"
                      "private/runtime/binding-operations.rkt"
