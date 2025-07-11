@@ -321,6 +321,8 @@ We perform this re-expansion using @racket[nonterminal-expander]. This function 
 
 The expansion after pruning is technically unnecessary for this example since we are only removing bindings in that pass, but it is good to always make sure your compiler is receiving freshly expanding syntax. This extra expansion also makes sure your optimization produces valid syntax. In general, even if your compiler just has a single transformative pass before compilation, you should expand the result of the pass.
 
+An additional caveat is that identifiers need to undergo the same number of expansions for things to work properly. The easiest way to do this is to expand only the entire dsl expression at once, rather than expanding subexpressions individually.
+
 Finally, we must implement compilation of A-normal form expressions to Racket, which is straightforward:
 
 @racketblock[
