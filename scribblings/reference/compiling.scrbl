@@ -64,6 +64,9 @@ A variable-like reference compiler that allows references as well as mutations v
 
 References expand to their @tech{compiled identifier}.
 
+@defform[(#%host-expression rkt-expr)]
+
+Racket subexpressions are wrapped with @racket[#%host-expression] during DSL expansion, which delays the expansion of the Racket subexpression until after compilation, allowing context like syntax parameters to be established by the compiler, which can be used by reference compilers.
 
 @section{Compiled identifiers vs surface syntax}
 
