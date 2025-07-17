@@ -45,6 +45,7 @@
 
 ;; Elaborated representation; variables are associated with expander-environment information
 
+;; A Pattern VARiable called `id`.
 (struct pvar [id info])
 
 (struct with-stx [stx])
@@ -60,7 +61,8 @@
 (struct export-syntax with-stx [pvar transformer-pvar] #:transparent)
 (struct export-syntaxes with-stx [pvar transformer-pvar] #:transparent)
 (struct nest with-stx [pvar spec] #:transparent)
-(struct nest-one with-stx [pvar spec] #:transparent) 
+(struct nest-one with-stx [pvar spec] #:transparent)
+(struct parallel with-stx [pvar spec] #:transparent)
 (struct suspend with-stx [pvar] #:transparent)
 (struct scope with-stx [spec] #:transparent)
 (struct group [specs] #:transparent)
@@ -80,6 +82,9 @@
     [(nest-one stx pv s)
      (let ([s^ (map-bspec f s)])
        (f (nest-one stx pv s^)))]
+    [(parallel stx pv s)
+     (let ([s^ (map-bspec f s)])
+       (f (parallel stx pv s^)))]
     [(scope stx s)
      (let ([s^ (map-bspec f s)])
        (f (scope stx s^)))]
@@ -94,6 +99,7 @@
   (match spec
     [(or (s* nest [spec s])
          (s* nest-one [spec s])
+         (s* parallel [spec s])
          (s* scope [spec s]))
      (let ([s^ (fold-bspec f s)])
        (f spec (list s^)))]
@@ -109,7 +115,7 @@
 ; convert surface syntax for a bspec to a structure representation.
 (define elaborate-bspec
   (syntax-parser
-    #:datum-literals (scope bind bind-syntax bind-syntaxes import export export-syntax export-syntaxes re-export nest nest-one host)
+    #:datum-literals (scope bind bind-syntax bind-syntaxes import export export-syntax export-syntaxes re-export nest nest-one parallel host)
     [v:nonref-id
      (elaborate-ref (attribute v))]
     [(bind ~! v:nonref-id ...+)
@@ -192,6 +198,13 @@
                       (s* nonterm-rep [variant-info (s* nesting-nonterm-info)])
                       "nesting nonterminal")
       (elaborate-bspec (attribute spec)))]
+    [(parallel ~! v:nonref-id spec:bspec-term)
+     (parallel
+      this-syntax
+      (elaborate-pvar (attribute v)
+                      (s* nonterm-rep [variant-info (s* nesting-nonterm-info)])
+                      "nesting nonterminal")
+      (elaborate-bspec (attribute spec)))]
     [(host ~! v:nonref-id)
      (suspend
       this-syntax
@@ -268,6 +281,7 @@
               (s* export [pvar (pvar v _)])
               (s* nest [pvar (pvar v _)])
               (s* nest-one [pvar (pvar v _)])
+              (s* parallel [pvar (pvar v _)])
               (s* suspend [pvar (pvar v _)]))
           (list v)]
          [(or (s* bind-syntax [pvar (pvar v1 _)] [transformer-pvar (pvar v2 _)])
@@ -331,7 +345,7 @@
 ; one-pass-spec: unscoped-spec
 ; exporting-spec: (seq (* (or (export _) (export-syntax _ _) (export-syntaxes _ _))) (* (re-export _)) refs+subexps)
 ; unscoped-spec: refs+subexps
-; refs+subexps: (* (or (ref _) (nest _ unscoped-spec) (nest-one _ unscoped-spec) (scope scoped-spec)))
+; refs+subexps: (* (or (ref _) (nest _ unscoped-spec) (nest-one _ unscoped-spec) (parallel _ unscoped-spec) (scope scoped-spec)))
 ; scoped-spec:   (seq (* (or (bind-syntax _ _) (bind-syntaxes _ _) (bind _))) (? (rec _)) refs+subexps)
 ;
 ; The implementation below separately implements refs+subexps for each context in which it occurs to
@@ -369,7 +383,8 @@
       [(and (s* re-export) (with-stx stx))
        (re-export-context-error stx)]
       [(or (s* nest [spec s])
-           (s* nest-one [spec s]))
+           (s* nest-one [spec s])
+           (s* parallel [spec s]))
        (check-order/unscoped-expression s)]
       [(s* scope [spec s])
        (check-order/scoped-expression s)]))
@@ -409,7 +424,8 @@
       [(or (s* ref) (s* suspend))
        (check-sequence refs+subexps specs)]
       [(or (s* nest [spec s])
-           (s* nest-one [spec s]))
+           (s* nest-one [spec s])
+           (s* parallel [spec s]))
        (check-order/unscoped-expression s)
        (check-sequence refs+subexps specs)]
       [(s* scope [spec s])
@@ -445,7 +461,8 @@
       [(or (s* ref) (s* suspend))
        (check-sequence refs+subexps specs)]
       [(or (s* nest [spec s])
-           (s* nest-one [spec s]))
+           (s* nest-one [spec s])
+           (s* parallel [spec s]))
        (check-order/unscoped-expression s)
        (check-sequence refs+subexps specs)]
       [(s* scope [spec s])
@@ -504,6 +521,11 @@
        [(nonterm-rep (nesting-nonterm-info expander))
         (with-syntax ([spec-c (compile-bspec-term/single-pass spec)])
           #`(nest-one '#,v #,expander spec-c))])]
+    [(parallel _ (pvar v info) spec)
+     (match info
+       [(nonterm-rep (nesting-nonterm-info expander))
+        (with-syntax ([spec-c (compile-bspec-term/single-pass spec)])
+          #`(parallel '#,v #,expander spec-c))])]
     [(scope _ spec)
      (with-syntax ([spec-c (compile-bspec-term/single-pass spec)])
        #'(scope spec-c))]
@@ -524,6 +546,7 @@
     [(or (ref _)
          (nest _ _ _)
          (nest-one _ _ _)
+         (parallel _ _ _)
          (scope _ _)
          (suspend _ _))
      no-op]
@@ -551,6 +574,7 @@
     [(or (ref _)
          (nest _ _ _)
          (nest-one _ _ _)
+         (parallel _ _ _)
          (scope _ _)
          (suspend _ _))
      (compile-bspec-term/single-pass spec)]
