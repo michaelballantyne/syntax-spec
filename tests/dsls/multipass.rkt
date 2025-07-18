@@ -7,28 +7,32 @@
          (for-syntax racket/pretty racket/list rackunit (only-in "../../private/ee-lib/main.rkt" define/hygienic)))
 
 (syntax-spec
-  (binding-class var #:reference-compiler immutable-reference-compiler)
+  (binding-class var
+                 #:reference-compiler immutable-reference-compiler)
   (nonterminal expr
+    #:binding-space anf
     n:number
     x:var
-    ; need to use ~literal because you can't re-use let in the other non-terminals
-    ((~literal let) ([x:var e:expr]) body:expr)
+    (let ([x:var e:expr]) body:expr)
     #:binding (scope (bind x) body)
-    ((~literal +) a:expr b:expr)
-    ((~literal *) a:expr b:expr)
-    ((~literal /) a:expr b:expr)
+    (+ a:expr b:expr)
+    (* a:expr b:expr)
+    (/ a:expr b:expr)
     (rkt e:racket-expr))
   (nonterminal anf-expr
-    ((~literal let) ([x:var e:rhs-expr]) body:anf-expr)
+    #:binding-space anf
+    ((~datum let) ([x:var e:rhs-expr]) body:anf-expr)
     #:binding (scope (bind x) body)
     e:rhs-expr)
   (nonterminal rhs-expr
-    ((~literal +) a:immediate-expr b:immediate-expr)
-    ((~literal *) a:immediate-expr b:immediate-expr)
-    ((~literal /) a:immediate-expr b:immediate-expr)
-    ((~literal rkt) e:racket-expr)
+    #:binding-space anf
+    ((~datum +) a:immediate-expr b:immediate-expr)
+    ((~datum *) a:immediate-expr b:immediate-expr)
+    ((~datum /) a:immediate-expr b:immediate-expr)
+    ((~datum rkt) e:racket-expr)
     e:immediate-expr)
   (nonterminal immediate-expr
+    #:binding-space anf
     x:var
     n:number)
 
@@ -73,7 +77,7 @@
   ; in other compilers, helpers may need to be hygienic too.
   (define (to-rhs e bind!)
     (syntax-parse e
-      [((~literal let) ([x e]) body)
+      [((~datum let) ([x e]) body)
        (bind! #'x (to-rhs #'e bind!))
        (to-rhs #'body bind!)]
       [(op a b)
@@ -126,7 +130,7 @@
     ; so we don't traverse its rhs since it isn't needed.
     (let mark-used-variables! ([e e])
       (syntax-parse e
-        [((~literal let) ([x e]) body)
+        [((~datum let) ([x e]) body)
          (mark-used-variables! #'body)
          (when (symbol-set-member? used-vars #'x)
            (mark-used-variables! #'e))]
@@ -145,7 +149,7 @@
   (define (remove-unused-vars e used-vars)
     (let loop ([e e])
       (syntax-parse e
-        [((~and let (~literal let)) ([x e]) body)
+        [((~and let (~datum let)) ([x e]) body)
          (define/syntax-parse body^ (loop #'body))
          (if (symbol-set-member? used-vars #'x)
              ; no need to recur on e since it's not a let
@@ -156,10 +160,10 @@
 
 (define-syntax compile-anf
   (syntax-parser
-    [(_ ((~literal let) ([x e]) body))
+    [(_ ((~datum let) ([x e]) body))
      #'(let ([x (compile-anf e)]) (compile-anf body))]
     [(_ (op a b)) #'(op a b)]
-    [(_ ((~literal rkt) e))
+    [(_ ((~datum rkt) e))
      #'(let ([x e])
          (if (number? x)
              x
