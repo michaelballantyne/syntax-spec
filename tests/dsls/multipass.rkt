@@ -4,7 +4,7 @@
 ;; arithmetic + let -> ANF -> prune unused variables -> racket
 
 (require "../../testing.rkt"
-         (for-syntax racket/match racket/pretty racket/list rackunit (only-in "../../private/ee-lib/main.rkt" define/hygienic)))
+         (for-syntax racket/match racket/syntax racket/list rackunit))
 
 (syntax-spec
   (binding-class var
@@ -60,9 +60,7 @@
 
 (begin-for-syntax
   ; expr -> anf-expr
-  ; this doesn't really need to be hygienic, but in general, compiler passes often will.
-  (define/hygienic (to-anf e)
-    #:expression
+  (define (to-anf e)
     ; list of (list Identifier rhs-expr)
     ; most recent, and thus innermost, binding first
     (define bindings-rev '())
@@ -93,12 +91,12 @@
   ; expr (Identifier rhs-expr -> Void) -> immediate-expr
   (define (to-immediate! e lift-binding!)
     (syntax-parse e
-      [(_ . _)
-       (define/syntax-parse (tmp) (generate-temporaries '(tmp)))
+      [(~or x:id n:number) this-syntax]
+      [_
+       (define/syntax-parse tmp (generate-temporary 'tmp))
        (define e^ (to-rhs! this-syntax lift-binding!))
        (lift-binding! #'tmp e^)
-       #'tmp]
-      [_ this-syntax]))
+       #'tmp]))
 
   ; rhs-expr (listof (list Identifier rhs-expr) )
   (define (wrap-lets e bindings)
@@ -112,17 +110,13 @@
 
 (begin-for-syntax
   ; anf-expr -> anf-expr
-  (define/hygienic (prune-unused-variables e)
-    #:expression
+  (define (prune-unused-variables e)
     (define used-vars (get-used-vars e))
     (remove-unused-vars e used-vars))
 
   ; anf-expr -> SymbolTable
   ; non-hygienic because it's just an analysis pass
   (define (get-used-vars e)
-    (define used-vars (local-symbol-set))
-    (define (mark-as-used! x)
-      (symbol-set-add! used-vars x))
     ; Go bottom-up, seeing references before their binders.
     ; The invariant is that we only traverse expressions that need
     ; to be evaluated.
@@ -133,35 +127,31 @@
     ; we need its rhs' referenced variables too, so recur on the rhs.
     ; If we see a binder that isn't marked as used, it was never referenced,
     ; so we don't traverse its rhs since it isn't needed.
-    (let mark-used-variables! ([e e])
-      (syntax-parse e
-        [((~datum let) ([x e]) body)
-         (mark-used-variables! #'body)
-         (when (symbol-set-member? used-vars #'x)
-           (mark-used-variables! #'e))]
-        [(op a b)
-         (mark-used-variables! #'a)
-         (mark-used-variables! #'b)]
-        [x:id
-         (mark-as-used! #'x)]
-        [((~datum rkt) e)
-         (for ([x (get-racket-referenced-identifiers [var] #'e)])
-           (mark-as-used! x))]
-        [_ (void)]))
-    used-vars)
+    (syntax-parse e
+      [((~datum let) ([x e]) body)
+       (define body-vars (get-used-vars #'body))
+       (if (symbol-set-member? body-vars #'x)
+           (symbol-set-union body-vars (get-used-vars #'e))
+           body-vars)]
+      [(op a b)
+       (symbol-set-union (get-used-vars #'a) (get-used-vars #'b))]
+      [x:id
+       (immutable-symbol-set #'x)]
+      [((~datum rkt) e)
+       (apply immutable-symbol-set (get-racket-referenced-identifiers [var] #'e))]
+      [n:number (immutable-symbol-set)]))
 
   ; anf-expr SymbolTable -> anf-expr
   (define (remove-unused-vars e used-vars)
-    (let loop ([e e])
-      (syntax-parse e
-        [((~and let (~datum let)) ([x e]) body)
-         (define/syntax-parse body^ (loop #'body))
-         (if (symbol-set-member? used-vars #'x)
-             ; no need to recur on e since it's not a let
-             #'(let ([x e])
-                 body^)
-             #'body^)]
-        [_ this-syntax]))))
+    (syntax-parse e
+      [((~and let (~datum let)) ([x e]) body)
+       (define/syntax-parse body^ (remove-unused-vars #'body used-vars))
+       (if (symbol-set-member? used-vars #'x)
+           ; no need to recur on e since it's not a let
+           #'(let ([x e])
+               body^)
+           #'body^)]
+      [_ this-syntax])))
 
 (define-syntax compile-anf
   (syntax-parser
