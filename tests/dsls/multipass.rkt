@@ -51,8 +51,8 @@
      (define e/pruned (prune-unused-variables e/anf))
      ; this last local-expand-anf might be unnecessary for this compiler, but i'll leave it in
      ; since most compilers would need it.
-     (define e/pruned^ (local-expand-anf e/pruned #:should-rename? #t))
-     #`(compile-anf #,e/pruned^)]))
+     (define/syntax-parse e/pruned^ (local-expand-anf e/pruned #:should-rename? #t))
+     #'(compile-anf e/pruned^)]))
 
 (begin-for-syntax
   ; expr -> anf-expr
@@ -77,8 +77,9 @@
        (bind! #'x (to-rhs #'e bind!))
        (to-rhs #'body bind!)]
       [(op a b)
-       #`(op #,(to-immediate #'a bind!)
-             #,(to-immediate #'b bind!))]
+       (define/syntax-parse a^ (to-immediate #'a bind!))
+       (define/syntax-parse b^ (to-immediate #'b bind!))
+       #'(op a^ b^)]
       [_ this-syntax]))
 
   ; expr (Identifier rhs-expr -> Void) -> immediate-expr
@@ -92,7 +93,11 @@
 
   ; rhs-expr (listof (list Identifier rhs-expr) )
   (define (wrap-lets e bindings)
-    (foldr (lambda (binding e) #`(let ([#,(first binding) #,(second binding)]) #,e))
+    (foldr (lambda (binding e)
+             (define/syntax-parse x (first binding))
+             (define/syntax-parse rhs (second binding))
+             (define/syntax-parse body e)
+             #'(let ([x rhs]) body))
            e
            bindings)))
 
@@ -141,11 +146,12 @@
     (let loop ([e e])
       (syntax-parse e
         [((~and let (~literal let)) ([x e]) body)
+         (define/syntax-parse body^ (loop #'body))
          (if (symbol-set-member? used-vars #'x)
              ; no need to recur on e since it's not a let
-             #`(let ([x e])
-                 #,(loop #'body))
-             (loop #'body))]
+             #'(let ([x e])
+                 body^)
+             #'body^)]
         [_ this-syntax]))))
 
 (define-syntax compile-anf
