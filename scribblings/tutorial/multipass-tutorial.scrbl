@@ -17,117 +17,42 @@ Here is the syntax-spec of our language:
 @repl[
 #:hidden #t
 (module grammar racket
-  (provide (all-defined-out) (for-syntax (all-defined-out)))
-  (require "main.rkt" (for-syntax racket syntax/parse))
-  (syntax-spec
-    (binding-class var #:reference-compiler immutable-reference-compiler)
-    (nonterminal expr
-      n:number
-      x:var
-      ; need to use ~literal because you can't re-use let in the other non-terminals
-      ((~literal let) ([x:var e:expr]) body:expr)
-      #:binding (scope (bind x) body)
-      ((~literal +) a:expr b:expr)
-      ((~literal *) a:expr b:expr)
-      ((~literal /) a:expr b:expr)
-      (rkt e:racket-expr))
-    (nonterminal anf-expr
-      ((~literal let) ([x:var e:rhs-expr]) body:anf-expr)
-      #:binding (scope (bind x) body)
-      e:rhs-expr)
-    (nonterminal rhs-expr
-      ((~literal +) a:immediate-expr b:immediate-expr)
-      ((~literal *) a:immediate-expr b:immediate-expr)
-      ((~literal /) a:immediate-expr b:immediate-expr)
-      ((~literal rkt) e:racket-expr)
-      e:immediate-expr)
-    (nonterminal immediate-expr
-      x:var
-      n:number)
+(provide (all-defined-out) (for-space anf (all-defined-out)) (for-syntax (all-defined-out) (for-space anf (all-defined-out))))
+  (require "main.rkt" (for-syntax syntax/parse racket))
+  (require (for-syntax racket/match racket/syntax racket/list))
+(syntax-spec
+  (binding-class var
+                 #:reference-compiler immutable-reference-compiler)
+  (nonterminal expr
+    #:binding-space anf
+    n:number
+    x:var
+    (let ([x:var e:expr]) body:expr)
+    #:binding (scope (bind x) body)
+    (+ a:expr b:expr)
+    (* a:expr b:expr)
+    (/ a:expr b:expr)
+    (rkt e:racket-expr))
+  (nonterminal anf-expr
+    #:binding-space anf
+    ((~datum let) ([x:var e:rhs-expr]) body:anf-expr)
+    #:binding (scope (bind x) body)
+    e:rhs-expr)
+  (nonterminal rhs-expr
+    #:binding-space anf
+    ((~datum +) a:immediate-expr b:immediate-expr)
+    ((~datum *) a:immediate-expr b:immediate-expr)
+    ((~datum /) a:immediate-expr b:immediate-expr)
+    ((~datum rkt) e:racket-expr)
+    e:immediate-expr)
+  (nonterminal immediate-expr
+    #:binding-space anf
+    x:var
+    n:number)
 
-    (host-interface/expression
-     (eval-expr e:expr)
-     #'(compile-expr e)))
-(begin-for-syntax
-  (define (to-anf e)
-    (define bindings-rev '())
-    (define (bind! x e) (set! bindings-rev (cons (list x e) bindings-rev)))
-    (define e^ (to-rhs e bind!))
-    (wrap-lets e^ (reverse bindings-rev)))
-
-  (define (to-rhs e bind!)
-    (syntax-parse e
-      [((~literal let) ([x e]) body)
-       (bind! #'x (to-rhs #'e bind!))
-       (to-rhs #'body bind!)]
-      [(op a b)
-       (define/syntax-parse a^ (to-immediate #'a bind!))
-       (define/syntax-parse b^ (to-immediate #'b bind!))
-       #'(op a^ b^)]
-      [_ this-syntax]))
-
-  (define (to-immediate e bind!)
-    (syntax-parse e
-      [(_ . _)
-       (define/syntax-parse (tmp) (generate-temporaries '(tmp)))
-       (bind! #'tmp (to-rhs this-syntax bind!))
-       #'tmp]
-      [_ this-syntax]))
-
-  (define (wrap-lets e bindings)
-    (foldr (lambda (binding e)
-             (define/syntax-parse x (first binding))
-             (define/syntax-parse rhs (second binding))
-             (define/syntax-parse body e)
-             #'(let ([x rhs]) body))
-                    e
-                    bindings)))
-
-(begin-for-syntax
-  (define (prune-unused-variables e)
-    (define used-vars (get-used-vars e))
-    (remove-unused-vars e used-vars))
-
-  (define (get-used-vars e)
-    (define used-vars (local-symbol-set))
-    (define (mark-as-used! x)
-      (symbol-set-add! used-vars x))
-    (let mark-used-variables! ([e e])
-      (syntax-parse e
-        [((~literal let) ([x e]) body)
-         (mark-used-variables! #'body)
-         (when (symbol-set-member? used-vars #'x)
-           (mark-used-variables! #'e))]
-        [(op a b)
-         (mark-used-variables! #'a)
-         (mark-used-variables! #'b)]
-        [x:id
-         (mark-as-used! #'x)]
-        [_ (void)]))
-    used-vars)
-
-  (define (remove-unused-vars e used-vars)
-    (let loop ([e e])
-      (syntax-parse e
-        [((~and let (~literal let)) ([x e]) body)
-         (define/syntax-parse body^ (loop #'body))
-         (if (symbol-set-member? used-vars #'x)
-             #'(let ([x e])
-                 body^)
-             #'body^)]
-        [_ this-syntax]))))
-
-(define-syntax compile-anf
-  (syntax-parser
-    [(_ ((~literal let) ([x e]) body))
-     #'(let ([x (compile-anf e)]) (compile-anf body))]
-    [(_ (op a b)) #'(op a b)]
-    [(_ ((~literal rkt) e))
-     #'(let ([x e])
-         (if (number? x)
-             x
-             (error 'rkt "expected a number, got ~a" x)))]
-    [(_ e) #'e]))
+  (host-interface/expression
+   (eval-expr e:expr)
+   #'(compile-expr e)))
 
 (begin-for-syntax
   (define local-expand-anf (nonterminal-expander anf-expr)))
@@ -135,11 +60,127 @@ Here is the syntax-spec of our language:
 (define-syntax compile-expr
   (syntax-parser
     [(_ e)
+     ; I chose to use compile-time functions instead of macros because there is a lot
+     ; of non-syntax data to pass around. But we still get hygiene with define/hygienic.
+
+     ; need to expand to make sure everything is properly bound
+     ; for the analysis pass, which uses symbol tables.
      (define e/anf (local-expand-anf (to-anf #'e) #:should-rename? #t))
      (define e/pruned (prune-unused-variables e/anf))
+     ; this last local-expand-anf might be unnecessary for this compiler, but i'll leave it in
+     ; since most compilers would need it.
      (define/syntax-parse e/pruned^ (local-expand-anf e/pruned #:should-rename? #t))
      #'(compile-anf e/pruned^)]))
-    )
+
+(begin-for-syntax
+  ; expr -> anf-expr
+  (define (to-anf e)
+    ; list of (list Identifier rhs-expr)
+    ; most recent, and thus innermost, binding first
+    (define bindings-rev '())
+    ; Identifier rhs-expr -> Void
+    ; ends up producing a let-binding of x to e in the result
+    (define (lift-binding! x e) (set! bindings-rev (cons (list x e) bindings-rev)))
+    (define e^ (to-rhs! e lift-binding!))
+    (wrap-lets e^ (reverse bindings-rev)))
+
+  ; expr (Identifier rhs-expr -> Void) -> rhs-expr
+  ; this doesn't need to be hygienic, only the whole pass.
+  ; in other compilers, helpers may need to be hygienic too.
+  (define (to-rhs! e lift-binding!)
+    (syntax-parse e
+      [((~datum let) ([x e]) body)
+       (define e^ (to-rhs! #'e lift-binding!))
+       (lift-binding! #'x e^)
+       (to-rhs! #'body lift-binding!)]
+      [(op a b)
+       (define/syntax-parse a^ (to-immediate! #'a lift-binding!))
+       (define/syntax-parse b^ (to-immediate! #'b lift-binding!))
+       #'(op a^ b^)]
+      [(~or ((~datum rkt) _)
+            x:id
+            n:number)
+       this-syntax]))
+
+  ; expr (Identifier rhs-expr -> Void) -> immediate-expr
+  (define (to-immediate! e lift-binding!)
+    (syntax-parse e
+      [(~or x:id n:number) this-syntax]
+      [_
+       (define/syntax-parse tmp (generate-temporary 'tmp))
+       (define e^ (to-rhs! this-syntax lift-binding!))
+       (lift-binding! #'tmp e^)
+       #'tmp]))
+
+  ; rhs-expr (listof (list Identifier rhs-expr) )
+  (define (wrap-lets e bindings)
+    (match bindings
+      [(cons binding bindings)
+       (with-syntax ([x (first binding)]
+                     [rhs (second binding)]
+                     [body (wrap-lets e bindings)])
+         #'(let ([x rhs]) body))]
+      ['() e])))
+
+(begin-for-syntax
+  ; anf-expr -> anf-expr
+  (define (prune-unused-variables e)
+    (define used-vars (get-used-vars e))
+    (remove-unused-vars e used-vars))
+
+  ; anf-expr -> SymbolTable
+  ; non-hygienic because it's just an analysis pass
+  (define (get-used-vars e)
+    ; Go bottom-up, seeing references before their binders.
+    ; The invariant is that we only traverse expressions that need
+    ; to be evaluated.
+    ; The innermost expression is needed, so we traverse it. From there,
+    ; we only traverse expressions that are (transitively) needed.
+    ; If we see a reference, mark it as used.
+    ; If we see a binder that is marked as used,
+    ; we need its rhs' referenced variables too, so recur on the rhs.
+    ; If we see a binder that isn't marked as used, it was never referenced,
+    ; so we don't traverse its rhs since it isn't needed.
+    (syntax-parse e
+      [((~datum let) ([x e]) body)
+       (define body-vars (get-used-vars #'body))
+       (if (symbol-set-member? body-vars #'x)
+           (symbol-set-union body-vars (get-used-vars #'e))
+           body-vars)]
+      [(op a b)
+       (symbol-set-union (get-used-vars #'a) (get-used-vars #'b))]
+      [x:id
+       (immutable-symbol-set #'x)]
+      [((~datum rkt) e)
+       (apply immutable-symbol-set (get-racket-referenced-identifiers [var] #'e))]
+      [n:number (immutable-symbol-set)]))
+
+  ; anf-expr SymbolTable -> anf-expr
+  (define (remove-unused-vars e used-vars)
+    (syntax-parse e
+      [((~and let (~datum let)) ([x e]) body)
+       (define/syntax-parse body^ (remove-unused-vars #'body used-vars))
+       (if (symbol-set-member? used-vars #'x)
+           ; no need to recur on e since it's not a let
+           #'(let ([x e])
+               body^)
+           #'body^)]
+      [_ this-syntax])))
+
+(define-syntax compile-anf
+  (syntax-parser
+    [(_ ((~datum let) ([x e]) body))
+     #'(let ([x (compile-anf e)]) (compile-anf body))]
+    [(_ (op a b)) #'(op a b)]
+    [(_ ((~datum rkt) e))
+     #'(let ([x e])
+         (if (number? x)
+             x
+             (error 'rkt "expected a number, got ~a" x)))]
+    [(_ e) #'e]))
+
+
+)
 (require 'grammar "main.rkt" (for-syntax syntax/parse))
 ]
 
