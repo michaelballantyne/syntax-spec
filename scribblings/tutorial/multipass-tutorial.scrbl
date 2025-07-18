@@ -253,12 +253,18 @@ Now let's automate this process:
 
 @racketblock[
 (begin-for-syntax
+  (code:comment2 "expr -> anf-expr")
+  (code:comment2 "convert an expression to A-normal form")
   (define (to-anf e)
     (define bindings-rev '())
+    (code:comment2 "Identifier rhs-expr -> Void")
+    (code:comment2 "record a variable binding pair")
     (define (lift-binding! x e) (set! bindings-rev (cons (list x e) bindings-rev)))
     (define e^ (to-rhs! e lift-binding!))
     (wrap-lets e^ (reverse bindings-rev)))
 
+  (code:comment2 "expr (Identifier rhs-expr -> Void) -> rhs-expr")
+  (code:comment2 "convert an expr to an rhs-expr, potentially recording bindings")
   (define (to-rhs! e lift-binding!)
     (syntax-parse e
       [((~datum let) ([x e]) body)
@@ -274,6 +280,8 @@ Now let's automate this process:
             n:number)
        this-syntax]))
 
+  (code:comment2 "expr (Identifier rhs-expr -> Void) -> immediate-expr")
+  (code:comment2 "convert an expr to an immediate-expr, potentially recording bindings")
   (define (to-immediate! e lift-binding!)
     (syntax-parse e
       [(~or x:id n:number) this-syntax]
@@ -283,6 +291,8 @@ Now let's automate this process:
        (lift-binding! #'tmp e^)
        #'tmp]))
 
+  (code:comment2 "rhs-expr (Listof (List Identifier rhs-expr)) -> anf-expr")
+  (code:comment2 "wrap the innermost expression with `let`s for the bindings that were recorded")
   (define (wrap-lets e bindings)
     (match bindings
       [(cons binding bindings)
@@ -339,10 +349,14 @@ Without pruning, this would print something, but with pruning, it would not. Our
 
 @racketblock[
 (begin-for-syntax
+  (code:comment2 "anf-expr -> anf-expr")
+  (code:comment2 "reconstruct the expression, excluding definitions of unused variables")
   (define (prune-unused-variables e)
     (define used-vars (get-used-vars e))
     (remove-unused-vars e used-vars))
 
+  (code:comment2 "anf-expr -> ImmutableSymbolSet")
+  (code:comment2 "compute the set of used variables")
   (define (get-used-vars e)
     (syntax-parse e
       [((~datum let) ([x e]) body)
@@ -356,6 +370,8 @@ Without pruning, this would print something, but with pruning, it would not. Our
        (immutable-symbol-set #'x)]
        [(~or ((~datum rkt) _) n:number) (immutable-symbol-set)]))
 
+  (code:comment2 "anf-expr ImmutableSymbolSet -> anf-expr")
+  (code:comment2 "reconstruct the expression, excluding definitions of specified unused variables")
   (define (remove-unused-vars e used-vars)
     (syntax-parse e
       [((~and let (~datum let)) ([x e]) body)
