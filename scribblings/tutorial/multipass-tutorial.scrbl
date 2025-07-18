@@ -186,29 +186,34 @@ Here is the syntax-spec of our language:
 
 @racketmod[
 racket
-(require syntax-spec (for-syntax syntax/parse))
+(require syntax-spec (for-syntax syntax/parse racket/syntax racket/match racket/list))
 (syntax-spec
-  (binding-class var #:reference-compiler immutable-reference-compiler)
+  (binding-class var
+                 #:reference-compiler immutable-reference-compiler)
   (nonterminal expr
+    #:binding-space anf
     n:number
     x:var
-    ((~literal let) ([x:var e:expr]) body:expr)
+    (let ([x:var e:expr]) body:expr)
     #:binding (scope (bind x) body)
-    ((~literal +) a:expr b:expr)
-    ((~literal *) a:expr b:expr)
-    ((~literal /) a:expr b:expr)
+    (+ a:expr b:expr)
+    (* a:expr b:expr)
+    (/ a:expr b:expr)
     (rkt e:racket-expr))
   (nonterminal anf-expr
-    ((~literal let) ([x:var e:rhs-expr]) body:anf-expr)
+    #:binding-space anf
+    ((~datum let) ([x:var e:rhs-expr]) body:anf-expr)
     #:binding (scope (bind x) body)
     e:rhs-expr)
   (nonterminal rhs-expr
-    ((~literal +) a:immediate-expr b:immediate-expr)
-    ((~literal *) a:immediate-expr b:immediate-expr)
-    ((~literal /) a:immediate-expr b:immediate-expr)
-    ((~literal rkt) e:racket-expr)
+    #:binding-space anf
+    ((~datum +) a:immediate-expr b:immediate-expr)
+    ((~datum *) a:immediate-expr b:immediate-expr)
+    ((~datum /) a:immediate-expr b:immediate-expr)
+    ((~datum rkt) e:racket-expr)
     e:immediate-expr)
   (nonterminal immediate-expr
+    #:binding-space anf
     x:var
     n:number)
 
@@ -250,37 +255,42 @@ Now let's automate this process:
 (begin-for-syntax
   (define (to-anf e)
     (define bindings-rev '())
-    (define (bind! x e) (set! bindings-rev (cons (list x e) bindings-rev)))
-    (define e^ (to-rhs e bind!))
+    (define (lift-binding! x e) (set! bindings-rev (cons (list x e) bindings-rev)))
+    (define e^ (to-rhs! e lift-binding!))
     (wrap-lets e^ (reverse bindings-rev)))
 
-  (define (to-rhs e bind!)
+  (define (to-rhs! e lift-binding!)
     (syntax-parse e
-      [((~literal let) ([x e]) body)
-       (bind! #'x (to-rhs #'e bind!))
-       (to-rhs #'body bind!)]
+      [((~datum let) ([x e]) body)
+       (define e^ (to-rhs! #'e lift-binding!))
+       (lift-binding! #'x e^)
+       (to-rhs! #'body lift-binding!)]
       [(op a b)
-       (define/syntax-parse a^ (to-immediate #'a bind!))
-       (define/syntax-parse b^ (to-immediate #'b bind!))
+       (define/syntax-parse a^ (to-immediate! #'a lift-binding!))
+       (define/syntax-parse b^ (to-immediate! #'b lift-binding!))
        #'(op a^ b^)]
-      [_ this-syntax]))
+      [(~or ((~datum rkt) _)
+            x:id
+            n:number)
+       this-syntax]))
 
-  (define (to-immediate e bind!)
+  (define (to-immediate! e lift-binding!)
     (syntax-parse e
-      [(_ . _)
-       (define/syntax-parse (tmp) (generate-temporaries '(tmp)))
-       (bind! #'tmp (to-rhs this-syntax bind!))
-       #'tmp]
-      [_ this-syntax]))
+      [(~or x:id n:number) this-syntax]
+      [_
+       (define/syntax-parse tmp (generate-temporary 'tmp))
+       (define e^ (to-rhs! this-syntax lift-binding!))
+       (lift-binding! #'tmp e^)
+       #'tmp]))
 
   (define (wrap-lets e bindings)
-    (foldr (lambda (binding e)
-             (define/syntax-parse x (first binding))
-             (define/syntax-parse rhs (second binding))
-             (define/syntax-parse body e)
-             #'(let ([x rhs]) body))
-           e
-           bindings)))
+    (match bindings
+      [(cons binding bindings)
+       (with-syntax ([x (first binding)]
+                     [rhs (second binding)]
+                     [body (wrap-lets e bindings)])
+         #'(let ([x rhs]) body))]
+      ['() e])))
 ]
 
 Our transformation goes through the expression, recording the temporary variable bindings to lift. The final @racket[rhs-expr] returned by @racket[to-rhs] will be the body of the innermost @racket[let] at the end of the transformation. Converting to an @racket[rhs-expr] or an @racket[immediate-expr] has the side effect of recording a binding pair to be lifted, and the result of replacing complex subexpressions with temporary variable references is returned from each helper.
@@ -334,33 +344,27 @@ Without pruning, this would print something, but with pruning, it would not. Our
     (remove-unused-vars e used-vars))
 
   (define (get-used-vars e)
-    (define used-vars (local-symbol-set))
-    (define (mark-as-used! x)
-      (symbol-set-add! used-vars x))
-    (let mark-used-variables! ([e e])
-      (syntax-parse e
-        [((~literal let) ([x e]) body)
-         (mark-used-variables! #'body)
-         (when (symbol-set-member? used-vars #'x)
-           (mark-used-variables! #'e))]
-        [(op a b)
-         (mark-used-variables! #'a)
-         (mark-used-variables! #'b)]
-        [x:id
-         (mark-as-used! #'x)]
-        [_ (void)]))
-    used-vars)
+    (syntax-parse e
+      [((~datum let) ([x e]) body)
+       (define body-vars (get-used-vars #'body))
+       (if (symbol-set-member? body-vars #'x)
+           (symbol-set-union body-vars (get-used-vars #'e))
+           body-vars)]
+      [(op a b)
+       (symbol-set-union (get-used-vars #'a) (get-used-vars #'b))]
+      [x:id
+       (immutable-symbol-set #'x)]
+       [(~or ((~datum rkt) _) n:number) (immutable-symbol-set)]))
 
   (define (remove-unused-vars e used-vars)
-    (let loop ([e e])
-      (syntax-parse e
-        [((~literal let) ([x e]) body)
-         (define/syntax-parse body^ (loop #'body))
-         (if (symbol-set-member? used-vars #'x)
-             #'(let ([x e])
-                 body^)
-             #'body^)]
-        [_ this-syntax]))))
+    (syntax-parse e
+      [((~and let (~datum let)) ([x e]) body)
+       (define/syntax-parse body^ (remove-unused-vars #'body used-vars))
+       (if (symbol-set-member? used-vars #'x)
+           #'(let ([x e])
+               body^)
+           #'body^)]
+      [_ this-syntax])))
 ]
 
 @;TODO don't ignore racket subexpression references. Requires fixing a bug though.
@@ -398,10 +402,10 @@ Finally, we must implement compilation of A-normal form expressions to Racket, w
 @racketblock[
 (define-syntax compile-anf
   (syntax-parser
-    [(_ ((~literal let) ([x e]) body))
+    [(_ ((~datum let) ([x e]) body))
      #'(let ([x (compile-anf e)]) (compile-anf body))]
     [(_ (op a b)) #'(op a b)]
-    [(_ ((~literal rkt) e))
+    [(_ ((~datum rkt) e))
      #'(let ([x e])
          (if (number? x)
              x
@@ -412,7 +416,7 @@ Finally, we must implement compilation of A-normal form expressions to Racket, w
 @repl[
 (eval-expr 1)
 (eval-expr (let ([x 1]) (let ([y 2]) x)))
-(eval-expr (let ([unused (rkt (displayln "hello!"))]) 42))
+(eval-expr (let ([unused (rkt (displayln "can anyone hear me?"))]) 42))
 ]
 
 To summarize the key points:
