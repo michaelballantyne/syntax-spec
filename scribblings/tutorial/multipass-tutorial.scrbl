@@ -368,7 +368,7 @@ Without pruning, this would print something, but with pruning, it would not. Our
        (symbol-set-union (get-used-vars #'a) (get-used-vars #'b))]
       [x:id
        (immutable-symbol-set #'x)]
-       [(~or ((~datum rkt) _) n:number) (immutable-symbol-set)]))
+      [(~or ((~datum rkt) _) n:number) (immutable-symbol-set)]))
 
   (code:comment2 "anf-expr ImmutableSymbolSet -> anf-expr")
   (code:comment2 "reconstruct the expression, excluding definitions of specified unused variables")
