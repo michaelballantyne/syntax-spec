@@ -1,4 +1,3 @@
-
 #lang scribble/manual
 
 @(require (for-label racket racket/block racket/class racket/match racket/list syntax/parse "../../main.rkt")
@@ -9,7 +8,7 @@
 
 @title[#:tag "multipass"]{Advanced Tutorial: A Compiler with Transformative Passes}
 
-Many DSLs are implemented in several passes. Some passes may just be static checks, and others may actually transform the program, often to a restricted subset of the surface language. When using syntax-spec, some special care needs to be taken with transformative passes. To demonstrate how such a DSL can be implemented, we will implement a language with an @hyperlink["https://en.wikipedia.org/wiki/A-normal_form"]{A-normal form} transformation and an unused variable pruning optimization.
+Many DSLs need a compiler that transforms syntax in several passes. Some passes may just be static checks, and others may actually transform the program, often to a restricted subset of the surface language. When using syntax-spec, some special care needs to be taken with transformative passes. To demonstrate how such a DSL can be implemented, we will create a language with an @hyperlink["https://en.wikipedia.org/wiki/A-normal_form"]{A-normal form} transformation and an unused variable pruning optimization.
 
 @section[#:tag "multipass-expander"]{Expander}
 
@@ -197,9 +196,9 @@ The core idea of transforming to A-normal form is extracting nested sub-expressi
 @racketblock[
 (+ (+ 1 2) (+ 3 4))
 ~>
-(let ([tmp1 (+ 1 2)]
-      [tmp2 (+ 3 4)])
-  (+ tmp1 tmp2))
+(let ([tmp1 (+ 1 2)])
+  (let ([tmp2 (+ 3 4)])
+    (+ tmp1 tmp2)))
 ]
 
 To follow our grammar for an @racket[anf-expr], the arguments to functions like @racket[+] must be immediate expressions, like variable references or numbers. Our source program did not obey this rule, so we had to create temporary variables for subexpressions and replace each subexpression with a reference to its temporary variable.
@@ -239,23 +238,53 @@ Now let's automate this process:
              (define/syntax-parse rhs (second binding))
              (define/syntax-parse body e)
              #'(let ([x rhs]) body))
-                    e
-                    bindings)))
+           e
+           bindings)))
 ]
 
-Our transformation goes through the expression, recording the temporary variable bindings we need to lift out around the final @racket[rhs-expr] that will be the body of the innermost let at the end of the transformation. Converting to an @racket[rhs-expr] or an @racket[immediate-expr] has the side effect of recording a binding pair to be lifted, and the result of replacing complex subexpressions with temporary variable references is returned from each helper.
+Our transformation goes through the expression, recording the temporary variable bindings to lift. The final @racket[rhs-expr] returned by @racket[to-rhs] will be the body of the innermost @racket[let] at the end of the transformation. Converting to an @racket[rhs-expr] or an @racket[immediate-expr] has the side effect of recording a binding pair to be lifted, and the result of replacing complex subexpressions with temporary variable references is returned from each helper.
 
-We are using compile-time functions, rather than macros, for these compiler passes. There are a few reasons for this:
+Notice that the code generation pass is implemented as macro, while the intermediate passes are implemented as compile-time functions. Using a Racket macro for the code generator is convenient because it provide hygiene for any temporary names we introduce. For the intermediate passes we must use compile-time functions rather than macros, for three reasons:
 
 @itemlist[
-@item{We are passing around non-syntax data like symbol sets.}
-@item{Our recursive helpers rely on side effects in a way that requires eager, bottom-up evaluation, which macros aren't good for.}
-@item{We want to be working with DSL syntax between every pass, not macro use syntax which will eventually expand to DSL code.}
+@item{
+The intermediate passes do not generate Racket syntax that can be further expanded by the Racket macro expander. Instead, they generate code in our DSL's intermediate representation.
+}
+@item{
+Compiler passes may need additional arguments and return values, which may not be syntax objects. This is possible with a compile-time function, but not with a macro. For example, our A-normal form transformation receives the @racket[bind!] procedure as an argument.
+}
+@item{
+Compiler passes may use side effects, and rely on a particular order of evaluation. For our A-normal form pass, we want to create @racket[let]-bindings for the innermost subexpressions first. We accomplish this via the way we order calls to the @racket[bind!] procedure.
+}
 ]
 
 @section{Pruning unused variables}
 
 Using syntax-spec's symbol tables and binding operations, we can add an optimizing pass that removes unused variables.
+
+For example:
+
+@racketblock[
+(let ([x (+ 2 2)])
+  (let ([y (+ 3 3)])
+  x))
+~>
+(let ([x (+ 2 2)])
+  x)
+]
+
+Since @racket[y] is not referenced, we can just remove its definition from the program. Note that this optimization only makes sense when the right-hand-side of a definition is free of side-effects. For example, pruning @racket[y] in this example would change the behavior of the program:
+
+@racketblock[
+(let ([x (+ 2 2)])
+  (let ([y (rkt (begin (displayln "hello!") (+ 3 3)))])
+  x))
+~>
+(let ([x (+ 2 2)])
+  x)
+]
+
+Without pruning, this would print something, but with pruning, it would not. Our optimization shouldn't change the behavior of the program. This DSL is designed with the requirement that @racket[rkt] forms only have pure computations inside, but this cannot easily be checked. As such, we will assume Racket subexpressions are free of side effects, and our optimization will only be sound for side-effect-free Racket subexpressions.
 
 @racketblock[
 (begin-for-syntax
@@ -284,7 +313,7 @@ Using syntax-spec's symbol tables and binding operations, we can add an optimizi
   (define (remove-unused-vars e used-vars)
     (let loop ([e e])
       (syntax-parse e
-        [((~and let (~literal let)) ([x e]) body)
+        [((~literal let) ([x e]) body)
          (define/syntax-parse body^ (loop #'body))
          (if (symbol-set-member? used-vars #'x)
              #'(let ([x e])
@@ -294,15 +323,15 @@ Using syntax-spec's symbol tables and binding operations, we can add an optimizi
 ]
 
 @;TODO don't ignore racket subexpression references. Requires fixing a bug though.
-First, we figure out which variables are referenced, using a bottom-up traversal with an invariant that we only check expressions which will need to be evaluated. For now, we ignore references in Racket subexpressions.
+First, we figure out which variables are referenced, using a bottom-up traversal. We only include consider variables in the right-hand-side of a @racket[let] used if we have determined that the variable bound by the @racket[let] is used in its body. For now, we ignore references in Racket subexpressions.
 
-Then, with that knowledge, we just remove the bindings of the unused variables. Other than Racket subexpressions, our computations are pure, so this is mostly a sound optimization.
+Then, with that knowledge, we reconstruct the program, only including bindings for used variables.
 
-This optimization is slightly simplified by having already transformed the program to A-normal form. We can see this in @racket[remove-unused-vars]: We don't need to recur on the right-hand-side of a let-binding because we know there are no variable bindings to be removed from that expression. However, due to the nature of expansion and binding structure, some special care needs to be taken in sequencing multiple transformative compiler passes.
+This optimization is slightly simplified by having already transformed the program to A-normal form. We can see this in @racket[remove-unused-vars]: We don't need to recur on the right-hand-side of a let-binding because we know there are no variable bindings to be removed from that expression.
 
 @section{Putting it all Together}
 
-Since our A-normal form transformation adds new bindings, we need to re-expand the result so syntax-spec can compute and check binding information for use in later passes/compilation:
+Due to the nature of expansion and binding structure, some special care needs to be taken in sequencing multiple transformative compiler passes. Since our A-normal form transformation adds new bindings, we need to re-expand the result so syntax-spec can compute and check binding information for use in later passes/compilation:
 
 @racketblock[
 (begin-for-syntax
@@ -317,11 +346,11 @@ Since our A-normal form transformation adds new bindings, we need to re-expand t
      #'(compile-anf e/pruned^)]))
 ]
 
-We perform this re-expansion using @racket[nonterminal-expander]. This function expects DSL syntax of a specified nonterminal (here, @racket[anf-expr]) and expands macros in the DSL code, checks binding structure, etc. It's kind of like @racket[local-expand] but for a particular nonterminal. This is what happens in a host interface that produces the expanded, core syntax that your compiler works with.
+We perform this re-expansion using @racket[nonterminal-expander]. This function expects DSL syntax of a specified nonterminal (here, @racket[anf-expr]) and expands macros in the DSL code, checks binding structure, etc. It's kind of like @racket[local-expand] but for a particular nonterminal. This is what happens in a host interface that produces the expanded, core syntax that your compiler works with. We use @racket[#:should-rename? #t] to ensure that we re-compile and rename identifiers in this expansion.
 
 The expansion after pruning is technically unnecessary for this example since we are only removing bindings in that pass, but it is good to always make sure your compiler is receiving freshly expanding syntax. This extra expansion also makes sure your optimization produces valid syntax. In general, even if your compiler just has a single transformative pass before compilation, you should expand the result of the pass.
 
-An additional caveat is that identifiers need to undergo the same number of expansions for things to work properly. The easiest way to do this is to expand only the entire dsl expression at once, rather than expanding subexpressions individually.
+An additional caveat is that identifiers need to undergo the same number of expansions for things to work properly. The easiest way to do this is to expand only the entire DSL expression at once, rather than expanding subexpressions individually.
 
 Finally, we must implement compilation of A-normal form expressions to Racket, which is straightforward:
 
