@@ -4,7 +4,7 @@
 ;; arithmetic + let -> ANF -> prune unused variables -> racket
 
 (require "../../testing.rkt"
-         (for-syntax racket/pretty racket/list rackunit (only-in "../../private/ee-lib/main.rkt" define/hygienic)))
+         (for-syntax racket/match racket/pretty racket/list rackunit (only-in "../../private/ee-lib/main.rkt" define/hygienic)))
 
 (syntax-spec
   (binding-class var
@@ -69,41 +69,46 @@
     ; Identifier rhs-expr -> Void
     ; ends up producing a let-binding of x to e in the result
     (define (lift-binding! x e) (set! bindings-rev (cons (list x e) bindings-rev)))
-    (define e^ (to-rhs e lift-binding!))
+    (define e^ (to-rhs! e lift-binding!))
     (wrap-lets e^ (reverse bindings-rev)))
 
   ; expr (Identifier rhs-expr -> Void) -> rhs-expr
   ; this doesn't need to be hygienic, only the whole pass.
   ; in other compilers, helpers may need to be hygienic too.
-  (define (to-rhs e lift-binding!)
+  (define (to-rhs! e lift-binding!)
     (syntax-parse e
       [((~datum let) ([x e]) body)
-       (lift-binding! #'x (to-rhs #'e lift-binding!))
-       (to-rhs #'body lift-binding!)]
+       (define e^ (to-rhs! #'e lift-binding!))
+       (lift-binding! #'x e^)
+       (to-rhs! #'body lift-binding!)]
       [(op a b)
-       (define/syntax-parse a^ (to-immediate #'a lift-binding!))
-       (define/syntax-parse b^ (to-immediate #'b lift-binding!))
+       (define/syntax-parse a^ (to-immediate! #'a lift-binding!))
+       (define/syntax-parse b^ (to-immediate! #'b lift-binding!))
        #'(op a^ b^)]
-      [_ this-syntax]))
+      [(~or ((~datum rkt) _)
+            x:id
+            n:number)
+       this-syntax]))
 
   ; expr (Identifier rhs-expr -> Void) -> immediate-expr
-  (define (to-immediate e lift-binding!)
+  (define (to-immediate! e lift-binding!)
     (syntax-parse e
       [(_ . _)
        (define/syntax-parse (tmp) (generate-temporaries '(tmp)))
-       (lift-binding! #'tmp (to-rhs this-syntax lift-binding!))
+       (define e^ (to-rhs! this-syntax lift-binding!))
+       (lift-binding! #'tmp e^)
        #'tmp]
       [_ this-syntax]))
 
   ; rhs-expr (listof (list Identifier rhs-expr) )
   (define (wrap-lets e bindings)
-    (foldr (lambda (binding e)
-             (define/syntax-parse x (first binding))
-             (define/syntax-parse rhs (second binding))
-             (define/syntax-parse body e)
-             #'(let ([x rhs]) body))
-           e
-           bindings)))
+    (match bindings
+      [(cons binding bindings)
+       (with-syntax ([x (first binding)]
+                     [rhs (second binding)]
+                     [body (wrap-lets e bindings)])
+         #'(let ([x rhs]) body))]
+      ['() e])))
 
 (begin-for-syntax
   ; anf-expr -> anf-expr
