@@ -68,30 +68,30 @@
     (define bindings-rev '())
     ; Identifier rhs-expr -> Void
     ; ends up producing a let-binding of x to e in the result
-    (define (bind! x e) (set! bindings-rev (cons (list x e) bindings-rev)))
-    (define e^ (to-rhs e bind!))
+    (define (lift-binding! x e) (set! bindings-rev (cons (list x e) bindings-rev)))
+    (define e^ (to-rhs e lift-binding!))
     (wrap-lets e^ (reverse bindings-rev)))
 
   ; expr (Identifier rhs-expr -> Void) -> rhs-expr
   ; this doesn't need to be hygienic, only the whole pass.
   ; in other compilers, helpers may need to be hygienic too.
-  (define (to-rhs e bind!)
+  (define (to-rhs e lift-binding!)
     (syntax-parse e
       [((~datum let) ([x e]) body)
-       (bind! #'x (to-rhs #'e bind!))
-       (to-rhs #'body bind!)]
+       (lift-binding! #'x (to-rhs #'e lift-binding!))
+       (to-rhs #'body lift-binding!)]
       [(op a b)
-       (define/syntax-parse a^ (to-immediate #'a bind!))
-       (define/syntax-parse b^ (to-immediate #'b bind!))
+       (define/syntax-parse a^ (to-immediate #'a lift-binding!))
+       (define/syntax-parse b^ (to-immediate #'b lift-binding!))
        #'(op a^ b^)]
       [_ this-syntax]))
 
   ; expr (Identifier rhs-expr -> Void) -> immediate-expr
-  (define (to-immediate e bind!)
+  (define (to-immediate e lift-binding!)
     (syntax-parse e
       [(_ . _)
        (define/syntax-parse (tmp) (generate-temporaries '(tmp)))
-       (bind! #'tmp (to-rhs this-syntax bind!))
+       (lift-binding! #'tmp (to-rhs this-syntax lift-binding!))
        #'tmp]
       [_ this-syntax]))
 
