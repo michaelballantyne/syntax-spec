@@ -278,6 +278,7 @@ When a form production's form is used outside of the context of a syntax-spec DS
                [spec ...]
                (nest spec-variable-id binding-spec)
                (nest-one spec-variable-id binding-spec)
+               (parallel spec-variable-id binding-spec)
                (import spec-variable-id ...+)
                (export spec-variable-id ...+)
                (export-syntax spec-variable-id spec-variable-id)
@@ -369,6 +370,23 @@ When a form production's form is used outside of the context of a syntax-spec DS
         #:binding (scope (bind x) nested)
         ((~literal cons) car-pat:pat cdr-pat:pat)
         #:binding (nest-one car-pat (nest-one cdr-pat nested))))
+  ]
+}
+@item{
+  @racket[parallel] is like @racket[nest], but binds in parallel rather than in sequence. That is, while @racket[nest] allows each sequential spec to reference bindings in previous specs, @racket[parallel] does not. If @racket[nest] is @racket[let*], then @racket[parallel] is like @racket[let].
+
+  Example:
+  @racketblock[
+  (syntax-spec
+    (binding-class my-var)
+    (nonterminal my-expr
+      n:number
+      x:my-var
+      (my-let (b:binding-pair ...) body:my-expr)
+      #:binding (parallel b body))
+    (nonterminal/nesting binding-pair (nested)
+      [x:my-var e:my-expr]
+      #:binding (scope (bind x) nested)))
   ]
 }
 @item{

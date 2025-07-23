@@ -15,6 +15,7 @@
  (struct-out group)    ; []
  (struct-out nest)
  (struct-out nest-one)
+ (struct-out parallel)
  (struct-out nested)
  (struct-out suspend)
  (struct-out fresh-env-expr-ctx)
@@ -65,6 +66,7 @@
 (struct group [specs] #:transparent)
 (struct nest [pvar nonterm spec] #:transparent)
 (struct nest-one [pvar nonterm spec] #:transparent)
+(struct parallel [pvar nonterm spec] #:transparent)
 (struct nested [] #:transparent)
 (struct suspend [pvar] #:transparent)
 (struct fresh-env-expr-ctx [spec] #:transparent)
@@ -290,7 +292,17 @@
      (match-define (nest-ret done-seq st^) res)
      
      (set-pvar st^ pv (car done-seq))]
-    
+
+    [(parallel pv f inner-spec)
+     (define init-seq (get-pvar st pv))
+
+     (define res
+       (start-nest f init-seq st inner-spec local-scopes #:parallel? #t))
+
+     (match-define (nest-ret done-seq st^) res)
+
+     (set-pvar st^ pv done-seq)]
+
     [(nested)
      (update-nest-state
       st
@@ -305,7 +317,8 @@
 ; seq is (listof (treeof syntax?))
 ; inner-spec-st is exp-state?
 ; inner-spec is spec
-(struct nest-call [f seq acc-scopes inner-spec-st inner-spec] #:transparent)
+; parallel-scopes is (or/c #f list?) -- list of initial scopes if binding in parallel
+(struct nest-call [f seq acc-scopes parallel-scopes inner-spec-st inner-spec] #:transparent)
 
 ; seq is (listof (treeof syntax?))
 (struct nest-ret [done-seq inner-spec-st^] #:transparent)
@@ -343,13 +356,15 @@
 ;; TODO: if the meta-DSL supports binding macros in the future, we may need to add a scope
 ;; at every nest step rather than only the entry point to account for macros defined in one
 ;; nest step and used in the next without an intervening new scope.
-(define (start-nest f init-seq st inner-spec local-scopes)
+(define (start-nest f init-seq st inner-spec local-scopes #:parallel? [parallel? #f])
   (with-scope sc
-    (simple-expand-nest (nest-call f init-seq '() st inner-spec) (cons sc local-scopes))))
+    (define initial-scopes (cons sc local-scopes))
+    (define parallel-scopes (if parallel? initial-scopes #f))
+    (simple-expand-nest (nest-call f init-seq '() parallel-scopes st inner-spec) initial-scopes)))
 
 ; nest-call? -> nest-ret?
 (define (simple-expand-nest nest-st new-local-scopes)
-  (match-define (nest-call f seq acc-scopes inner-spec-st inner-spec) nest-st)
+  (match-define (nest-call f seq acc-scopes parallel-scopes inner-spec-st inner-spec) nest-st)
   
   (define acc-scopes^ (append acc-scopes new-local-scopes))
 
@@ -360,8 +375,8 @@
        ;; Original:
        (call-expand-function/nest
         f
-        (add-scopes stx acc-scopes^)
-        (nest-call f rest acc-scopes^ inner-spec-st inner-spec)))
+        (add-scopes stx (or parallel-scopes acc-scopes^))
+        (nest-call f rest acc-scopes^ parallel-scopes inner-spec-st inner-spec)))
 
      (match-define (nest-ret done-seq inner-spec-st^) nest-st^)
      (nest-ret (cons stx^ done-seq) inner-spec-st^)]
