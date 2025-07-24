@@ -18,6 +18,8 @@ With this change the new @tt{nest} syntax accomplishes the behavior of the old @
 
 @tech{Reference compilers} are now specified as part of @tech[#:key "binding classes"]{binding class} declarations, rather than with @tt{with-reference-compilers}. If you previously used @tt{with-reference-compilers} to create reference compilers with contextual behavior, you can typically use @tech/reference{syntax parameters} to accomplish the same with the new design.
 
+This version drops support for Racket versions earlier than 8.10.
+
 @section[#:style '(unnumbered)]{Version 2}
 
 Some forms were renamed:
