@@ -9,15 +9,15 @@
 (syntax-spec
   (binding-class var
                  #:reference-compiler immutable-reference-compiler)
-  (nonterminal expr
+  (nonterminal full-expr
     #:binding-space anf
     n:number
     x:var
-    (let ([x:var e:expr]) body:expr)
+    (let ([x:var e:full-expr]) body:full-expr)
     #:binding (scope (bind x) body)
-    (+ a:expr b:expr)
-    (* a:expr b:expr)
-    (/ a:expr b:expr)
+    (+ a:full-expr b:full-expr)
+    (* a:full-expr b:full-expr)
+    (/ a:full-expr b:full-expr)
     (rkt e:racket-expr))
   (nonterminal anf-expr
     #:binding-space anf
@@ -37,7 +37,7 @@
     n:number)
 
   (host-interface/expression
-   (eval-expr e:expr)
+   (eval-expr e:full-expr)
    #'(compile-expr e)))
 
 (begin-for-syntax
@@ -59,7 +59,7 @@
      #'(compile-anf e/pruned^)]))
 
 (begin-for-syntax
-  ; expr -> anf-expr
+  ; full-expr -> anf-expr
   (define (to-anf e)
     ; list of (list Identifier rhs-expr)
     ; most recent, and thus innermost, binding first
@@ -70,7 +70,7 @@
     (define e^ (to-rhs! e lift-binding!))
     (wrap-lets e^ (reverse bindings-rev)))
 
-  ; expr (Identifier rhs-expr -> Void) -> rhs-expr
+  ; full-expr (Identifier rhs-expr -> Void) -> rhs-expr
   ; this doesn't need to be hygienic, only the whole pass.
   ; in other compilers, helpers may need to be hygienic too.
   (define (to-rhs! e lift-binding!)
@@ -88,7 +88,7 @@
             n:number)
        this-syntax]))
 
-  ; expr (Identifier rhs-expr -> Void) -> immediate-expr
+  ; full-expr (Identifier rhs-expr -> Void) -> immediate-expr
   (define (to-immediate! e lift-binding!)
     (syntax-parse e
       [(~or x:id n:number) this-syntax]
