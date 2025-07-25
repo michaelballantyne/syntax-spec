@@ -23,15 +23,15 @@ Here is the syntax-spec of our language:
 (syntax-spec
   (binding-class var
                  #:reference-compiler immutable-reference-compiler)
-  (nonterminal expr
+  (nonterminal full-expr
     #:binding-space anf
     n:number
     x:var
-    (let ([x:var e:expr]) body:expr)
+    (let ([x:var e:full-expr]) body:full-expr)
     #:binding (scope (bind x) body)
-    (+ a:expr b:expr)
-    (* a:expr b:expr)
-    (/ a:expr b:expr)
+    (+ a:full-expr b:full-expr)
+    (* a:full-expr b:full-expr)
+    (/ a:full-expr b:full-expr)
     (rkt e:racket-expr))
   (nonterminal anf-expr
     #:binding-space anf
@@ -51,7 +51,7 @@ Here is the syntax-spec of our language:
     n:number)
 
   (host-interface/expression
-   (eval-expr e:expr)
+   (eval-expr e:full-expr)
    #'(compile-expr e)))
 
 (begin-for-syntax
@@ -73,7 +73,7 @@ Here is the syntax-spec of our language:
      #'(compile-anf e/pruned^)]))
 
 (begin-for-syntax
-  ; expr -> anf-expr
+  ; full-expr -> anf-expr
   (define (to-anf e)
     ; list of (list Identifier rhs-expr)
     ; most recent, and thus innermost, binding first
@@ -84,7 +84,7 @@ Here is the syntax-spec of our language:
     (define e^ (to-rhs! e lift-binding!))
     (wrap-lets e^ (reverse bindings-rev)))
 
-  ; expr (Identifier rhs-expr -> Void) -> rhs-expr
+  ; full-expr (Identifier rhs-expr -> Void) -> rhs-expr
   ; this doesn't need to be hygienic, only the whole pass.
   ; in other compilers, helpers may need to be hygienic too.
   (define (to-rhs! e lift-binding!)
@@ -102,7 +102,7 @@ Here is the syntax-spec of our language:
             n:number)
        this-syntax]))
 
-  ; expr (Identifier rhs-expr -> Void) -> immediate-expr
+  ; full-expr (Identifier rhs-expr -> Void) -> immediate-expr
   (define (to-immediate! e lift-binding!)
     (syntax-parse e
       [(~or x:id n:number) this-syntax]
@@ -190,15 +190,15 @@ racket
 (syntax-spec
   (binding-class var
                  #:reference-compiler immutable-reference-compiler)
-  (nonterminal expr
+  (nonterminal full-expr
     #:binding-space anf
     n:number
     x:var
-    (let ([x:var e:expr]) body:expr)
+    (let ([x:var e:full-expr]) body:full-expr)
     #:binding (scope (bind x) body)
-    (+ a:expr b:expr)
-    (* a:expr b:expr)
-    (/ a:expr b:expr)
+    (+ a:full-expr b:full-expr)
+    (* a:full-expr b:full-expr)
+    (/ a:full-expr b:full-expr)
     (rkt e:racket-expr))
   (nonterminal anf-expr
     #:binding-space anf
@@ -218,7 +218,7 @@ racket
     n:number)
 
   (host-interface/expression
-   (eval-expr e:expr)
+   (eval-expr e:full-expr)
    #'(compile-expr e)))
 ]
 
@@ -227,8 +227,8 @@ Our language supports arithmetic, local variables, and Racket subexpressions.
 We have the following nonterminals:
 
 @itemlist[
-@item{@racket[expr]: The surface syntax of a program}
-@item{@racket[anf-expr]: An expression in A-normal form. Users will not be writing these expressions; the compiler will transform @racket[expr]s the user writes into @racket[anf-expr]s.}
+@item{@racket[full-expr]: The surface syntax of a program}
+@item{@racket[anf-expr]: An expression in A-normal form. Users will not be writing these expressions; the compiler will transform @racket[full-expr]s the user writes into @racket[anf-expr]s.}
 @item{@racket[rhs-expr]: An expression which is allowed to be on the right-hand side of a binding pair in an expression when it is in A-normal form. Conceptually, these expressions take at most one "step" of reduction to evaluate. In other words, no nested expressions (except for @racket[rkt] expressions).}
 @item{@racket[immediate-expr]: Atomic expressions that can immediately be evaluated.}
 ]
@@ -253,7 +253,7 @@ Now let's automate this process:
 
 @racketblock[
 (begin-for-syntax
-  (code:comment2 "expr -> anf-expr")
+  (code:comment2 "full-expr -> anf-expr")
   (code:comment2 "convert an expression to A-normal form")
   (define (to-anf e)
     (define bindings-rev '())
@@ -263,7 +263,7 @@ Now let's automate this process:
     (define e^ (to-rhs! e lift-binding!))
     (wrap-lets e^ (reverse bindings-rev)))
 
-  (code:comment2 "expr (Identifier rhs-expr -> Void) -> rhs-expr")
+  (code:comment2 "full-expr (Identifier rhs-expr -> Void) -> rhs-expr")
   (code:comment2 "convert an expr to an rhs-expr, potentially recording bindings")
   (define (to-rhs! e lift-binding!)
     (syntax-parse e
@@ -280,8 +280,8 @@ Now let's automate this process:
             n:number)
        this-syntax]))
 
-  (code:comment2 "expr (Identifier rhs-expr -> Void) -> immediate-expr")
-  (code:comment2 "convert an expr to an immediate-expr, potentially recording bindings")
+  (code:comment2 "full-expr (Identifier rhs-expr -> Void) -> immediate-expr")
+  (code:comment2 "convert a full-expr to an immediate-expr, potentially recording bindings")
   (define (to-immediate! e lift-binding!)
     (syntax-parse e
       [(~or x:id n:number) this-syntax]
