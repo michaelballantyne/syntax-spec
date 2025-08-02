@@ -17,7 +17,9 @@ Here is the syntax-spec of our language:
 @repl[
 #:hidden #t
 (module grammar racket
-(provide (all-defined-out) (for-space anf (all-defined-out)) (for-syntax (all-defined-out) (for-space anf (all-defined-out))))
+(provide (all-defined-out)
+         (for-space anf (all-defined-out))
+         (for-syntax (all-defined-out) (for-space anf (all-defined-out))))
   (require "main.rkt" (for-syntax syntax/parse racket))
   (require (for-syntax racket/match racket/syntax racket/list))
 (syntax-spec
@@ -80,7 +82,8 @@ Here is the syntax-spec of our language:
     (define bindings-rev '())
     ; Identifier rhs-expr -> Void
     ; ends up producing a let-binding of x to e in the result
-    (define (lift-binding! x e) (set! bindings-rev (cons (list x e) bindings-rev)))
+    (define (lift-binding! x e)
+      (set! bindings-rev (cons (list x e) bindings-rev)))
     (define e^ (to-rhs! e lift-binding!))
     (wrap-lets e^ (reverse bindings-rev)))
 

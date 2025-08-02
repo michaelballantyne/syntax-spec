@@ -253,7 +253,8 @@ Let's do it!
 
 @racketblock[#:escape unracket
 (syntax-spec
-  (binding-class typed-var #:reference-compiler typed-var-reference-compiler)
+  (binding-class typed-var
+    #:reference-compiler typed-var-reference-compiler)
   ...
 
   (nonterminal typed-expr
@@ -478,13 +479,17 @@ Now let's update the rest of our code:
 
 (define-stlc-syntax let
   (syntax-parser
-    [(_ ([x e] ...) body) #'(#%let ([x e] ...) body)]
-    [(_ ([x e] ...) body ...+) #'(#%let ([x e] ...) (block body ...))]))
+    [(_ ([x e] ...) body)
+     #'(#%let ([x e] ...) body)]
+    [(_ ([x e] ...) body ...+)
+     #'(#%let ([x e] ...) (block body ...))]))
 
 (define-stlc-syntax lambda
   (syntax-parser
-    [(_ ([x (~datum :) t] ...) body) #'(#%lambda ([x : t] ...) body)]
-    [(_ ([x (~datum :) t] ...) body ...+) #'(#%lambda ([x : t] ...) (block body ...))]))
+    [(_ ([x (~datum :) t] ...) body)
+     #'(#%lambda ([x : t] ...) body)]
+    [(_ ([x (~datum :) t] ...) body ...+)
+     #'(#%lambda ([x : t] ...) (block body ...))]))
 
 (define-stlc-syntax let*
   (syntax-parser

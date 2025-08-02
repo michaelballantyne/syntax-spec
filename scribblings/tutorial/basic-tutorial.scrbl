@@ -71,7 +71,9 @@ Our initial specification with @racket[syntax-spec] supplies the grammar:
     
     (nonterminal state-spec
       (state name:id transitions:transition-spec ...)
-      (state name:id ((~datum on-enter) body:action-spec ...+) transitions:transition-spec ...))
+      (state name:id
+        ((~datum on-enter) body:action-spec ...+)
+        transitions:transition-spec ...))
 
     (nonterminal transition-spec
       (on (event-name:id arg:id ...)
@@ -196,7 +198,9 @@ Now let's add binding rules for state names. We can't just use @racket[scope] an
     (error 'machine "compiler not yet implemented"))
 
   (nonterminal/exporting state-spec
-    (state name:state-name ((~datum on-enter) body:action-spec ...+)  transition:transition-spec ...)
+    (state name:state-name
+      ((~datum on-enter) body:action-spec ...+)
+      transition:transition-spec ...)
     #:binding (export name)
 
     (state name:state-name transition:transition-spec ...)
@@ -252,7 +256,9 @@ An action expression can only @racket[displayln] the value of a variable. What i
      ...
 
      (nonterminal/exporting state-spec
-       (state name:state-name ((~datum on-enter) body:racket-body ...+)  transition:transition-spec ...)
+       (state name:state-name
+         ((~datum on-enter) body:racket-body ...+)
+         transition:transition-spec ...)
        #:binding [(export name) (scope (import body) ...)]
 
        (state name:state-name transition:transition-spec ...)
@@ -362,11 +368,12 @@ We'll create a class for the state machine, which acts as a context class, and a
 
 The @racket[machine%] class stores the current state instance and delegates to it. Each state class has methods for each defined transition. Transition actions go in the transition's method and @racket[on-enter] actions go in the class body. When a state is entered, the @racket[machine%] class creates a fresh instance of it, which runs the class body, and sets the current state to that instance. Finally, we return an instance of the machine class.
 
-Now Let's start to write the compiler:
+Now let's start to write the compiler:
 
 @racketblock[
 (syntax-spec
-  (binding-class event-var #:reference-compiler mutable-reference-compiler)
+  (binding-class event-var
+    #:reference-compiler mutable-reference-compiler)
   ...
   (host-interface/expression
     (machine #:initial initial-state:state-name s:state-spec ...)
@@ -379,7 +386,8 @@ Now Let's start to write the compiler:
     #:datum-literals (machine state on-enter)
     [(_ initial-state
         (state state-name
-          (~optional (on-enter action ...) #:defaults ([(action 1) '()]))
+          (~optional (on-enter action ...)
+                     #:defaults ([(action 1) '()]))
           e ...)
         ...)
      #'(let ()
@@ -495,8 +503,10 @@ In our language's compiler, we can use symbol set to raise an error when a state
   (define (check-for-inaccessible-states initial-state-id state-specs)
     (define accessible-states (get-accessible-states initial-state-id state-specs))
     (for/list ([state-spec state-specs]
-               #:unless (symbol-set-member? accessible-states (state-spec-name state-spec)))
-      (error 'machine "Inaccessible state: ~a" (syntax->datum (state-spec-name state-spec)))))
+               #:unless (symbol-set-member? accessible-states
+                                            (state-spec-name state-spec)))
+      (error 'machine "Inaccessible state: ~a"
+             (syntax->datum (state-spec-name state-spec)))))
 
   (define (get-accessible-states initial-state-id state-specs)
     (define accessible-states (local-symbol-set))

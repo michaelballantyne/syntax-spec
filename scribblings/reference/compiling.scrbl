@@ -43,7 +43,9 @@ Here is an example for a @racket[match] DSL where pattern-bound variables cannot
 @;TODO host-interface/expression and racket-expr isn't getting linked
 @racketblock[
 (syntax-spec
- (binding-class pat-var #:reference-compiler (make-variable-like-reference-compiler (lambda (id) id)))
+ (binding-class pat-var
+   #:reference-compiler (make-variable-like-reference-compiler
+                         (lambda (id) id)))
  (host-interface/expression
   (match target:racket-expr c:clause ...)
   #'(let ([target-pv target])
