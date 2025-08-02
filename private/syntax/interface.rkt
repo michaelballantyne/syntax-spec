@@ -359,6 +359,9 @@
     ((~literal define-syntaxes) (x:racket-macro ...) e:expr)
     #:binding (export-syntaxes x ... e)
 
+    ((~literal begin) b:racket-body ...)
+    #:binding [(re-export b) ...]
+
     e:racket-expr))
 
 (define-syntax define-dsl-syntax
