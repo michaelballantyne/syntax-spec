@@ -68,11 +68,7 @@
 #;((listof identifier?) (listof syntax?) -> void?)
 ; run a leftrec check on the given block of mutually recursive peg defs
 (define (run-leftrec-check! names pegs)
-  (for ([name names]
-        [rhs pegs])
-    (symbol-table-set!
-     expanded-defs
-     name
-     rhs))
+  (for ([name names] [rhs pegs])
+    (symbol-table-set! expanded-defs name rhs))
   (for ([name names])
     (nullable-nonterminal? name)))
