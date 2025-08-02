@@ -126,8 +126,8 @@
                           (transformer stx))])
           (check 'wrap-persist-transformer syntax? t-result)
           #`(begin
-              #,t-result
-              #,(persist-all-free-id-table-extensions!)))
+              #,(persist-all-free-id-table-extensions!)
+              #,t-result))
         (transformer stx))))
 
 (define-syntax define-persistent-free-id-table
