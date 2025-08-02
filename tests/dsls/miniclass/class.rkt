@@ -43,19 +43,20 @@
                  #:reference-compiler field-reference-compiler)
 
   (nonterminal/exporting class-form
-                        #:allow-extension racket-macro
-                        (field name:field-var ...)
-                        #:binding [(export name) ...]
-                        ((~literal define-values) (m:method-var) (lambda:lambda-id (arg:id ...) body:racket-expr ...))
-                        #:binding (export m)
+    #:allow-extension racket-macro
+    (field name:field-var ...)
+    #:binding [(export name) ...]
+    ((~literal define-values) (m:method-var)
+      (lambda:lambda-id (arg:id ...) body:racket-expr ...))
+    #:binding (export m)
 
-                        ((~literal define-syntaxes) (x:racket-macro ...) e:expr)
-                        #:binding (export-syntaxes x ... e)
+    ((~literal define-syntaxes) (x:racket-macro ...) e:expr)
+    #:binding (export-syntaxes x ... e)
 
-                        ((~literal begin) e:class-form ...)
-                        #:binding [(re-export e) ...]
+    ((~literal begin) e:class-form ...)
+    #:binding [(re-export e) ...]
 
-                        e:racket-expr)
+    e:racket-expr)
 
   (host-interface/expression
     (class e:class-form ...)

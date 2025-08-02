@@ -7,6 +7,8 @@
           ...
           ...+
 
+          #%host-expression
+
           mutable-reference-compiler
           immutable-reference-compiler
 
@@ -53,12 +55,14 @@
           free-identifiers
           binding-identifiers
           alpha-equivalent?
+          subst
           get-racket-referenced-identifiers))
 
 (require "private/syntax/interface.rkt"
          "private/runtime/compile.rkt"
          (for-syntax syntax/parse
                      (except-in "private/ee-lib/main.rkt" racket-var)
+                     "private/runtime/compile.rkt"
                      "private/ee-lib/persistent-id-table.rkt"
                      "private/ee-lib/binding.rkt"
                      "private/runtime/binding-operations.rkt"

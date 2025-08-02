@@ -11,4 +11,4 @@
 (define build-deps '("racket-doc" "scribble-lib" "drracket" "typed-racket-lib"))
 (define scribblings '(("scribblings/main.scrbl" (multi-page) (experimental) "syntax-spec-dev")))
 (define compile-omit-paths '("design" "demos"))
-(define test-omit-paths '("design" "demos"))
+(define test-omit-paths '("scribblings" "design" "demos"))

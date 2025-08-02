@@ -32,7 +32,7 @@
 ; so entries wouldn't be available during module visit until the end of the module
 ; is reached.
 
-(struct persistent-free-id-table [persisted transient id])
+(struct persistent-free-id-table [persisted [transient #:mutable] id])
 
 (define (make-persistent-free-id-table id)
   (persistent-free-id-table
@@ -100,6 +100,9 @@
       #`(cons #'#,(flip-intro-scope k) #,(if (syntax? v)
                                              #`(deserialize-syntax-props #'#,(serialize-syntax-props (flip-intro-scope v)))
                                              #`'#,v))))
+  
+  (set-persistent-free-id-table-transient! t (make-free-id-table))
+  
   #`(begin-for-syntax
       (do-extension! #,(persistent-free-id-table-id t)
                      (list . #,alist))))

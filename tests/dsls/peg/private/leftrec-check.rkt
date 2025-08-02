@@ -47,8 +47,14 @@
      (nullable? #'e)]
     [_ (raise-syntax-error #f "not a core peg form" this-syntax)]))
 
+;; MB note: I thought it might be a problem to raise an error when reaching a previously
+;; entered nt, because we might record it as entered when checking one nonterminal and then
+;; enter it again for another. But it's okay because if we check it successfully, then it's in
+;; def-nullable? and we get 'nullable or 'not-nullable instead.
 (define (nullable-nonterminal? id)
-  (case (or (symbol-table-ref def-nullable? id (lambda () #f)) (symbol-table-ref entered id (lambda () #f)) 'unvisited)
+  (case (or (symbol-table-ref def-nullable? id #f)
+            (symbol-table-ref entered id #f)
+            'unvisited)
     [(nullable) #t]
     [(not-nullable) #f]
     [(entered) (raise-syntax-error #f "left recursion through nonterminal" id)]
@@ -62,11 +68,7 @@
 #;((listof identifier?) (listof syntax?) -> void?)
 ; run a leftrec check on the given block of mutually recursive peg defs
 (define (run-leftrec-check! names pegs)
-  (for ([name names]
-        [rhs pegs])
-    (symbol-table-set!
-     expanded-defs
-     name
-     rhs))
+  (for ([name names] [rhs pegs])
+    (symbol-table-set! expanded-defs name rhs))
   (for ([name names])
     (nullable-nonterminal? name)))
