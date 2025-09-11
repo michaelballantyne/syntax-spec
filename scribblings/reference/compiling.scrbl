@@ -10,7 +10,7 @@
 @section[#:tag "reference compilers"]{Compiling references to DSL bindings within Racket code}
 @tex-label{doc:reference-compilers}
 
-@margin-note{@secref["compilation"] in the @secref["Basic_Tutorial__State_Machine_Language"] introduces the use of reference compilers.}
+@margin-note[#:footnote? #t]{@secref["compilation"] in the @secref["Basic_Tutorial__State_Machine_Language"] introduces the use of reference compilers.}
 
 By default, Racket code cannot reference names bound with DSL @tech{binding classes}. To allow such references, specify a @deftech{reference compiler} for each class of bindings that should be usable in Racket code. The reference compiler is a @tech/reference{syntax transformer} that will be applied to compile the syntax including each reference.
 

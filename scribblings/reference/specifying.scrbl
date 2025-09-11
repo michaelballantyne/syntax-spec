@@ -51,7 +51,7 @@ class that has an associated binding space, the name that is looked up is
 augmented with the binding class scope in order to give it access to bindings
 defined in the space.
 
-@margin-note{See @secref["reference compilers"] for more information about reference compilers}
+@margin-note[#:footnote? #t]{See @secref["reference compilers"] for more information about reference compilers}
 
 The @racket[#:reference-compiler] option specifies a @tech{reference compiler} for controlling how
 references to variables of this binding class are treated in Racket code.
