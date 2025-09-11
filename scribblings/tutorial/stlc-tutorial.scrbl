@@ -27,7 +27,8 @@ Let's start out with defining the grammar and binding rules for basic typed expr
     x:typed-var
     n:number
 
-    (#%lambda ([x:typed-var (~datum :) t:type] ...) body:typed-expr)
+    (#%lambda ([x:typed-var (~datum :) t:type] ...)
+      body:typed-expr)
     #:binding (scope (bind x) ... body)
     (#%app fun:typed-expr arg:typed-expr ...)
 
@@ -111,20 +112,25 @@ Now let's define @racket[infer-expr-type]:
        (define f-type (infer-expr-type #'f))
        (match f-type
          [(function-type expected-arg-types return-type)
-          (unless (= (length expected-arg-types) (length (attribute arg)))
-            (raise-syntax-error 'infer-expr-type
-                                (format "arity error. expected ~a arguments, but got ~a"
-                                        (length expected-arg-types)
-                                        (length (attribute arg)))
-                                this-syntax))
+          (unless (= (length expected-arg-types)
+                     (length (attribute arg)))
+            (raise-syntax-error
+             'infer-expr-type
+             (format 
+              "arity error. expected ~a arguments, but got ~a"
+              (length expected-arg-types)
+              (length (attribute arg)))
+             this-syntax))
           (for ([expected-type expected-arg-types]
                 [arg (attribute arg)])
             (check-expr-type arg expected-type))
           return-type]
-         [_ (raise-syntax-error 'infer-expr-type
-                                (format "type mismatch. expected a function type, but got ~a"
-                                        (type->datum f-type))
-                                #'f)])]
+         [_ (raise-syntax-error
+             'infer-expr-type
+             (format
+              "type mismatch. expected a function type, but got ~a"
+              (type->datum f-type))
+             #'f)])]
       [((~datum :) e t-stx)
        (define t (parse-type #'t-stx))
        (check-expr-type #'e t)
@@ -136,19 +142,24 @@ Now let's define @racket[infer-expr-type]:
        (infer-expr-type #'body)]))
 
   (define (get-identifier-type x)
-    (symbol-table-ref types x (lambda () (raise-syntax-error #f "untyped identifier" x))))
+    (symbol-table-ref
+     types x
+     (lambda () (raise-syntax-error #f "untyped identifier" x))))
 
   (define (extend-type-environment! x t)
-    (void (symbol-table-ref types x (lambda () (symbol-table-set! types x t)))))
+    (void (symbol-table-ref
+           types x
+           (lambda () (symbol-table-set! types x t)))))
 
   (define (check-expr-type e expected-type)
     (define actual-type (infer-expr-type e))
     (unless (equal? expected-type actual-type)
-      (raise-syntax-error 'infer-expr-type
-                          (format "type mismatch. expected ~a, but got ~a"
-                                  (type->datum expected-type)
-                                  (type->datum actual-type))
-                          e)))
+      (raise-syntax-error
+       'infer-expr-type
+       (format "type mismatch. expected ~a, but got ~a"
+               (type->datum expected-type)
+               (type->datum actual-type))
+       e)))
 
   (define (parse-type t-stx)
     (syntax-parse t-stx
@@ -208,7 +219,8 @@ Finally, we can write macros for @racket[let] and @racket[lambda]:
 
 (define-stlc-syntax lambda
   (syntax-parser
-    [(_ ([x (~datum :) t] ...) body) #'(#%lambda ([x : t] ...) body)]))
+    [(_ ([x (~datum :) t] ...) body)
+     #'(#%lambda ([x : t] ...) body)]))
 
 (define-stlc-syntax let*
   (syntax-parser
@@ -307,8 +319,10 @@ Let's do it!
     (match t
       [(number-type) #'number?]
       [(function-type arg-types return-type)
-       (define/syntax-parse (arg-type-stx ...) (map type->contract-stx arg-types))
-       (define/syntax-parse return-type-stx (type->contract-stx return-type))
+       (define/syntax-parse (arg-type-stx ...)
+         (map type->contract-stx arg-types))
+       (define/syntax-parse return-type-stx
+         (type->contract-stx return-type))
        #'(-> arg-type-stx ... return-type-stx)])))
 
 (define-syntax compile-expr
@@ -346,7 +360,8 @@ Let's run some example programs now:
   1))
 (eval:error
  (stlc/expr
-  (let ([app (lambda ([f : (-> Number Number)] [x : Number]) (f x))])
+  (let ([app (lambda ([f : (-> Number Number)] [x : Number])
+               (f x))])
     (rkt (app "not a function" 1) : Number))))
 ]
 
@@ -462,7 +477,8 @@ Now let's update the rest of our code:
 (define-syntax compile-defn-or-expr/top
   (syntax-parser
     [(_ ((~datum #%define) x:id _ body))
-     #`(define x (compile-expr/top body #,(get-identifier-type #'x) #t))]
+     #`(define x (compile-expr/top
+                  body #,(get-identifier-type #'x) #t))]
     [(_ ((~datum begin) body ...+))
      #'(begin (compile-defn-or-expr/top body) ...)]
     [(_ e)
@@ -501,7 +517,8 @@ Now let's update the rest of our code:
   (syntax-parser
     [(_ x:id (~datum :) t e)
      #'(#%define x t e)]
-    [(_ (f:id [arg:id (~datum :) arg-type] ...) (~datum ->) return-type body ...)
+    [(_ (f:id [arg:id (~datum :) arg-type] ...)
+        (~datum ->) return-type body ...)
      #'(#%define f (-> arg-type ... return-type)
                  (lambda ([arg : arg-type] ...)
                    body

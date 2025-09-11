@@ -264,7 +264,8 @@ Now let's automate this process:
     (define bindings-rev '())
     (code:comment2 "Identifier rhs-expr -> Void")
     (code:comment2 "record a variable binding pair")
-    (define (lift-binding! x e) (set! bindings-rev (cons (list x e) bindings-rev)))
+    (define (lift-binding! x e)
+      (set! bindings-rev (cons (list x e) bindings-rev)))
     (define e^ (to-rhs! e lift-binding!))
     (wrap-lets e^ (reverse bindings-rev)))
 
@@ -380,7 +381,8 @@ Without pruning, this would print something, but with pruning, it would not. Our
   (define (remove-unused-vars e used-vars)
     (syntax-parse e
       [((~and let (~datum let)) ([x e]) body)
-       (define/syntax-parse body^ (remove-unused-vars #'body used-vars))
+       (define/syntax-parse body^
+         (remove-unused-vars #'body used-vars))
        (if (symbol-set-member? used-vars #'x)
            #'(let ([x e])
                body^)
@@ -406,9 +408,12 @@ Due to the nature of expansion and binding structure, some special care needs to
 (define-syntax compile-expr
   (syntax-parser
     [(_ e)
-     (define e/anf (local-expand-anf (to-anf #'e) #:should-rename? #t))
-     (define e/pruned (prune-unused-variables e/anf))
-     (define/syntax-parse e/pruned^ (local-expand-anf e/pruned #:should-rename? #t))
+     (define e/anf
+       (local-expand-anf (to-anf #'e) #:should-rename? #t))
+     (define e/pruned
+       (prune-unused-variables e/anf))
+     (define/syntax-parse e/pruned^
+       (local-expand-anf e/pruned #:should-rename? #t))
      #'(compile-anf e/pruned^)]))
 ]
 

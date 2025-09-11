@@ -260,14 +260,16 @@ When a form production's form is used outside of the context of a syntax-spec DS
                  spec-variable-id
                  (bind spec-variable-id)
                  (bind-syntax spec-variable-id spec-variable-id)
-                 (bind-syntaxes spec-variable-id ooo ... spec-variable-id)
+                 (bind-syntaxes spec-variable-id ooo ... 
+                   spec-variable-id)
                  (scope spec-or-ooo ...)
                  [spec-or-ooo ...]
                  (nest spec-variable-id ooo ... binding-spec)
                  (import spec-variable-id)
                  (export spec-variable-id)
                  (export-syntax spec-variable-id spec-variable-id)
-                 (export-syntaxes spec-variable-id ooo ... spec-variable-id)
+                 (export-syntaxes spec-variable-id ooo ...
+                   spec-variable-id)
                  (re-export spec-variable-id))
                (ooo
                  ...)
@@ -317,7 +319,8 @@ Similar to syntax patterns and templates, syntax specs and binding specs have a 
     (nonterminal my-expr
       #:allow-extension my-macro
       n:number
-      (my-let-syntaxes ([(x:my-var ...) trans:my-macro]) body:my-expr)
+      (my-let-syntaxes ([(x:my-var ...) trans:my-macro])
+        body:my-expr)
       #:binding (scope (bind-syntaxes x ... trans) body)))
   ]
   Here, @racket[trans] should evaluate to multiple transformers using @racket[values].
@@ -351,7 +354,8 @@ Similar to syntax patterns and templates, syntax specs and binding specs have a 
 
   The @racket[nest] binding spec sort of folds over the binding pairs. In this example, it'll produce binding structure like
 
-  @racketblock[[e1 (scope (bind x1) [e2 (scope (bind x2) [... [en (scope (bind xn) body)]])])]]
+  @racketblock[[e1 (scope (bind x1) [e2 (scope (bind x2)
+                          [... [en (scope (bind xn) body)]])])]]
 
   @racket[nest] does not necessarily have to be used with a sequence.
 

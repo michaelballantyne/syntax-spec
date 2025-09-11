@@ -286,6 +286,7 @@ Can only be used with simple non-terminals.
      (syntax-rules ()
        [(sqr n) (* n n)])))
   (begin-for-syntax
-    (define local-expand-arithmetic (nonterminal-expander arithmetic))
+    (define local-expand-arithmetic
+      (nonterminal-expander arithmetic))
     (displayln (local-expand-arithmetic #'(sqr 1)))))
 ]
