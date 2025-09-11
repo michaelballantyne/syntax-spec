@@ -442,7 +442,8 @@ Finally, we must implement compilation of A-normal form expressions to Racket, w
 @repl[
 (eval-expr 1)
 (eval-expr (let ([x 1]) (let ([y 2]) x)))
-(eval-expr (let ([unused (rkt (displayln "can anyone hear me?"))]) 42))
+(eval-expr (let ([unused (rkt (displayln "can anyone hear me?"))])
+  42))
 ]
 
 To summarize the key points:
