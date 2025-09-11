@@ -500,11 +500,14 @@ In our language's compiler, we can use symbol set to raise an error when a state
   ...)
 
 (begin-for-syntax
-  (define (check-for-inaccessible-states initial-state-id state-specs)
-    (define accessible-states (get-accessible-states initial-state-id state-specs))
+  (define (check-for-inaccessible-states initial-state-id
+                                         state-specs)
+    (define accessible-states
+      (get-accessible-states initial-state-id state-specs))
     (for/list ([state-spec state-specs]
-               #:unless (symbol-set-member? accessible-states
-                                            (state-spec-name state-spec)))
+               #:unless (symbol-set-member?
+                         accessible-states
+                         (state-spec-name state-spec)))
       (error 'machine "Inaccessible state: ~a"
              (syntax->datum (state-spec-name state-spec)))))
 
@@ -512,13 +515,16 @@ In our language's compiler, we can use symbol set to raise an error when a state
     (define accessible-states (local-symbol-set))
     (define (find-state-spec state-name)
       (findf (lambda (state-spec)
-               (compiled-identifier=? state-name (state-spec-name state-spec)))
+               (compiled-identifier=?
+                state-name
+                (state-spec-name state-spec)))
              state-specs))
     (define (add-reachable-states! state-name)
       (unless (symbol-set-member? accessible-states state-name)
         (symbol-set-add! accessible-states state-name)
         (define state-spec (find-state-spec state-name))
-        (for ([next-state-name (state-spec-next-state-names state-spec)])
+        (for ([next-state-name 
+               (state-spec-next-state-names state-spec)])
           (add-reachable-states! next-state-name))))
     (add-reachable-states! initial-state-id)
     accessible-states)
