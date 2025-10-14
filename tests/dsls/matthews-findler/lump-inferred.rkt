@@ -4,12 +4,12 @@
          (for-space ml (all-defined-out)))
 
 (require
-  "../../../testing.rkt"
-
+  syntax-spec-v3
+  
   (for-syntax
     racket/base 
     syntax/parse
-    (only-in "../../../private/ee-lib/main.rkt" lookup in-space)))
+    (only-in syntax-spec-v3/private/ee-lib/main lookup in-space)))
 
 (syntax-spec
   (binding-class ml-var

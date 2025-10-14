@@ -273,7 +273,7 @@ Can only be used with simple non-terminals.
 
 @examples[
 (module arithmetic racket
-  (require syntax-spec-dev)
+  (require syntax-spec-v3)
   (syntax-spec
     (extension-class arithmetic-macro)
     (nonterminal arithmetic

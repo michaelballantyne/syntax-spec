@@ -2,7 +2,7 @@
 
 (provide (all-defined-out))
 
-(require syntax-spec-dev
+(require syntax-spec-v3
          "compile.rkt" ;; New
          (for-syntax syntax/parse))
 

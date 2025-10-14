@@ -6,7 +6,7 @@
 @tex-label{doc:reference}
 
 @require[(for-label "../../main.rkt")]
-@defmodule[syntax-spec-dev]
+@defmodule[syntax-spec-v3]
 
 @local-table-of-contents[]
 
