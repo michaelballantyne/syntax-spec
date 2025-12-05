@@ -12,3 +12,5 @@ The tutorial is broken down into illustrative examples:
 @include-section["stlc-tutorial.scrbl"]
 @include-section["multipass-tutorial.scrbl"]
 @include-section["syntax-interpreter-tutorial.scrbl"]
+@include-section["miniclass-tutorial.scrbl"]
+@include-section["ocular-patdown-tutorial.scrbl"]

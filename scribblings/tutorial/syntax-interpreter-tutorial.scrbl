@@ -45,7 +45,7 @@ Here is the syntax-spec:
 
 @racketmod[
 racket
-(require syntax-spec (for-syntax syntax/parse))
+(require syntax-spec-dev (for-syntax syntax/parse))
 (syntax-spec
   (binding-class lc-var #:binding-space lc)
   (extension-class lc-macro #:binding-space lc)

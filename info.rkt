@@ -8,7 +8,7 @@
                "version-case"
                "syntax-classes-lib"
                "rackunit-lib"))
-(define build-deps '("racket-doc" "scribble-lib" "drracket" "typed-racket-lib"))
+(define build-deps '("racket-doc" "scribble-lib" "drracket" "typed-racket-lib" "ocular-patdown"))
 (define scribblings '(("scribblings/main.scrbl" (multi-page) (experimental) "syntax-spec-dev")))
 (define compile-omit-paths '("design" "demos"))
 (define test-omit-paths '("scribblings" "design" "demos"))

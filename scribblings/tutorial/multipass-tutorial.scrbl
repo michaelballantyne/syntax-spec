@@ -1,8 +1,7 @@
 #lang scribble/manual
 
 @(require (for-label racket racket/block racket/class racket/match racket/list syntax/parse "../../main.rkt")
-          scribble/example
-          racket/sandbox)
+          scribble/example)
 @(define eval (make-base-eval '(require racket (for-syntax racket))))
 @(define-syntax-rule (repl body ...) (examples #:eval eval #:label #f body ...))
 
@@ -186,7 +185,7 @@ Here is the syntax-spec of our language:
 
 @racketmod[
 racket
-(require syntax-spec (for-syntax syntax/parse racket/syntax racket/match racket/list))
+(require syntax-spec-dev (for-syntax syntax/parse racket/syntax racket/match racket/list))
 (syntax-spec
   (binding-class var
                  #:reference-compiler immutable-reference-compiler)
