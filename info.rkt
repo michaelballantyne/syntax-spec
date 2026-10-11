@@ -2,6 +2,7 @@
 
 (define name "syntax-spec-v3")
 (define collection "syntax-spec-v3")
+(define pkg-desc "A metalanguage for creating sophisticated DSLs in Racket")
 (define version "0.1")
 (define license '(Apache-2.0 OR MIT))
 (define deps '("base"
